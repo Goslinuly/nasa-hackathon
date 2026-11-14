@@ -13,6 +13,7 @@ import { DEFAULT_MAX_SLOPE, stepBlocked, TerrainSampler, walkSpeed, type BlockRe
 import { BackdropPass } from './backdrop';
 import { dataLevelLabel, siteBaseUrl, type SitePackage } from './sitePackage';
 import { TerrainChunks } from './terrainMesh';
+import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
 
 export const EYE_HEIGHT_M = 1.7;
 /** Высота, на которую камера поднимается перед переходом на шар. */
@@ -111,6 +112,7 @@ export class WalkScene {
   private clockRunning = true;
   private evaMs = 0;
   private orthoTexture: THREE.Texture;
+  private orthoHiTexture: THREE.Texture | null = null;
   private refY: number;
   private raf = 0;
   private lastFrame = performance.now();
@@ -213,7 +215,14 @@ export class WalkScene {
 
     this.orthoTexture = this.makeOrthoTexture(pkg.ortho);
     this.renderer.toneMappingExposure = WALK_EXPOSURE * orthoExposureGain(pkg.ortho);
-    const material = new THREE.MeshLambertMaterial({ map: this.orthoTexture, color: new THREE.Color('#ffc49a') });
+    const hiMeta = pkg.manifest.ortho_hi;
+    if (pkg.orthoHi && hiMeta) this.orthoHiTexture = this.makeOrthoTexture(pkg.orthoHi);
+    const material = createTerrainMaterial(
+      this.orthoTexture,
+      this.orthoHiTexture && hiMeta
+        ? { texture: this.orthoHiTexture, placement: orthoHiPlacement(pkg.manifest.bounds_eqc_m, hiMeta.bounds_eqc_m, hiMeta.blend_m) }
+        : null,
+    );
     this.terrain = new TerrainChunks(pkg.grid, pkg.frame, this.refY, material);
     this.terrain.buildAll();
     this.scene.add(this.terrain.group);
@@ -969,6 +978,7 @@ export class WalkScene {
     this.sky.dispose();
     this.backdrop?.dispose();
     this.orthoTexture.dispose();
+    this.orthoHiTexture?.dispose();
     this.sun.shadow.map?.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();

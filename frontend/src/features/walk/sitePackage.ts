@@ -1,4 +1,5 @@
-// Локальный пакет участка: manifest.json, height.png, ortho.webp, track.geojson.
+// Локальный пакет участка: manifest.json, height.png, ortho.webp, ortho_hi.webp (необязательно),
+// track.geojson.
 
 import { makeFrame, type LocalFrame } from './geo';
 import { decodeHeights, type HeightGrid } from './heightGrid';
@@ -47,6 +48,19 @@ export interface SiteManifest {
     source_channel?: { channel: 'B'; values: Record<string, string> };
   };
   ortho: { file: string; width: number; height: number; pixel_m: number };
+  /**
+   * Детальное окно снимка в родном разрешении HiRISE (0,25 м) у места старта; та же растяжка
+   * яркости, что у ortho. Альфа 0 — в окне нет HiRISE. У старых пакетов отсутствует.
+   */
+  ortho_hi?: {
+    file: string;
+    width: number;
+    height: number;
+    pixel_m: number;
+    bounds_eqc_m: [number, number, number, number];
+    product?: string;
+    blend_m?: number;
+  };
   sources?: { role: string; product: string; credit?: string }[];
   pois?: ManifestPoi[];
   track: null | { mission: string; dtm_minus_rover_m?: { median: number } | null; note?: string };
@@ -74,6 +88,8 @@ export interface SitePackage {
   frame: LocalFrame;
   grid: HeightGrid;
   ortho: ImageBitmap;
+  /** Детальный снимок (manifest.ortho_hi); null — нет в пакете или не загрузился. */
+  orthoHi: ImageBitmap | null;
   track: SiteTrack | null;
 }
 
@@ -127,10 +143,36 @@ export async function fetchManifest(site: string): Promise<SiteManifest> {
   return res.json();
 }
 
+const decodeOrtho = (blob: Blob) =>
+  createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+
+/**
+ * Детальный снимок необязателен: без него прогулка работает на базовом ortho, поэтому
+ * ошибка загрузки не валит пакет, а только оставляет null (и пишет предупреждение).
+ */
+async function loadOrthoHi(base: string, manifest: SiteManifest, signal?: AbortSignal): Promise<ImageBitmap | null> {
+  const hi = manifest.ortho_hi;
+  if (!hi) return null;
+  try {
+    const r = await fetch(base + hi.file, { signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const bitmap = await decodeOrtho(await r.blob());
+    if (bitmap.width !== hi.width || bitmap.height !== hi.height) {
+      bitmap.close();
+      throw new Error('размер не совпадает с паспортом');
+    }
+    return bitmap;
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    console.warn(`Детальный снимок ${hi.file} не загружен: ${(e as Error).message}`);
+    return null;
+  }
+}
+
 export async function loadSitePackage(site: string, signal?: AbortSignal): Promise<SitePackage> {
   const base = siteBaseUrl(site);
   const manifest = await fetchManifest(site);
-  const [heightBuf, orthoBlob, trackJson] = await Promise.all([
+  const [heightBuf, orthoBlob, trackJson, orthoHi] = await Promise.all([
     fetch(base + manifest.height.file, { signal }).then((r) => {
       if (!r.ok) throw new Error(`Высоты недоступны (${r.status})`);
       return r.arrayBuffer();
@@ -142,17 +184,19 @@ export async function loadSitePackage(site: string, signal?: AbortSignal): Promi
     manifest.track
       ? fetch(base + 'track.geojson', { signal }).then((r) => (r.ok ? r.json() : null))
       : Promise.resolve(null),
+    loadOrthoHi(base, manifest, signal),
   ]);
   const png = await decodePng(heightBuf);
   const h = manifest.height;
   if (png.width !== h.width || png.height !== h.height) {
+    orthoHi?.close();
     throw new Error('Размер height.png не совпадает с паспортом');
   }
   const grid = decodeHeights(png.data, png.channels, png.width, png.height, h.base_m, h.step_m);
-  const ortho = await createImageBitmap(orthoBlob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  const ortho = await decodeOrtho(orthoBlob);
   const frame = makeFrame(manifest.bounds_eqc_m, h.pixel_m, h.width, h.height);
   const track = trackJson && manifest.track ? parseTrack(trackJson, manifest.track.mission) : null;
-  return { manifest, frame, grid, ortho, track };
+  return { manifest, frame, grid, ortho, orthoHi, track };
 }
 
 /** Подпись уровня данных под ногами: по каналу источника, если высоты собраны из разных моделей. */

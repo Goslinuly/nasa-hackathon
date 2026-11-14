@@ -20,6 +20,9 @@ export function walkSpeed(slopeDeg: number): number {
 export const SLOPE_THRESHOLDS = [15, 20, 25] as const;
 export const DEFAULT_MAX_SLOPE = 20;
 
+/** Минимальная полубаза центральных разностей для уклона, м (как у прежней сетки 2 м). */
+export const SLOPE_HALF_BASE_M = 2;
+
 export type BlockReason = 'nodata' | 'slope' | null;
 
 /**
@@ -34,13 +37,18 @@ export function stepBlocked(targetHeight: number, targetSlopeDeg: number, hereSl
 
 /** Рельеф в локальных метрах сцены. */
 export class TerrainSampler {
-  /** Шаг сетки по земле: по x и по z. */
+  /**
+   * Полубаза разностей для уклона по земле, м: шаг сетки, но не меньше SLOPE_HALF_BASE_M.
+   * При сетке 1 м разность на соседних узлах ловила бы шум DTM (эффективное разрешение
+   * HiRISE DTM — несколько метров), а пороги уклона подобраны для базы 4 м.
+   */
   readonly dx: number;
   readonly dz: number;
 
   constructor(readonly grid: HeightGrid, readonly frame: LocalFrame) {
-    this.dx = frame.pixelM * frame.kx;
-    this.dz = frame.pixelM;
+    const half = Math.max(frame.pixelM, SLOPE_HALF_BASE_M);
+    this.dx = half * frame.kx;
+    this.dz = half;
   }
 
   /** Код источника высоты под точкой (канал B карты высот). */
