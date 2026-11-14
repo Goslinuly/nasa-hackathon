@@ -51,7 +51,7 @@ server {
 
   location @api_unreachable {
     default_type application/json;
-    return 503 '{"error":{"code":"api_unreachable","message":"API недоступен. Проверьте переменную API_HOST фронтенд-сервиса (нужен host:port без http://) и состояние backend."}}';
+    return 503 '{"error":{"code":"api_unreachable","message":"API недоступен. Проверьте переменную API_HOST фронтенд-сервиса (приватный host:port или https://публичный-домен) и состояние backend."}}';
   }
 
   location /trek/ {

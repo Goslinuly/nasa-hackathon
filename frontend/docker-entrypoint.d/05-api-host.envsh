@@ -1,5 +1,7 @@
 #!/bin/sh
 # Нормализация API_HOST: https://-адрес значит публичный домен backend (порт 443), иначе приватный host:port (порт 8000 по умолчанию).
+# Расширение .envsh, а не .sh: entrypoint образа nginx подключает такие файлы через «.»,
+# поэтому export ниже доходит до envsubst, который собирает nginx.conf из шаблона.
 
 API_SCHEME="http"
 API_HOST_NAME='$host'
@@ -11,9 +13,11 @@ case "${API_HOST}" in
     echo "  Публичный домен backend: API_HOST=https://<домен backend>.up.railway.app" >&2
     ;;
   *)
-    case "${API_HOST}" in
-      https://*) API_SCHEME="https" ;;
-    esac
+    # Схема сравнивается без учёта регистра: HTTPS://… тоже публичный домен.
+    scheme=$(printf '%s' "${API_HOST}" | sed -n 's#^\([a-zA-Z][a-zA-Z0-9+.-]*\)://.*#\1#p' | tr 'A-Z' 'a-z')
+    if [ "${scheme}" = "https" ]; then
+      API_SCHEME="https"
+    fi
     stripped=$(printf '%s' "${API_HOST}" | sed -e 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##' -e 's#/*$##')
     case "${stripped}" in
       *:[0-9]*) ;;
