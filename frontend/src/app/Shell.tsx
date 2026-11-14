@@ -4,19 +4,23 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState,
 import { REGION_MARKERS, type RegionMarker } from '@/features/globe/coverageData';
 import { MarsGlobeEngine, type HoverPoint, type LonLat, type TerrainState, type ViewState } from '@/features/globe/engine';
 import { GlobeHud } from '@/features/globe/GlobeHud';
+import { MARS_RADIUS_KM } from '@/features/globe/tiles';
 import { CoverageCard } from '@/features/coverage/CoverageCard';
 import { makeMarsPoint, type MarsPoint } from '@/shared/coordinates/mars';
 
 import { createScopedGlobeApi, type PickSlot } from './globeApi';
 import { GlobeStateContext, ValueStore, type GlobeState } from './globeState';
 import { Landing } from './Landing';
-import type { ModeContext, ModeDefinition } from './modeContract';
+import type { ExitOrigin, ModeContext, ModeDefinition } from './modeContract';
 import { MODES, VISIBLE_MODES } from './modes';
 import { formatRoute, parentRoute, parseHash, sameRoute, type ShellRoute } from './routes';
 import './shell.css';
 
 const ENTER_DELAY_MS = 250;
 const FLY_MS = 1500;
+/** Отлёт после прогулки: до ~1000 км над точкой. */
+const EXIT_ALTITUDE_SCENE = 0.3;
+const EXIT_FLY_MS = 2600;
 
 function readRoute(): ShellRoute {
   return parseHash(window.location.hash, MODES);
@@ -52,14 +56,15 @@ interface ModeHostProps {
   pick: PickSlot;
   params: Record<string, string>;
   exit(): void;
+  exitFrom(origin: ExitOrigin): void;
   openMode(id: string, params?: Record<string, string>): void;
 }
 
 /** Один открытый режим: свой GlobeApi, слои которого убираются при выходе. */
-function ModeHost({ mode, engine, pick, params, exit, openMode }: ModeHostProps) {
+function ModeHost({ mode, engine, pick, params, exit, exitFrom, openMode }: ModeHostProps) {
   const globe = useMemo(() => createScopedGlobeApi(engine, mode.id, pick), [engine, mode.id, pick]);
   useEffect(() => () => globe.release(), [globe]);
-  const context: ModeContext = { globe, params, exit, openMode };
+  const context: ModeContext = { globe, params, exit, exitFrom, openMode };
   const Panel = mode.Panel;
   return (
     <ModeErrorBoundary onExit={exit}>
@@ -109,7 +114,19 @@ export function Shell() {
   }, []);
 
   const goUp = useCallback(() => navigate(parentRoute(route)), [navigate, route]);
-  const exitMode = useCallback(() => navigate({ view: 'explore' }), [navigate]);
+  // Точка, над которой шар появится после выхода из полноэкранного режима и откуда отлетит.
+  const flyOut = useRef<ExitOrigin | null>(null);
+  const exitMode = useCallback(() => {
+    flyOut.current = null;
+    navigate({ view: 'explore' });
+  }, [navigate]);
+  const exitModeFrom = useCallback(
+    (origin: ExitOrigin) => {
+      flyOut.current = origin;
+      navigate({ view: 'explore' });
+    },
+    [navigate],
+  );
   const openMode = useCallback(
     (id: string, params: Record<string, string> = {}) => {
       if (MODES.some((m) => m.id === id)) navigate({ view: 'mode', modeId: id, params });
@@ -207,7 +224,18 @@ export function Shell() {
   useEffect(() => {
     if (!engine || !fullscreen) return;
     engine.pause();
-    return () => engine.resume();
+    return () => {
+      const from = flyOut.current;
+      flyOut.current = null;
+      if (from) {
+        // Шар сразу над той же точкой, на той же высоте, затем отлёт до обзора района.
+        void engine.flyTo(from.lon, from.lat, from.altitudeKm / MARS_RADIUS_KM, 0);
+        engine.resume();
+        void engine.flyTo(from.lon, from.lat, EXIT_ALTITUDE_SCENE, EXIT_FLY_MS);
+      } else {
+        engine.resume();
+      }
+    };
   }, [engine, fullscreen]);
 
   useEffect(() => setCollapsed(false), [activeMode?.id]);
@@ -287,6 +315,7 @@ export function Shell() {
                     pick={pick}
                     params={route.params}
                     exit={exitMode}
+                    exitFrom={exitModeFrom}
                     openMode={openMode}
                   />
                 </div>
@@ -335,6 +364,7 @@ export function Shell() {
                 pick={pick}
                 params={route.params}
                 exit={exitMode}
+                exitFrom={exitModeFrom}
                 openMode={openMode}
               />
             </div>

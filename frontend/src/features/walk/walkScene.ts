@@ -15,6 +15,8 @@ import { dataLevelLabel, siteBaseUrl, type SitePackage } from './sitePackage';
 import { TerrainChunks } from './terrainMesh';
 
 export const EYE_HEIGHT_M = 1.7;
+/** Высота, на которую камера поднимается перед переходом на шар. */
+export const ASCENT_M = 2500;
 export const TIME_SCALES = [1, 10, 60] as const;
 const TRACK_LABEL_RADIUS_M = 50;
 const FOG_DAY = new THREE.Color('#cfa47e');
@@ -100,6 +102,8 @@ export class WalkScene {
   private sky: SkyDome;
   /** Дальний план (стены кратера и т.п.), если он есть в пакете участка. */
   private backdrop: BackdropPass | null = null;
+  private ascent: { start: number; duration: number; fromPitch: number; fromYaw: number; resolve: () => void } | null = null;
+  private ascended = false;
   private hemi: THREE.HemisphereLight;
   private fog: THREE.Fog;
   private geo: SolarGeometry;
@@ -683,6 +687,49 @@ export class WalkScene {
     return this.renderer.shadowMap.enabled;
   }
 
+  /**
+   * Подъём перед выходом на шар: камера уходит вверх на ASCENT_M и разворачивается взглядом
+   * вниз. Шар потом появляется над той же точкой на той же высоте (см. exitOrigin).
+   */
+  ascend(durationMs: number): Promise<void> {
+    if (this.controls?.isLocked) this.controls.unlock();
+    this.keys.clear();
+    this.joyX = 0;
+    this.joyY = 0;
+    this.ascent?.resolve();
+    return new Promise((resolve) => {
+      // Курс к северу кратчайшим поворотом: у шара север сверху.
+      const yaw = this.camera.rotation.y;
+      const fromYaw = yaw - Math.round(yaw / (2 * Math.PI)) * 2 * Math.PI;
+      this.ascent = { start: performance.now(), duration: Math.max(1, durationMs), fromPitch: this.camera.rotation.x, fromYaw, resolve };
+      if (durationMs <= 0) this.stepAscent(performance.now() + 1);
+    });
+  }
+
+  /** Точка игрока и высота камеры над рельефом — для перехода на шар. */
+  exitOrigin(): { lon: number; lat: number; altitudeKm: number } {
+    const ll = localToLonLat(this.opts.pkg.frame, this.px, this.pz);
+    const lift = this.ascent || this.ascended ? ASCENT_M : 0;
+    return { lon: ll.lonEast, lat: ll.lat, altitudeKm: (EYE_HEIGHT_M + lift) / 1000 };
+  }
+
+  private stepAscent(now: number): void {
+    const a = this.ascent;
+    if (!a && !this.ascended) return;
+    const t = a ? Math.min(1, (now - a.start) / a.duration) : 1;
+    const e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+    this.camera.position.y += ASCENT_M * e;
+    const fromPitch = a ? a.fromPitch : -Math.PI / 2 + 0.001;
+    this.camera.rotation.x = THREE.MathUtils.lerp(fromPitch, -Math.PI / 2 + 0.001, e);
+    this.camera.rotation.y = THREE.MathUtils.lerp(a ? a.fromYaw : 0, 0, e);
+    this.camera.rotation.z = 0;
+    if (a && t >= 1) {
+      this.ascent = null;
+      this.ascended = true;
+      a.resolve();
+    }
+  }
+
   teleport(x: number, z: number): void {
     const p = this.nearestValid(x, z);
     this.px = p.x;
@@ -704,6 +751,7 @@ export class WalkScene {
     this.applyLighting();
     this.move(dt);
     this.updateCameraHeight();
+    this.stepAscent(now);
 
     this.lodTimer -= dt;
     if (this.lodTimer <= 0) {
@@ -742,6 +790,7 @@ export class WalkScene {
   };
 
   private move(dt: number): void {
+    if (this.ascent) return;
     const k = this.keys;
     const f = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) + this.joyY;
     const s = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0) + this.joyX;

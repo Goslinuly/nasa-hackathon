@@ -6,6 +6,9 @@ import { Hud } from '@/features/hud/Hud';
 import { SLOPE_THRESHOLDS } from './motion';
 import { fetchManifest, fetchSiteIndex, loadSitePackage, type SiteIndexEntry, type SitePackage } from './sitePackage';
 import { TIME_SCALES, WalkScene, type TeleportTarget, type WalkExtra } from './walkScene';
+
+/** Подъём камеры перед переходом на шар. */
+const ASCENT_MS = 1400;
 import { TimeControls } from './TimeControls';
 import { Joystick, TouchLook } from './TouchControls';
 import './walk.css';
@@ -153,8 +156,18 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   const [shadows, setShadows] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
   const [touch] = useState(() => window.matchMedia?.('(pointer: coarse)').matches ?? false);
-  const exitRef = useRef(ctx.exit);
-  exitRef.current = ctx.exit;
+  // «На глобус»: камера поднимается и смотрит вниз, затем шар отлетает от этой же точки.
+  const leaving = useRef(false);
+  const leave = () => {
+    const s = sceneRef.current;
+    if (!s) return ctx.exit();
+    if (leaving.current) return;
+    leaving.current = true;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+    void s.ascend(reduce ? 0 : ASCENT_MS).then(() => ctx.exitFrom(s.exitOrigin()));
+  };
+  const exitRef = useRef(leave);
+  exitRef.current = leave;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -194,7 +207,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
     return (
       <div className="walk-center">
         <p>WebGL недоступен: {webglError}</p>
-        <button type="button" className="walk-btn" onClick={ctx.exit}>На глобус</button>
+        <button type="button" className="walk-btn" onClick={leave}>На глобус</button>
       </div>
     );
   }
@@ -209,7 +222,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       <TimeControls scene={sceneRef.current} solar={extra?.solar ?? null} />
 
       <div className="walk-topbar">
-        <button type="button" className="walk-btn" onClick={ctx.exit}>На глобус</button>
+        <button type="button" className="walk-btn" onClick={leave}>На глобус</button>
         <button type="button" className={`walk-btn ${menu === 'teleport' ? 'is-on' : ''}`} onClick={() => setMenu(menu === 'teleport' ? 'none' : 'teleport')}>
           Перейти к точке
         </button>

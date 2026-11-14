@@ -56,12 +56,21 @@ export interface GlobeApi {
   onPick?(handler: ((point: LonLat) => void) | null): void;
 }
 
+/** Откуда уходим на шар: точка и высота камеры над ней в последний кадр режима. */
+export interface ExitOrigin {
+  lon: number;
+  lat: number;
+  altitudeKm: number;
+}
+
 export interface ModeContext {
   globe: GlobeApi;
   /** Параметры режима из адреса: `#walk/gale-boxwork` → { site: 'gale-boxwork' } и т.п. */
   params: Record<string, string>;
   /** Выйти из режима обратно в режим исследования (шар с кнопками). */
   exit(): void;
+  /** Выйти с переходом: шар появляется над этой точкой на этой высоте и плавно отлетает. */
+  exitFrom(origin: ExitOrigin): void;
   /** Открыть другой режим, например из карточки места — прогулку. */
   openMode(id: string, params?: Record<string, string>): void;
 }
