@@ -4,6 +4,7 @@ import { formatMarsPoint, makeMarsPoint, signedLongitudeDelta, type MarsPoint } 
 import type { ResearchRoute } from '@/shared/api/scienceTypes';
 import { GeologyLegend } from './GeologyLegend';
 import { GEOLOGY_DEFAULT_OPACITY, GEOLOGY_IMAGE_URL, geologyBackground, loadGeologyLegend, type GeologyLegend as Legend } from './geology';
+import { loadNomenclature, selectLabels, type Nomenclature } from './nomenclature';
 import { MAP_LAYERS, METERS_PER_DEGREE, mapTileUrl, visibleTiles } from './mapTiles';
 
 function Tile({ src, style, onFail }: { src: string; style: React.CSSProperties; onFail(): void }) {
@@ -24,6 +25,8 @@ export function MarsMap({ selected, onSelect, focus, route }: {
   const [geology, setGeology] = useState({ visible: false, opacity: GEOLOGY_DEFAULT_OPACITY });
   const [legend, setLegend] = useState<Legend | null>(null);
   const [legendError, setLegendError] = useState('');
+  const [names, setNames] = useState(true);
+  const [nomenclature, setNomenclature] = useState<Nomenclature | null>(null);
   const [coords, setCoords] = useState('0, 0');
   const [unavailable, setUnavailable] = useState<Record<string, boolean>>({});
   const [error, setError] = useState('');
@@ -36,6 +39,10 @@ export function MarsMap({ selected, onSelect, focus, route }: {
     if (!geology.visible || legend) return;
     loadGeologyLegend().then(setLegend).catch(() => setLegendError('Легенда геологии недоступна'));
   }, [geology.visible, legend]);
+  useEffect(() => {
+    if (!names || nomenclature) return;
+    loadNomenclature().then(setNomenclature).catch(() => undefined);
+  }, [names, nomenclature]);
   const ppd = 256 * 2 ** (zoom + 1) / 360;
   useEffect(() => { setUnavailable({}); }, [zoom, center.lon, center.lat]);
   const recenter = (lon: number, lat: number) => setCenter({ lon: ((lon + 180) % 360 + 360) % 360 - 180, lat: Math.max(-90, Math.min(90, lat)) });
@@ -71,6 +78,10 @@ export function MarsMap({ selected, onSelect, focus, route }: {
         <label className="layer-opacity">Непрозрачность <input aria-label={'Непрозрачность ' + layer.id} type="range" min="0" max="1" step="0.05" value={layer.opacity} onChange={e => updateLayer(layer.id, { opacity: +e.target.value })} /></label>
         <div className="layer-actions"><a href={layer.url} target="_blank" rel="noreferrer">Источник ↗</a><button disabled={i === 0} onClick={() => setLayers(value => { const next = [...value]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; return next; })}>Выше ↑</button></div>
       </article>)}
+      <article className="map-layer">
+        <label><input type="checkbox" checked={names} onChange={e => setNames(e.target.checked)} />Названия · IAU</label>
+        <small>Подписи появляются по мере приближения; точечные объекты — на крупных масштабах</small>
+      </article>
       <article className="map-layer">
         <label><input type="checkbox" checked={geology.visible} onChange={e => setGeology(g => ({ ...g, visible: e.target.checked }))} />Геология · карта SIM 3292</label>
         <small>Производный растр из векторной публикации USGS; обзор планеты целиком, без деталей масштаба участка</small>
@@ -116,6 +127,8 @@ export function MarsMap({ selected, onSelect, focus, route }: {
             backgroundPosition: `${g.left}px ${g.top}px`, backgroundRepeat: g.wrapsLongitude ? 'repeat-x' : 'no-repeat' }} />;
         })()}
         <svg className="map-overlay" width={size.width} height={size.height}>
+          {names && nomenclature && selectLabels(nomenclature.features, { centerLon: center.lon, centerLat: center.lat, pixelsPerDegree: ppd, width: size.width, height: size.height })
+            .map(label => <text key={label.name} className={label.major ? 'map-name major' : 'map-name'} x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle">{label.name}</text>)}
           {routeCoords.slice(1).map((p, i) => {
             const a = project(...routeCoords[i]), b = project(...p);
             if (Math.abs(b[0] - a[0]) > 180 * ppd) return null;
@@ -127,7 +140,7 @@ export function MarsMap({ selected, onSelect, focus, route }: {
         </div>
         <div className="map-badge">{active?.title ?? (pending ? pending.title : 'Слои выключены')}<br />{active && unavailable[active.id] ? `Источник не отвечает — показана ${layers.find(l => l.id !== active.id)?.title ?? 'обзорная мозаика'}` : pending && !active ? `Появится с z${pending.minZoom}: источник не отдаёт такую область целиком` : active && zoom > active.nativeZoom ? `Увеличение пикселей: новых деталей нет (${active.resolution} м/пикс)` : 'Архивная карта · покрытие зависит от участка'}{pending && active ? <><br />{`${pending.title} — с z${pending.minZoom}`}</> : null}</div>
         <div className="map-scale"><span style={{ width: 120 }} />≈{scale >= 1000 ? `${(scale / 1000).toFixed(1)} км` : `${scale.toFixed(1)} м`} на широте центра</div>
-        <div className="map-credit">{[...layers.filter(l => l.visible && l.opacity > 0).map(l => l.credit), ...(geology.visible && geology.opacity > 0 ? ['Геология: ' + (legend?.credit ?? 'USGS SIM 3292, Tanaka et al. (2014)')] : [])].join(' / ')}</div>
+        <div className="map-credit">{[...layers.filter(l => l.visible && l.opacity > 0).map(l => l.credit), ...(names && nomenclature ? ['Названия: ' + nomenclature.credit] : []), ...(geology.visible && geology.opacity > 0 ? ['Геология: ' + (legend?.credit ?? 'USGS SIM 3292, Tanaka et al. (2014)')] : [])].join(' / ')}</div>
       </div>
       <div className="map-panner" role="button" tabIndex={0} aria-label="Обзор Марса: клик перемещает центр; Enter — вся планета" onKeyDown={e => { if (e.key === 'Enter') { recenter(0, 0); setZoom(0); } }} onClick={event => { const b = event.currentTarget.getBoundingClientRect(); recenter((event.clientX - b.left) / b.width * 360 - 180, 90 - (event.clientY - b.top) / b.height * 180); }}>
         {[0, 1].map(x => <img key={x} src={mapTileUrl('viking', 0, x, 0)} alt="" draggable={false} />)}

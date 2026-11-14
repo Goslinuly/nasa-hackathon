@@ -30,3 +30,4 @@
 .atlas-header nav a[aria-current=page]{color:var(--accent)}
 
 .map-geology{position:absolute;inset:0;pointer-events:none}.geology-legend{margin-top:10px;font-size:10px;color:var(--dim)}.geology-legend summary{cursor:pointer}.geology-legend ul{list-style:none;margin:8px 0;padding:0;max-height:220px;overflow-y:auto}.geology-legend li{display:flex;gap:6px;align-items:baseline;line-height:1.5;margin-bottom:4px}.geology-legend i{flex:none;width:12px;height:12px;border:1px solid var(--hairline);border-radius:2px}.geology-legend a{color:var(--accent)}
+.map-name{fill:#e8edf5;font-size:11px;font-family:var(--font-mono);paint-order:stroke;stroke:#05070bcc;stroke-width:3px;stroke-linejoin:round}.map-name.major{font-size:12px;letter-spacing:.14em;fill:#ffffff}
