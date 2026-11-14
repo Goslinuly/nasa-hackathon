@@ -82,6 +82,7 @@ Sources for planned features (Mars time, space weather, weather archives) are li
 - [Деплой на Railway без CLI](docs/DEPLOY_RAILWAY.md)
 - [Рельеф мест из «Марсианина» в Blender](docs/BLENDER_TERRAIN.md)
 - [Переход с глобуса в вид от первого лица и экран выхода](docs/TZ_First_Person.md)
+- [Черновик страницы проекта для Space Apps](docs/SPACE_APPS_PROJECT.md)
 
 ## Team
 
