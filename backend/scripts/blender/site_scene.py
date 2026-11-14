@@ -62,6 +62,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--glb-step", type=int, default=4, help="шаг сетки GLB в пикселях (4 × 2 м = 8 м)")
     p.add_argument("--glb-texture", type=int, default=2048, help="размер текстуры в GLB, px")
     p.add_argument("--no-glb", action="store_true")
+    p.add_argument("--backdrop", type=Path, default=None,
+                   help="обзорная модель вокруг участка (например galecode.glb): горизонт, стены кратера")
+    p.add_argument("--backdrop-calib", type=Path, default=None,
+                   help="калибровка подложки; по умолчанию backend/scripts/blender/backdrops/<имя>.json")
+    p.add_argument("--backdrop-feather-km", type=float, default=4.0, help="ширина плавного перехода к HiRISE, км")
+    p.add_argument("--backdrop-glb-step", type=int, default=5, help="шаг сетки GLB подложки в узлах (5 × 200 м = 1 км)")
     return p.parse_args(argv)
 
 
@@ -376,6 +382,161 @@ def export_glb(pkg: dict, args: argparse.Namespace, out: Path, material: bpy.typ
     return path
 
 
+# ---------- подложка: обзорный рельеф вокруг участка ----------
+
+BACKDROP_DIR = Path(__file__).resolve().parent / "backdrops"
+BACKDROP_GAP_M = 3.0  # подложка у края участка на столько ниже HiRISE: без мерцания на стыке
+BACKDROP_INNER_DROP_M = 8.0  # узлы под участком прячем глубже
+
+
+def heights_at(pkg: dict, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """height_at для массивов: высота HiRISE над base_m в ближайшем узле (NaN вне данных)."""
+    hts = pkg["heights"]
+    rows, cols = hts.shape
+    col = np.clip(np.rint(x / (pkg["pixel_m"] * pkg["kx"]) + cols / 2 - 0.5), 0, cols - 1).astype(int)
+    row = np.clip(np.rint(-y / pkg["pixel_m"] + rows / 2 - 0.5), 0, rows - 1).astype(int)
+    return hts[row, col] - pkg["manifest"]["height"]["base_m"]
+
+
+def load_backdrop_grid(path: Path) -> tuple[np.ndarray, float, float, float]:
+    """Импорт GLB и восстановление регулярной сетки: G[строка с юга, столбец с запада], шаг, центр."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=str(path))
+    new = [o for o in bpy.data.objects if o not in before]
+    meshes = [o for o in new if o.type == "MESH"]
+    if not meshes:
+        raise SystemExit(f"В {path} нет меша")
+    src = max(meshes, key=lambda o: len(o.data.vertices))
+    co = np.empty(len(src.data.vertices) * 3, dtype=np.float32)
+    src.data.vertices.foreach_get("co", co)  # координаты меша, без трансформа узла
+    co = co.reshape(-1, 3).astype(np.float64)
+    for o in new:
+        bpy.data.objects.remove(o)
+    n = int(round(math.sqrt(len(co))))
+    if n * n != len(co):
+        raise SystemExit(f"Подложка {path.name}: {len(co)} вершин — это не квадратная регулярная сетка")
+    x0, x1 = co[:, 0].min(), co[:, 0].max()
+    y0, y1 = co[:, 1].min(), co[:, 1].max()
+    step = (x1 - x0) / (n - 1)
+    i = np.rint((co[:, 0] - x0) / step).astype(int)
+    k = np.rint((co[:, 1] - y0) / step).astype(int)
+    g = np.full((n, n), np.nan)
+    g[k, i] = co[:, 2]
+    if np.isnan(g).any():
+        raise SystemExit(f"Подложка {path.name}: сетка с пропусками, калибровка не подходит")
+    return g, step, (x0 + x1) / 2, (y0 + y1) / 2
+
+
+def build_backdrop(pkg: dict, args: argparse.Namespace) -> tuple[dict, bpy.types.Object, dict]:
+    calib_path = args.backdrop_calib or BACKDROP_DIR / f"{args.backdrop.stem}.json"
+    if not calib_path.exists():
+        raise SystemExit(f"Нет калибровки {calib_path}: без неё неизвестны масштаб, место и преувеличение подложки")
+    cal = json.loads(calib_path.read_text(encoding="utf-8"))
+    g, step, cxu, cyu = load_backdrop_grid(args.backdrop)
+    n = g.shape[0]
+
+    # Узлы сетки → широта/долгота (калибровка по MOLA) → локальные метры участка.
+    km = cal["horizontal_km_per_unit"]
+    clat, clon = cal["center"]["lat"], cal["center"]["lon_east"]
+    u = np.arange(n) * step + (cxu - (n - 1) / 2 * step)
+    dx_m = (u - cxu) * km * 1000.0
+    dy_m = dx_m.copy()  # квадратная сетка, тот же шаг на север
+    DX, DY = np.meshgrid(dx_m, dy_m)  # строки — с юга на север
+    lat = clat + np.degrees(DY / MARS_R)
+    lon = clon + np.degrees(DX / (MARS_R * math.cos(math.radians(clat))))
+    west, south, east, north = pkg["manifest"]["bounds_eqc_m"]
+    lon_w = ((lon + 180) % 360) - 180
+    X = (MARS_R * np.radians(lon_w) - (west + east) / 2) * pkg["kx"]
+    Y = MARS_R * np.radians(lat) - (south + north) / 2
+    base = pkg["manifest"]["height"]["base_m"]
+    Z = cal["vertical_m_per_unit"] * g + cal["vertical_offset_m"] - base  # рельеф ×1, метры над base_m
+
+    # Шов: у края участка подложка = HiRISE − зазор, дальше плавно к своим высотам.
+    rows, cols = pkg["heights"].shape
+    hw = cols * pkg["pixel_m"] * pkg["kx"] / 2
+    hh = rows * pkg["pixel_m"] / 2
+    px, py = np.clip(X, -hw, hw), np.clip(Y, -hh, hh)
+    dist = np.hypot(X - px, Y - py)
+    feather = args.backdrop_feather_km * 1000.0
+    near = dist < feather
+    inside = dist == 0
+    # Высота подложки в ближайшей точке края: из её же сетки, билинейно.
+    def backdrop_z(qx: np.ndarray, qy: np.ndarray) -> np.ndarray:
+        qlat = np.degrees((qy + (south + north) / 2) / MARS_R)
+        qlon = np.degrees((qx / pkg["kx"] + (west + east) / 2) / MARS_R)
+        fi = np.radians(qlon - ((clon + 180) % 360 - 180)) * MARS_R * math.cos(math.radians(clat)) / (km * 1000 * step) + (n - 1) / 2
+        fk = np.radians(qlat - clat) * MARS_R / (km * 1000 * step) + (n - 1) / 2
+        i0 = np.clip(np.floor(fi).astype(int), 0, n - 2)
+        k0 = np.clip(np.floor(fk).astype(int), 0, n - 2)
+        ti, tk = fi - i0, fk - k0
+        gg = (g[k0, i0] * (1 - ti) * (1 - tk) + g[k0, i0 + 1] * ti * (1 - tk)
+              + g[k0 + 1, i0] * (1 - ti) * tk + g[k0 + 1, i0 + 1] * ti * tk)
+        return cal["vertical_m_per_unit"] * gg + cal["vertical_offset_m"] - base
+    delta = np.zeros_like(Z)
+    edge_h = heights_at(pkg, px[near], py[near])
+    delta[near] = np.nan_to_num(edge_h - backdrop_z(px[near], py[near]) - BACKDROP_GAP_M)
+    t = np.clip(1 - dist / feather, 0, 1)
+    w = t * t * (3 - 2 * t)  # smoothstep
+    Z = Z + delta * w
+    Z[inside] = heights_at(pkg, X[inside], Y[inside]) - BACKDROP_INNER_DROP_M
+    edge_stats = {
+        "edge_delta_median_m": float(np.median(delta[near & (dist < 300)])) if (near & (dist < 300)).any() else None,
+        "feather_km": args.backdrop_feather_km,
+    }
+
+    mat = bpy.data.materials.new("backdrop_overview")
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes.get("Principled BSDF")
+    bsdf.inputs["Base Color"].default_value = (0.42, 0.24, 0.14, 1.0)
+    bsdf.inputs["Roughness"].default_value = 1.0
+    obj = grid_object(f"{args.site}_backdrop", X, Y, Z, ~inside, 1, mat)
+    info = {"file": args.backdrop.name, "calibration": calib_path.name, "pixel_m": cal.get("pixel_m"),
+            "credit": cal.get("credit"), **edge_stats}
+    return {"X": X, "Y": Y, "Z": Z, "keep": ~inside, "mat": mat}, obj, info
+
+
+def grid_object(name: str, X: np.ndarray, Y: np.ndarray, Z: np.ndarray, keep: np.ndarray, every: int,
+                material: bpy.types.Material) -> bpy.types.Object:
+    """Меш из регулярной сетки; квадраты, у которых все 4 узла вне keep, выбрасываются."""
+    X, Y, Z, keep = X[::every, ::every], Y[::every, ::every], Z[::every, ::every], keep[::every, ::every]
+    rows, cols = X.shape
+    verts = np.stack([X, Y, Z], axis=-1).reshape(-1, 3)
+    i = np.arange(rows * cols).reshape(rows, cols)
+    a, b, c, d = i[:-1, :-1], i[:-1, 1:], i[1:, 1:], i[1:, :-1]  # строки идут с юга на север
+    ok = keep[:-1, :-1] | keep[:-1, 1:] | keep[1:, 1:] | keep[1:, :-1]
+    quads = np.stack([a[ok], b[ok], c[ok], d[ok]], axis=-1)
+    mesh = bpy.data.meshes.new(name)
+    mesh.vertices.add(len(verts))
+    mesh.vertices.foreach_set("co", verts.astype(np.float32).ravel())
+    nq = len(quads)
+    mesh.loops.add(nq * 4)
+    mesh.loops.foreach_set("vertex_index", quads.astype(np.int32).ravel())
+    mesh.polygons.add(nq)
+    mesh.polygons.foreach_set("loop_start", np.arange(0, nq * 4, 4, dtype=np.int32))
+    mesh.polygons.foreach_set("loop_total", np.full(nq, 4, dtype=np.int32))
+    mesh.polygons.foreach_set("use_smooth", np.ones(nq, dtype=bool))
+    mesh.update(calc_edges=True)
+    mesh.validate()
+    mesh.materials.append(material)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.scene.collection.objects.link(obj)
+    return obj
+
+
+def export_backdrop_glb(grid: dict, args: argparse.Namespace, out: Path) -> Path:
+    obj = grid_object(f"{args.site}_backdrop_glb", grid["X"], grid["Y"], grid["Z"], grid["keep"],
+                      args.backdrop_glb_step, grid["mat"])
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    path = out / f"{args.site}_backdrop.glb"
+    bpy.ops.export_scene.gltf(filepath=str(path), export_format="GLB", use_selection=True, export_yup=True,
+                              export_apply=True, export_normals=True, export_draco_mesh_compression_enable=True,
+                              export_draco_mesh_compression_level=7, export_lights=False, export_cameras=False)
+    bpy.data.objects.remove(obj)
+    return path
+
+
 # ---------- main ----------
 
 
@@ -398,11 +559,19 @@ def main() -> None:
     sun = read_sun(args)
     material = make_material(pkg)
     terrain = build_terrain(pkg, args.step, args.vexag, args.site, material)
+    backdrop_grid, backdrop_info = None, None
+    if args.backdrop:
+        if args.vexag != 1.0:
+            raise SystemExit("Подложка ставится только с --vexag 1")
+        backdrop_grid, _, backdrop_info = build_backdrop(pkg, args)
+        print(f"Подложка: {backdrop_info}")
     setup_light(sun, args.sky_hdr)
 
     scale_note = "рельеф ×1" if args.vexag == 1 else f"рельеф ×{args.vexag:g} (преувеличен)"
     caption = (f"{m['title']} · {dtm.get('product', 'HiRISE DTM')} · {dtm.get('credit', 'NASA/JPL/UArizona, USGS')}"
                f" · {scale_note} · снимок тонирован · {sun['label']}")
+    if backdrop_info:
+        caption += f" · дальний план: обзорный рельеф ~{backdrop_info['pixel_m']} м/пикс, без снимка"
     setup_render(args, caption)
 
     renders = []
@@ -414,6 +583,8 @@ def main() -> None:
         for hdg in headings(args.headings, sun):
             name = f"{args.site}_{vid}_{int(round(hdg)):03d}"
             cam = add_camera(name, x, y, ground * args.vexag + EYE_HEIGHT_M, hdg)
+            if backdrop_grid is not None:
+                cam.data.clip_end = 300_000  # до противоположной стены кратера
             if not args.no_render:
                 scene.camera = cam
                 scene.render.filepath = str(out / f"{name}.png")
@@ -425,6 +596,10 @@ def main() -> None:
     if not args.no_glb:
         glb = export_glb(pkg, args, out, material)
         print(f"GLB: {glb} ({glb.stat().st_size / 1e6:.1f} МБ)")
+        if backdrop_grid is not None:
+            bglb = export_backdrop_glb(backdrop_grid, args, out)
+            backdrop_info["glb"] = bglb.name
+            print(f"GLB подложки: {bglb} ({bglb.stat().st_size / 1e6:.1f} МБ)")
 
     bpy.ops.wm.save_as_mainfile(filepath=str(out / f"{args.site}.blend"))
     report = {
@@ -442,6 +617,7 @@ def main() -> None:
         "products": [s.get("product") for s in m.get("sources", [])],
         "tint_note": "HiRISE RED — яркость; цвет тонирован, не естественный",
         "terrain_faces": len(terrain.data.polygons),
+        "backdrop": backdrop_info,
     }
     (out / f"{args.site}_scene.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Готово: {out}")

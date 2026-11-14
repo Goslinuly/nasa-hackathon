@@ -1,0 +1,20 @@
+{
+  "file": "galecode.glb",
+  "sha256": "caf9dfb63024c409adc094319a79aaca503468bc730e90f93febb753d9939ebd",
+  "description": "Кратер Гейла целиком (модель Жанель): регулярная сетка 1250 × 1250, шаг 0,2 ед.",
+  "grid": "в сетке меша: X — восток, Y — север (glTF −Z), Z — вверх; трансформ узла (scale 0.66) не используется",
+  "horizontal_km_per_unit": 1.0,
+  "center": { "lat": -5.4, "lon_east": 137.8 },
+  "vertical_m_per_unit": 386.81,
+  "vertical_offset_m": -4585.4,
+  "vertical_exaggeration_in_file": 2.585,
+  "pixel_m": 200,
+  "calibration": {
+    "method": "подбор центра, масштаба и поворота по максимуму корреляции с MOLA MEGDR 8 px/deg (frontend/public/data/globe), затем линейная регрессия высот",
+    "correlation": 0.9934,
+    "rotation_deg": 0,
+    "height_residual_std_m": 146.5,
+    "boxwork_check": "после калибровки кратер выше HiRISE boxwork на ~60 м (медиана), разброс по краю ±30 м; site_scene.py снимает это сдвигом и плавным переходом 4 км"
+  },
+  "credit": "Обзорный рельеф кратера Гейла (~200 м/пикс), подготовлен командой по глобальным данным MOLA/HRSC; масштаб проверен по MOLA MEGDR (NASA/GSFC MOLA Science Team)"
+}
