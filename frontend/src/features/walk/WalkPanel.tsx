@@ -220,6 +220,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   const [teleports, setTeleports] = useState<TeleportTarget[]>([]);
   const [menu, setMenu] = useState<'none' | 'settings' | 'teleport'>('none');
   const [shadows, setShadows] = useState(true);
+  const [groundDetail, setGroundDetail] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
   const [touch] = useState(() => window.matchMedia?.('(pointer: coarse)').matches ?? false);
   const [arrive] = useState(() => peekArrival(pkg.manifest.id));
@@ -263,6 +264,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
     clearArrival();
     setTeleports([...scene.teleports]);
     setShadows(scene.shadows);
+    setGroundDetail(scene.groundDetailEnabled);
     return () => {
       sceneRef.current = null;
       scene.dispose();
@@ -339,6 +341,11 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
             <input type="checkbox" checked={shadows} onChange={(e) => { s?.setShadows(e.target.checked); setShadows(e.target.checked); }} />
             <span>Тени от рельефа</span>
           </label>
+          <label className="walk-menu-row">
+            <input type="checkbox" checked={groundDetail} onChange={(e) => { s?.setGroundDetail(e.target.checked); setGroundDetail(e.target.checked); }} />
+            <span>Художественная детализация грунта (не данные)</span>
+          </label>
+          <p className="walk-muted">Процедурная фактура песка и камешков у ног, затухает к 60 м. Это не снимок и не DTM: настоящие детали мельче пикселя снимка неизвестны.</p>
           {state?.vehicle !== 'walk' && (
             <p className="walk-muted">
               Ровер Perseverance (модель NASA). Скорость в сцене {ROVER_SPEED_MS.toFixed(1).replace('.', ',')} м/с: это примерно в{' '}
@@ -349,7 +356,10 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
             Скорость ходьбы задаёт симуляция: V = −0,01·θ + 0,75 м/с по модели выходов Apollo, но не меньше 0,1 м/с.
             {extra ? ` Сейчас ${extra.speedMs.toFixed(2).replace(".", ",")} м/с.` : ''}
           </p>
-          <p className="walk-muted">Кадров в секунду: {extra ? Math.round(extra.fps) : '—'}</p>
+          <p className="walk-muted">
+            Кадров в секунду: {extra ? Math.round(extra.fps) : '—'}
+            {extra && extra.renderScale < 1 ? ` · разрешение снижено до ${Math.round(extra.renderScale * 100)} % ради плавности` : ''}
+          </p>
         </div>
       )}
 

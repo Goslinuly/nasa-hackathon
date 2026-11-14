@@ -13,6 +13,8 @@ import { DEFAULT_MAX_SLOPE, stepBlocked, TerrainSampler, walkSpeed, type BlockRe
 import { BackdropPass } from './backdrop';
 import { dataLevelLabel, siteBaseUrl, type SitePackage } from './sitePackage';
 import { MAST_HEIGHT_M, RoverRig } from './roverRig';
+import { applyGroundDetail, type GroundDetail } from './terrainDetail';
+import { QualityGovernor } from './quality';
 import { TerrainChunks } from './terrainMesh';
 import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
 
@@ -75,6 +77,8 @@ export interface SolarState {
 
 export interface WalkExtra {
   fps: number;
+  /** Доля разрешения рендера от автокачества: 1 — полное. */
+  renderScale: number;
   blocked: BlockReason;
   blockedSlopeDeg: number;
   speedMs: number;
@@ -152,6 +156,7 @@ export class WalkScene {
   private evaMs = 0;
   private orthoTexture: THREE.Texture;
   private orthoHiTexture: THREE.Texture | null = null;
+  private groundDetail: GroundDetail;
   private refY: number;
   private raf = 0;
   private lastFrame = performance.now();
@@ -193,6 +198,10 @@ export class WalkScene {
   private fpsFrames = 0;
   private fpsTime = 0;
   private fps = 0;
+  private lastFrameAt = 0;
+  /** Автокачество: доля разрешения по частоте кадров (quality.ts). */
+  private quality = new QualityGovernor();
+  private basePixelRatio = 1;
 
   private tmp = new THREE.Vector3();
   private sunDir = new THREE.Vector3(0, 1, 0);
@@ -211,7 +220,8 @@ export class WalkScene {
     this.refY = pkg.manifest.height.base_m;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, opts.touch ? 1.25 : 1.5));
+    this.basePixelRatio = Math.min(window.devicePixelRatio, opts.touch ? 1.25 : 1.5);
+    this.renderer.setPixelRatio(this.basePixelRatio);
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.shadowMap.enabled = !opts.touch;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -262,6 +272,7 @@ export class WalkScene {
         ? { texture: this.orthoHiTexture, placement: orthoHiPlacement(pkg.manifest.bounds_eqc_m, hiMeta.bounds_eqc_m, hiMeta.blend_m) }
         : null,
     );
+    this.groundDetail = applyGroundDetail(material);
     this.terrain = new TerrainChunks(pkg.grid, pkg.frame, this.refY, material);
     this.terrain.buildAll();
     this.scene.add(this.terrain.group);
@@ -751,6 +762,16 @@ export class WalkScene {
     return this.renderer.shadowMap.enabled;
   }
 
+  /** Художественная процедурная фактура грунта у ног (не данные), см. terrainDetail.ts. */
+  setGroundDetail(on: boolean): void {
+    this.groundDetail.setEnabled(on);
+    this.emitState(true);
+  }
+
+  get groundDetailEnabled(): boolean {
+    return this.groundDetail.enabled;
+  }
+
   /**
    * Подъём перед выходом на шар: камера уходит вверх на ASCENT_M и разворачивается взглядом
    * вниз и на север. Шар потом появляется над той же точкой на той же высоте (см. exitOrigin).
@@ -891,7 +912,14 @@ export class WalkScene {
       this.fps = this.fpsFrames / this.fpsTime;
       this.fpsFrames = 0;
       this.fpsTime = 0;
+      // Кадр дольше 0,1 с — вкладка была скрыта или шла загрузка: такой замер не считаем.
+      if (now - this.lastFrameAt > 100) this.quality.reset();
+      else if (this.quality.sample(this.fps)) {
+        // Не ниже 0,75 физического пикселя на CSS-пиксель, чтобы текст и линии не рассыпались.
+        this.renderer.setPixelRatio(Math.max(0.75, this.basePixelRatio * this.quality.scale));
+      }
     }
+    this.lastFrameAt = now;
     if (this.blocked && now - this.blockedAt > 1200) this.blocked = null;
     this.stateTimer -= dt;
     if (this.stateTimer <= 0) this.emitState(true);
@@ -1081,9 +1109,11 @@ export class WalkScene {
       evaSeconds: this.evaMs / 1000,
       maxSlopeDeg: this.maxSlopeDeg,
       vehicle: this.vehicle,
+      groundDetail: this.groundDetail.enabled,
     };
     this.opts.onState(state, {
       fps: this.fps,
+      renderScale: this.quality.scale,
       blocked: this.blocked,
       blockedSlopeDeg: this.blockedSlopeDeg,
       speedMs: this.speedMs,

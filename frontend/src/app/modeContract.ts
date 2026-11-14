@@ -135,6 +135,8 @@ export interface WalkState {
   maxSlopeDeg: number;
   /** Чем перемещаемся: ровер (вид с мачты) или пешком (скафандр). */
   vehicle?: 'rover' | 'walk';
+  /** Включена художественная (процедурная, не из данных) фактура грунта у ног. */
+  groundDetail?: boolean;
 }
 
 export function modeIsFullscreen(mode: ModeDefinition | null | undefined, params: Record<string, string>): boolean {

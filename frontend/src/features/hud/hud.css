@@ -56,6 +56,8 @@
 .walk-hud .hud-row + .hud-row { margin-top: 1px; }
 .walk-hud .hud-label { color: #9fc3dc; }
 .walk-hud .hud-value { color: #f4fbff; overflow: hidden; text-overflow: ellipsis; }
+/* Подпись данных под ногами («… + худ. детализация») не обрезается многоточием, а переносится. */
+.walk-hud .hud-tl .hud-value { white-space: normal; }
 .walk-hud .hud-row--warn .hud-value { color: #ffd166; }
 .walk-hud .hud-row--danger .hud-value { color: #ff6b5a; }
 
