@@ -41,6 +41,7 @@ Every dataset added to the project is listed here with its source and credit, as
 - [Ресурсы, источники информации и базы данных в Word](docs/RESOURCES.docx)
 - [Деплой на Railway без CLI](docs/DEPLOY_RAILWAY.md)
 - [Рельеф мест из «Марсианина» в Blender](docs/BLENDER_TERRAIN.md)
+- [Переход с глобуса в вид от первого лица и экран выхода](docs/TZ_First_Person.md)
 
 ## Team
 
