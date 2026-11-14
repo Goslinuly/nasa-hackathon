@@ -43,7 +43,7 @@ function Candle({ lit }: { lit: boolean }) {
   );
 }
 
-export default function MemorialPanel({ globe, exit }: ModeContext) {
+export default function MemorialPanel({ globe }: ModeContext) {
   const [data, setData] = useState<MissionsFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -104,15 +104,11 @@ export default function MemorialPanel({ globe, exit }: ModeContext) {
 
   return (
     <aside className="mm-panel" aria-label="Памятные места">
-      <header className="mm-head">
-        <h2>Памятные места</h2>
-        <div className="mm-head-actions">
-          <button type="button" className={`mm-music${music ? ' is-on' : ''}`} onClick={toggleMusic} aria-pressed={music}>
-            {music ? '♪ Музыка: вкл' : '♪ Музыка'}
-          </button>
-          <button type="button" className="mm-close" onClick={exit} aria-label="Закрыть">×</button>
-        </div>
-      </header>
+      <div className="mm-head-actions">
+        <button type="button" className={`mm-music${music ? ' is-on' : ''}`} onClick={toggleMusic} aria-pressed={music}>
+          {music ? '♪ Музыка: вкл' : '♪ Музыка'}
+        </button>
+      </div>
 
       <p className="mm-dim">
         Аппараты, которые закончили работу на поверхности Марса. Они остаются там, где замолчали.

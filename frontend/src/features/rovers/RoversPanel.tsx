@@ -18,7 +18,7 @@ import './rovers.css';
 const LINES = 'traverses';
 const MARKERS = 'positions';
 
-export default function RoversPanel({ globe, openMode, exit }: ModeContext) {
+export default function RoversPanel({ globe, openMode }: ModeContext) {
   const [data, setData] = useState<RoversData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -68,10 +68,6 @@ export default function RoversPanel({ globe, openMode, exit }: ModeContext) {
 
   return (
     <aside className="rv-panel" aria-label="Маршруты роверов">
-      <header className="rv-head">
-        <h2>Маршруты роверов</h2>
-        <button type="button" className="rv-close" onClick={exit} aria-label="Закрыть">×</button>
-      </header>
 
       {error && <p className="rv-error">Данные не загрузились: {error}</p>}
       {!data && !error && <p className="rv-dim">Загружаю треки…</p>}

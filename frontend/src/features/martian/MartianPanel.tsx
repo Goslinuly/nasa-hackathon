@@ -18,7 +18,7 @@ function latLon(stop: RouteStop): string {
   return `${Math.abs(stop.lat).toFixed(3)}° ${ns}, ${stop.lon.toFixed(3)}° в. д.`;
 }
 
-export default function MartianPanel({ globe, openMode, exit }: ModeContext) {
+export default function MartianPanel({ globe, openMode }: ModeContext) {
   const [route, setRoute] = useState<RouteFile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -86,10 +86,6 @@ export default function MartianPanel({ globe, openMode, exit }: ModeContext) {
 
   return (
     <aside className="mt-panel" aria-label="Маршрут „Марсианина“">
-      <header className="mt-head">
-        <h2>Маршрут „Марсианина“</h2>
-        <button type="button" className="mt-close" onClick={exit} aria-label="Закрыть">×</button>
-      </header>
 
       {error && <p className="mt-warn">Маршрут не загрузился: {error}</p>}
       {!route && !error && <p className="mt-dim">Загружаю маршрут…</p>}
