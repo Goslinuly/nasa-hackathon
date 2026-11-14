@@ -30,7 +30,7 @@ Martian Map is a web map for planning a Marswalk. It starts from a 3D globe of M
 
 - **Main screen.** A 3D Mars globe sits in the background of the landing page. «Explore Mars» flies the camera in, and mode buttons appear on the globe: build a route, first-person walk, rover routes, The Martian route, memorial, 2D atlas, layers. Every mode has its own link (`#rovers`, `#walk/gale-boxwork`, …).
 - **Layered globe and atlas.** Natural colour (Viking MDIM 2.1), relief and hypsometry (HRSC + MOLA), THEMIS day and night infrared, CTX 5 m and HiRISE 0.25 m imagery, the USGS geologic map (SIM 3292) with a legend, and 1897 official feature names. For any point the map says what data exists there.
-- **Route planner A → B.** Works for any two points on Mars. Overview routing on MOLA, and on detailed terrain where it exists. Edge cost is the oxygen the astronaut spends: suit walking speed and metabolic cost depend on slope, ground type comes from TES thermal inertia, and very rough ground is excluded. The planner can route through science stops. It shows an elevation profile, time and oxygen corridors, the return rule with a 30 min reserve, slope thresholds with their origin, and the data level of each part of the route.
+- **Route planner A → B.** Works for any two points on Mars. Overview routing on MOLA, and on detailed terrain where it exists. Edge cost is the oxygen the astronaut spends: suit walking speed and metabolic cost depend on slope, ground type comes from TES thermal inertia, and very rough ground is excluded. The planner can route through science stops. It shows an elevation profile, time and oxygen corridors, the return rule with a 30 min reserve, slope thresholds with their origin, and the data level of each part of the route. Its EVA panel adds live radiation: Curiosity RAD at Gale (ISWA), GOES protons and X-rays with NOAA scales, and DONKI events, with the note that they describe conditions near Earth. A Perseverance 3D model drives the planned route on the globe.
 - **First-person walk** on real HiRISE terrain in three places:
   - Gale crater, boxwork area on Mount Sharp, where Curiosity studied boxwork in 2025. The terrain is 1 m with 0.25 m imagery, and Curiosity's real track lies on it.
   - Ares 3, Acidalia Planitia: the site from The Martian, imaged by HiRISE at the coordinates Andy Weir sent to the HiRISE team.
@@ -38,13 +38,12 @@ Martian Map is a web map for planning a Marswalk. It starts from a 3D globe of M
 
   Walking speed follows the suit model, too-steep slopes and areas without data are blocked, the sky follows Mars local time, and the walk starts in the morning.
 - **Helmet HUD.** Coordinates and height, compass to base, Mars local time (LMST, LTST), Mars Sol Date, the rover's mission sol, UTC, signal delay to Earth (JPL Horizons), the sun and time to sunset, slope underfoot and ahead, time back to base, consumables and point of no return, and radiation:
-  - Curiosity RAD, live, at Gale; elsewhere «no local measurements»;
-  - a dose corridor for this walk;
-  - GOES protons and X-rays with NOAA scales;
+  - archived Curiosity RAD measurements at Gale; elsewhere «no local measurements»;
+  - a dose corridor for this walk (model);
   - DONKI events, with the note that they describe conditions near Earth.
 
   Every value has a badge: data, archive, model or no data.
-- **Rover routes.** Perseverance, Curiosity and Ingenuity routes and last known positions from NASA MMGIS. A Perseverance 3D model drives the route on the globe.
+- **Rover routes.** Perseverance, Curiosity and Ingenuity routes and last known positions from NASA MMGIS.
 - **The Martian route.** Mark Watney's 3,500 km route from Ares 3 to Ares 4 over the MOLA relief, with an elevation profile, a fly-through, real THEMIS and HiRISE images of each stop, and the HiRISE team's note that the real terrain is much harder than in the book.
 - **Memorial.** Missions that ended on the surface (Viking 1 and 2, Pathfinder and Sojourner, Spirit, Opportunity, Phoenix, InSight, Ingenuity, Zhurong), with dates and achievements, a candle, and quiet music synthesised in the browser.
 
