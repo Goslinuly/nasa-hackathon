@@ -26,6 +26,20 @@ A map for planning a Marswalk in one area of Mars. It combines several kinds of 
 
 Every dataset added to the project is listed here with its source and credit, as required by the Space Apps rules.
 
+## Структура репозитория
+
+- `backend/` — FastAPI + PostgreSQL/PostGIS + Celery: каталог продуктов, покрытие, маршруты ([инструкция запуска](backend/README.md)).
+- `frontend/` — React + TypeScript + Vite: атлас, экспедиция, научные панели ([инструкция запуска](frontend/README.md)).
+- `infra/` — docker-compose для локальной инфраструктуры (PostGIS, Redis, MinIO, API, worker).
+- `docs/` — ТЗ, каталог ресурсов и [архитектурная основа](docs/ARCHITECTURE.md).
+
+## Документация
+
+- [Полное техническое задание версии 4.1](docs/TZ_Martian_Map_SpaceApps2026.md)
+- [Техническое задание версии 4.1 в Word](docs/TZ_Martian_Map_SpaceApps2026_v4_1.docx)
+- [Ресурсы, источники информации и базы данных](docs/RESOURCES.md)
+- [Ресурсы, источники информации и базы данных в Word](docs/RESOURCES.docx)
+
 ## License
 
 Code in this repository is released under the [MIT License](LICENSE).
