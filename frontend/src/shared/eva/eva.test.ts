@@ -17,7 +17,7 @@ describe('скорость в скафандре', () => {
   it('V = −0.01·θ + 0.75', () => {
     expect(walkSpeed(0)).toBeCloseTo(0.75, 9);
     expect(walkSpeed(10)).toBeCloseTo(0.65, 9);
-    expect(walkSpeed(-10)).toBeCloseTo(0.65, 9);
+    expect(walkSpeed(-10)).toBeCloseTo(0.85, 9);
     expect(walkSpeed(20)).toBeCloseTo(0.55, 9);
     expect(walkSpeed(25)).toBeNull();
   });

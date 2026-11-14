@@ -1,6 +1,8 @@
 // Модель выхода в скафандре: скорость, время возврата, расходники, точка невозврата.
 // Числа — из docs/TZ_EVA_Safety.md, разделы 9.1 и 9.2. Всё здесь — модель, не измерение.
 
+import { walkSpeed as modelSpeed } from './traverse';
+
 /** Скорость на ровном по модели 9.1, м/с. */
 export const FLAT_SPEED_MS = 0.75;
 /** Область определения модели скорости по уклону, ° (раздел 9.1). */
@@ -8,12 +10,11 @@ export const SPEED_MODEL_MAX_SLOPE_DEG = 20;
 
 /**
  * Скорость ходьбы от уклона: V = −0.01·θ + 0.75 м/с (калибровка по трекам Apollo, раздел 9.1).
- * θ — модуль уклона, °. Вне области ±20° модель не определена → null.
+ * θ — знаковый уклон, °: под гору быстрее, в гору медленнее. Вне области ±20° модель не определена → null.
  */
 export function walkSpeed(slopeDeg: number): number | null {
-  const theta = Math.abs(slopeDeg);
-  if (!Number.isFinite(theta) || theta > SPEED_MODEL_MAX_SLOPE_DEG) return null;
-  return -0.01 * theta + FLAT_SPEED_MS;
+  if (!Number.isFinite(slopeDeg) || Math.abs(slopeDeg) > SPEED_MODEL_MAX_SLOPE_DEG) return null;
+  return modelSpeed(slopeDeg).speedMs;
 }
 
 /** Время возврата по прямой на базу со скоростью по ровному, с. */

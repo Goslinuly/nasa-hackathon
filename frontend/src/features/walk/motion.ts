@@ -1,5 +1,7 @@
 // Модель движения пешком: скорость в скафандре, уклоны и правило блокировки шага.
 
+import { SLOPE_DOMAIN_DEG, walkSpeed as modelSpeed } from '@/shared/eva/traverse';
+
 import { localToGrid, type LocalFrame } from './geo';
 import { sampleBilinear, sourceCode, type HeightGrid } from './heightGrid';
 
@@ -9,7 +11,10 @@ const DEG = 180 / Math.PI;
 export const MIN_SPEED_MS = 0.1;
 export function walkSpeed(slopeDeg: number): number {
   if (!Number.isFinite(slopeDeg)) return MIN_SPEED_MS;
-  return Math.max(MIN_SPEED_MS, -0.01 * slopeDeg + 0.75);
+  const [domainMin, domainMax] = SLOPE_DOMAIN_DEG;
+  const limited = Math.max(slopeDeg, domainMin);
+  const beyond = limited > domainMax ? (limited - domainMax) * 0.01 : 0;
+  return Math.max(MIN_SPEED_MS, modelSpeed(Math.min(limited, domainMax)).speedMs - beyond);
 }
 
 export const SLOPE_THRESHOLDS = [15, 20, 25] as const;
