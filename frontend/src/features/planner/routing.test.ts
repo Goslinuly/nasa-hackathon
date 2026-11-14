@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { segmentCost } from '@/shared/eva/traverse';
 
-import { DEFAULT_ROUTE_OPTIONS, findRoute, greatCircleM, type HeightGrid } from './routing';
+import { DEFAULT_ROUTE_OPTIONS, findRoute, greatCircleM, type HazardGrid, type HeightGrid } from './routing';
 
 function grid(heightAt: (lon: number, lat: number) => number): HeightGrid {
   const width = 360;
@@ -148,5 +148,111 @@ describe('маршрут по расходу выхода', () => {
     if (light.status !== 'ok' || heavy.status !== 'ok') return;
     expect(heavy.eva!.o2LowL).toBeGreaterThan(light.eva!.o2LowL);
     expect(heavy.eva!.seconds).toBeCloseTo(light.eva!.seconds, 0);
+  });
+});
+
+describe('окно детального рельефа', () => {
+  function windowGrid(): HeightGrid {
+    const width = 100;
+    const height = 80;
+    const heights = new Float32Array(width * height);
+    for (let i = 0; i < heights.length; i++) heights[i] = 0;
+    return { width, height, pixelsPerDegree: 40, heights, lonWestDeg: 20, latNorthDeg: 10, dataLevel: 'local_dtm' };
+  }
+
+  it('строит маршрут внутри окна и помечает уровень данных', () => {
+    const result = findRoute(windowGrid(), { lon: 20.2, lat: 9.8 }, { lon: 22.0, lat: 8.5 });
+    expect(result.status).toBe('ok');
+    if (result.status !== 'ok') return;
+    expect(result.dataLevel).toBe('local_dtm');
+    expect(result.lengthM).toBeGreaterThan(0);
+  });
+
+  it('точка вне окна даёт понятную ошибку', () => {
+    const result = findRoute(windowGrid(), { lon: 20.2, lat: 9.8 }, { lon: 50, lat: 0 });
+    expect(result.status).toBe('invalid');
+    if (result.status !== 'invalid') return;
+    expect(result.reason).toContain('вне участка');
+  });
+
+  it('область NoData не проходится и не выбирается стартом', () => {
+    const grid = windowGrid();
+    for (let row = 0; row < grid.height; row++) {
+      for (let col = 40; col < 44; col++) grid.heights[row * grid.width + col] = NaN;
+    }
+    const across = findRoute(grid, { lon: 20.2, lat: 9.8 }, { lon: 22.2, lat: 9.8 });
+    expect(across.status).toBe('unreachable');
+    const from = findRoute(grid, { lon: 21.02, lat: 9.8 }, { lon: 20.2, lat: 9.8 });
+    expect(from.status).toBe('invalid');
+  });
+});
+
+describe('сетка проходимости', () => {
+  function hazardOf(fill: (lon: number, lat: number) => { rugged: number; ti: number }): HazardGrid {
+    const ppd = 1;
+    const width = 360;
+    const height = 180;
+    const ruggedSlope = new Uint8Array(width * height);
+    const inertia = new Uint8Array(width * height);
+    for (let row = 0; row < height; row++) {
+      for (let col = 0; col < width; col++) {
+        const lon = col + 0.5;
+        const lat = 90 - (row + 0.5);
+        const cell = fill(lon, lat);
+        ruggedSlope[row * width + col] = Math.round(cell.rugged / 0.125);
+        inertia[row * width + col] = Math.round(cell.ti / 8);
+      }
+    }
+    return { width, height, pixelsPerDegree: ppd, ruggedSlope, slopeStepDeg: 0.125, inertia, inertiaStep: 8, sandBelowTiu: 150 };
+  }
+
+  const evaOptions = {
+    ...DEFAULT_ROUTE_OPTIONS,
+    costModel: 'eva' as const,
+    traverse: { surface: 'firm' as const, crewKg: 80, loadKg: 45 },
+  };
+
+  it('изрезанные ячейки запрещаются и путь ищет обход', () => {
+    const hazard = hazardOf((lon, lat) => ({
+      rugged: lon > 20 && lon < 22 && lat > -4 && lat < 4 ? 25 : 2,
+      ti: 300,
+    }));
+    const flat = grid(() => 0);
+    const blockedRoute = findRoute(flat, { lon: 17.5, lat: 0.5 }, { lon: 25.5, lat: 0.5 }, evaOptions, hazard);
+    expect(blockedRoute.status).toBe('ok');
+    if (blockedRoute.status !== 'ok') return;
+    expect(blockedRoute.hazard!.blockedByRuggedness).toBeGreaterThan(0);
+    const detoured = blockedRoute.points.some((p) => Math.abs(p.lat) > 4);
+    expect(detoured).toBe(true);
+  });
+
+  it('грунт по тепловой инерции: песок удорожает путь и считается по метрам', () => {
+    const sandBelt = hazardOf((lon) => ({ rugged: 1, ti: lon > 12 && lon < 14 ? 80 : 400 }));
+    const noSand = hazardOf(() => ({ rugged: 1, ti: 400 }));
+    const flat = grid(() => 0);
+    const a = { lon: 10.5, lat: 0.5 };
+    const b = { lon: 15.5, lat: 0.5 };
+    const withSand = findRoute(flat, a, b, evaOptions, sandBelt);
+    const withoutSand = findRoute(flat, a, b, evaOptions, noSand);
+    expect(withSand.status).toBe('ok');
+    expect(withoutSand.status).toBe('ok');
+    if (withSand.status !== 'ok' || withoutSand.status !== 'ok') return;
+    expect(withSand.eva!.surface).toBe('per_cell');
+    expect(withSand.hazard!.sandM).toBeGreaterThan(0);
+    expect(withoutSand.hazard!.sandM).toBe(0);
+    expect(withSand.eva!.o2LowL).toBeGreaterThan(withoutSand.eva!.o2LowL);
+  });
+
+  it('перекаты изрезанности дорожают даже без запрета', () => {
+    const rolling = hazardOf((lon) => ({ rugged: lon > 12 && lon < 14 ? 12 : 0, ti: 400 }));
+    const smooth = hazardOf(() => ({ rugged: 0, ti: 400 }));
+    const flat = grid(() => 0);
+    const a = { lon: 10.5, lat: 0.5 };
+    const b = { lon: 15.5, lat: 0.5 };
+    const rough = findRoute(flat, a, b, { ...evaOptions, maxRuggedSlopeDeg: 20 }, rolling);
+    const plain = findRoute(flat, a, b, { ...evaOptions, maxRuggedSlopeDeg: 20 }, smooth);
+    if (rough.status !== 'ok' || plain.status !== 'ok') return;
+    expect(rough.eva!.o2LowL).toBeGreaterThanOrEqual(plain.eva!.o2LowL);
+    expect(rough.points.some((p) => (p.ruggedSlopeDeg ?? 0) > 10)).toBe(true);
   });
 });
