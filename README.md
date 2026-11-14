@@ -44,10 +44,23 @@ Official resources from the challenge page.
 | [Global CTX Mosaic V01](https://murray-lab.caltech.edu/CTX/V01/), served through [JMARS](https://jmars.asu.edu/node/2844) WMS | 5 m imagery on the globe and 2D map | NASA/JPL/MSSS/The Murray Lab (Caltech); ASU JMARS. Citation terms on the source page |
 | [USGS STAC: HiRISE DTMs and orthoimages](https://stac.astrogeology.usgs.gov/docs/data/mars/hirise_dtms/) | Registry of detailed terrain candidates, local terrain | NASA/JPL/University of Arizona; DTMs by USGS Astrogeology. CC0-1.0 per STAC items |
 | MSL RAD dose rate, sol 3290 (87 observations) | Radiation panel | NASA/JPL-Caltech/SwRI. Extract of PDS PPI [MSL-M-RAD-3-RDR-V1.0](https://pds-ppi.igpp.ucla.edu/data/MSL-M-RAD-3-RDR-V1.0/), product `RAD_RDR_2021_311_00_43_3290_V00`, see `backend/data/science/README.md` |
+| [USGS Gazetteer of Planetary Nomenclature](https://planetarynames.wr.usgs.gov/) (IAU WGPSN), served as an [ArcGIS feature service](https://services5.arcgis.com/AMh9EzyFGgthLT1q/arcgis/rest/services/MARS_nomenclature/FeatureServer) | 1897 feature names on the 2D atlas | IAU WGPSN, USGS Astrogeology |
+| Geologic Map of Mars, [USGS SIM 3292](https://pubs.usgs.gov/sim/3292/) (Tanaka et al., 2014), [ArcGIS feature service](https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Tanaka_et_al_2014_Mars_Global_Map_Features/FeatureServer) | Geology layer with a legend of 44 units | USGS Astrogeology |
+| TES thermal inertia (Putzig & Mellon, 2007), [ASU WMS](http://ms-mars.mars.asu.edu/TES_TI_Putzig_day_numeric) | Ground type proxy for route cost | NASA/JPL/ASU, MGS TES |
+| [ISWA HAPI](https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi), dataset `msl_rad_dosimetry` | Live RAD dose rate at Gale | NASA CCMC ISWA; MSL RAD, NASA/JPL-Caltech/SwRI |
+| [NOAA SWPC JSON services](https://services.swpc.noaa.gov/json/): GOES protons and X-rays | Live space weather at Earth with NOAA scales | NOAA Space Weather Prediction Center |
 | [NASA CCMC DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/), API `https://ccmc.gsfc.nasa.gov/DONKI/WS/get/` | Space weather events in the walk HUD (`/api/v1/space-weather/events`). Conditions near Earth; arrival at Mars is an estimate | NASA CCMC |
 | [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/), API `https://ssd.jpl.nasa.gov/api/horizons.api` | Earth–Mars one-way light time table 2026–2028 | NASA/JPL Solar System Dynamics |
 | [NASA GISS Mars24 algorithm](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) and [technical notes](https://www.giss.nasa.gov/tools/mars24/help/notes.html) | Mars local time, sol numbers, sun position in the HUD | NASA GISS |
 | [Mars24 lander locations](https://www.giss.nasa.gov/tools/mars24/help/landers.html), [List of Mars landers](https://en.wikipedia.org/wiki/List_of_Mars_landers) | Coordinates of landing sites in the research catalogue | NASA GISS; Wikipedia |
+
+### Models and methods
+
+| Model | Used for | Reference |
+|---|---|---|
+| Mars24 time algorithm | Mars local time, sol numbers, sun position, sky | Allison & McEwen (2000), [NASA GISS Mars24](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) |
+| Suit walking speed `V = −0.01·θ + 0.75` m/s and metabolic cost on slopes | Walking speed, route cost in oxygen, time back to base | Apollo EVA traverse data as summarised in [docs/TZ_EVA_Safety.md](docs/TZ_EVA_Safety.md), 9.1; Santee et al. (2001), "A proposed model for load carriage on sloped terrain", Aviat. Space Environ. Med. 72(6): 562–566 |
+| Radiation dose corridor 0.64 ± 0.12 mSv/day | Dose for a planned EVA | MSL RAD surface measurements, see [docs/TZ_EVA_Safety.md](docs/TZ_EVA_Safety.md), 9.4 |
 
 ### Local 3D terrain: The Martian locations and Gale crater
 
