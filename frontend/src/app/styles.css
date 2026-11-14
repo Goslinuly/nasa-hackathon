@@ -1495,3 +1495,115 @@ h2 {
   font-size: 11.5px;
   line-height: 1.5;
 }
+
+.eva-panel {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline);
+}
+
+.eva-heading {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 16px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.eva-sub {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dim);
+}
+
+.eva-badge {
+  padding: 1px 7px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+}
+
+.eva-badge-model {
+  color: var(--mars);
+}
+
+.eva-badge-rule,
+.eva-badge.eva-warn {
+  color: var(--warn);
+}
+
+.eva-badge-measurement,
+.eva-badge.eva-ok {
+  color: var(--ok);
+}
+
+.eva-badge.eva-limit {
+  color: #e06a5a;
+}
+
+.eva-corridor {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.eva-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0;
+  font-size: 11.5px;
+}
+
+.eva-strip {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 3px;
+}
+
+.eva-seg {
+  flex-basis: 0;
+  min-width: 1px;
+}
+
+.eva-seg.eva-ok {
+  background: var(--ok);
+}
+
+.eva-seg.eva-warn {
+  background: var(--warn);
+}
+
+.eva-seg.eva-limit {
+  background: #e06a5a;
+}
+
+.eva-list {
+  margin: 6px 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.eva-spark {
+  width: 100%;
+  height: 30px;
+}
+
+.eva-spark path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}

@@ -11,6 +11,7 @@ import {
 } from '@/features/globe/engine';
 import { CTX_OVERLAY, HIRISE_OVERLAYS, SPECTRA, type SpectrumId } from '@/features/globe/layers';
 import { DataCredits } from '@/features/globe/DataCredits';
+import { EvaPanel } from '@/features/eva/EvaPanel';
 import { ResearchAlongRoute } from '@/features/science/ResearchAlongRoute';
 import { ElevationProfile } from './ElevationProfile';
 import { DEFAULT_ROUTE_OPTIONS, greatCircleM, type RouteOptions, type RouteResult } from './routing';
@@ -447,6 +448,7 @@ export function PlannerPage() {
                 учтены: это направление, а не проверенная тропа. Время — симуляция при {speedKmh} км/ч без
                 остановок.
               </p>
+              <EvaPanel profile={route.points} />
             </>
           )}
         </div>

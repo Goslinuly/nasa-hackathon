@@ -7,6 +7,17 @@ import type {
   ResearchStudy,
   ScienceIntake,
 } from './scienceTypes';
+import type {
+  GaleConditions,
+  MobilityProfileRequest,
+  MobilityProfileResponse,
+  RadLiveResponse,
+  RadiationResponse,
+  SlopesResponse,
+  SolarEventsResponse,
+  WalkbackRequest,
+  WalkbackResponse,
+} from './evaTypes';
 import type { CoverageResponse, RegionOut } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1';
@@ -91,3 +102,36 @@ export async function fetchResearchRoute(
   }
   return (await response.json()) as ResearchRoute;
 }
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const failure = await response.json().catch(() => null);
+    throw new ApiError(
+      failure?.error?.code ?? 'http_error',
+      failure?.error?.message ?? `Ошибка EVA: HTTP ${response.status}`,
+      response.status,
+    );
+  }
+  return (await response.json()) as T;
+}
+
+export const fetchMobilityProfile = (request: MobilityProfileRequest) =>
+  postJson<MobilityProfileResponse>('/eva/mobility-profile', request);
+
+export const fetchWalkback = (request: WalkbackRequest) => postJson<WalkbackResponse>('/eva/walkback', request);
+
+export const fetchEvaRadiation = (deltaHM: number) =>
+  getJson<RadiationResponse>('/eva/radiation', { delta_h_m: Math.round(deltaHM) });
+
+export const fetchEvaSlopes = () => getJson<SlopesResponse>('/eva/slopes');
+
+export const fetchEvaConditions = () => getJson<GaleConditions>('/eva/conditions');
+
+export const fetchEvaRadLive = (days = 30) => getJson<RadLiveResponse>('/eva/rad-live', { days });
+
+export const fetchEvaSolarEvents = (days = 14) => getJson<SolarEventsResponse>('/eva/solar-events', { days });
