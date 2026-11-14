@@ -1,0 +1,128 @@
+[
+  {
+    "external_id": "landing-viking-1",
+    "title": "Viking 1 — равнина Хриса",
+    "summary": "Первый успешно работавший посадочный аппарат NASA на Марсе: съёмка поверхности, метеорология и поиск признаков жизни.",
+    "mission": "Viking 1",
+    "source_url": "https://www.giss.nasa.gov/tools/mars24/help/landers.html",
+    "point": {
+      "latitude_deg": 22.27,
+      "longitude_deg": 312.05
+    },
+    "position_evidence": "Координаты места посадки по сводке NASA GISS Mars24 (восточная долгота).",
+    "position_uncertainty_m": 10000,
+    "verification_status": "team_supplied_unverified"
+  },
+  {
+    "external_id": "landing-viking-2",
+    "title": "Viking 2 — равнина Утопия",
+    "summary": "Второй посадочный аппарат программы Viking, работавший в более северных широтах.",
+    "mission": "Viking 2",
+    "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
+    "point": {
+      "latitude_deg": 48.27,
+      "longitude_deg": 134.01
+    },
+    "position_evidence": "Координаты места посадки по сводному списку посадок на Марс. Источники расходятся примерно на 0.3°, поэтому погрешность задана с запасом.",
+    "position_uncertainty_m": 20000,
+    "verification_status": "team_supplied_unverified"
+  },
+  {
+    "external_id": "landing-pathfinder",
+    "title": "Mars Pathfinder — долина Арес",
+    "summary": "Посадка с надувными амортизаторами и первый марсоход Sojourner: съёмка и съёмка состава камней.",
+    "mission": "Mars Pathfinder",
+    "source_url": "https://www.giss.nasa.gov/tools/mars24/help/landers.html",
+    "point": {
+      "latitude_deg": 19.17,
+      "longitude_deg": 326.79
+    },
+    "position_evidence": "Координаты места посадки по сводке NASA GISS Mars24 (восточная долгота). Источники расходятся примерно на 0.3°, поэтому погрешность задана с запасом.",
+    "position_uncertainty_m": 20000,
+    "verification_status": "team_supplied_unverified"
+  },
+  {
+    "external_id": "landing-spirit",
+    "title": "Spirit (MER-A) — кратер Гусев",
+    "summary": "Марсоход, изучавший породы кратера Гусев и холмы Колумбия в поисках следов воды.",
+    "mission": "Mars Exploration Rover A",
+    "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
+    "point": {
+      "latitude_deg": -14.57,
+      "longitude_deg": 175.48
+    },
+    "position_evidence": "Координаты места посадки по сводному списку посадок на Марс. Значение найдено в одном источнике и не сверено с первичным продуктом миссии.",
+    "position_uncertainty_m": 10000,
+    "verification_status": "team_supplied_unverified"
+  },
+  {
+    "external_id": "landing-opportunity",
+    "title": "Opportunity (MER-B) — плато Меридиана",
+    "summary": "Марсоход-долгожитель: гематитовые сферулы и слоистые отложения как свидетельство участия воды.",
+    "mission": "Mars Exploration Rover B",
+    "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
+    "point": {
+      "latitude_deg": -1.95,
+      "longitude_deg": 354.47
+    },
+    "position_evidence": "Координаты места посадки по сводному списку посадок на Марс. Значение найдено в одном источнике и не сверено с первичным продуктом миссии.",
+    "position_uncertainty_m": 10000,
+    "verification_status": "team_supplied_unverified"
+  },
+  {
+    "external_id": "landing-phoenix",
+    "title": "Phoenix — равнина Ваститас Бореалис",
+    "summary": "Полярная станция: подповерхностный водяной лёд и химия грунта.",
+    "mission": "Phoenix",
+    "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
+    "point": {
+      "latitude_deg": 68.22,
+      "longitude_deg": 234.26
+    },
+    "position_evidence": "Координаты места посадки по сводному списку посадок на Марс.",
+    "position_uncertainty_m": 10000,
+    "verification_status": "team_supplied_unverified"
+  },
+  {
+    "external_id": "landing-curiosity",
+    "title": "Curiosity — кратер Гейл",
+    "summary": "Марсоход MSL: слоистые отложения горы Шарп, органика и измерения радиации прибором RAD.",
+    "mission": "Mars Science Laboratory",
+    "source_url": "https://www.giss.nasa.gov/tools/mars24/help/landers.html",
+    "point": {
+      "latitude_deg": -4.59,
+      "longitude_deg": 137.44
+    },
+    "position_evidence": "Координаты места посадки по сводке NASA GISS Mars24 (восточная долгота).",
+    "position_uncertainty_m": 5000,
+    "verification_status": "team_supplied_unverified"
+  },
+  {
+    "external_id": "landing-insight",
+    "title": "InSight — равнина Элизий",
+    "summary": "Стационарная геофизическая станция: сейсмометрия и тепловой поток недр Марса.",
+    "mission": "InSight",
+    "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
+    "point": {
+      "latitude_deg": 4.5,
+      "longitude_deg": 135.9
+    },
+    "position_evidence": "Координаты места посадки по сводному списку посадок на Марс. Источники расходятся примерно на 0.3°, поэтому погрешность задана с запасом.",
+    "position_uncertainty_m": 20000,
+    "verification_status": "team_supplied_unverified"
+  },
+  {
+    "external_id": "landing-perseverance",
+    "title": "Perseverance — кратер Езеро",
+    "summary": "Марсоход Mars 2020: древняя дельта реки, отбор образцов для будущей доставки на Землю.",
+    "mission": "Mars 2020",
+    "source_url": "https://www.giss.nasa.gov/tools/mars24/help/landers.html",
+    "point": {
+      "latitude_deg": 18.44,
+      "longitude_deg": 77.45
+    },
+    "position_evidence": "Координаты места посадки по сводке NASA GISS Mars24 (восточная долгота).",
+    "position_uncertainty_m": 5000,
+    "verification_status": "team_supplied_unverified"
+  }
+]

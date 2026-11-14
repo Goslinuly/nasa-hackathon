@@ -1,0 +1,47 @@
+{
+  "sources": [
+    {
+      "filename": "RAD_2021-11-07_sol3290 MEASURED.xlsx",
+      "sha256": "acf565348545c690678808d3231074424307ee04c0b590c4f03f55f85d9f1937",
+      "size_bytes": 19614,
+      "status": "imported_unverified",
+      "reason": "RAD: исходные A:G импортированы; H:K пересчитываются кодом.",
+      "dataset_id": "rad-acf565348545c690",
+      "records": 87
+    },
+    {
+      "filename": "MOLA Ground Track — Orbit 1582.crtx",
+      "sha256": "f25bf2d6ed693a2b7482959abeadd10efc7bb02661b040ce990eed34680156d4",
+      "size_bytes": 7809,
+      "status": "needs_source_table",
+      "cached_points": 0,
+      "embedded_workbooks": 0,
+      "reason": "Шаблон диаграммы; нужен исходный CSV/XLSX с координатами, высотами, единицами и источником MOLA."
+    },
+    {
+      "filename": "MOLA Ground Track — Orbit 1582 (1).crtx",
+      "sha256": "f25bf2d6ed693a2b7482959abeadd10efc7bb02661b040ce990eed34680156d4",
+      "size_bytes": 7809,
+      "status": "duplicate",
+      "reason": "Побайтовая копия другого файла.",
+      "duplicate_of": "MOLA Ground Track — Orbit 1582.crtx"
+    },
+    {
+      "filename": "Elevation Profile along MOLA Orbit 1582.crtx",
+      "sha256": "ae2825599e807d83e19fe1920760992287d83d6f00ffe21071a703fad72a81ce",
+      "size_bytes": 7787,
+      "status": "needs_source_table",
+      "cached_points": 0,
+      "embedded_workbooks": 0,
+      "reason": "Шаблон диаграммы; нужен исходный CSV/XLSX с координатами, высотами, единицами и источником MOLA."
+    },
+    {
+      "filename": "TZ_Mikrolinzirovanie_Ekzoplanety_v1_0.docx",
+      "sha256": "e50e92c10335e243e9946fb0b1b047743d658873137ef3bcadf825adc0e3b3e4",
+      "size_bytes": 66259,
+      "status": "reference_only",
+      "title": "",
+      "reason": "Текстовый документ «»; марсианские измерения не импортированы."
+    }
+  ]
+}
