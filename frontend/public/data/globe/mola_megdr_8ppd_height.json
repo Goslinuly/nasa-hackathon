@@ -1,0 +1,24 @@
+{
+  "encoding": "height_m = (((R << 8) | G) - offset_units) * step_m; B = 0",
+  "offset_units": 8192,
+  "step_m": 4,
+  "width": 2880,
+  "height": 1440,
+  "pixels_per_degree": 8,
+  "first_row_north_edge_lat": 90.0,
+  "first_column_west_edge_lon_east": 0.0,
+  "longitude": "east, 0-360, increases with column",
+  "latitude": "planetocentric",
+  "vertical_reference": "MOLA areoid (MEGDR), meters",
+  "min_m": -8135.0,
+  "max_m": 21159.2,
+  "resampling": "block mean 2x2 from 16 px/deg",
+  "source": {
+    "product_id": "MEGT90N000EB.IMG",
+    "data_set_id": "MGS-M-MOLA-5-MEGDR-L3-V1.0",
+    "url": "https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg016/megt90n000eb.img",
+    "sha256": "d18d9b9ab8c5516d02e157dd2cde0f1d0d160c21940e953ba22391269a545e7b",
+    "credit": "NASA/GSFC MOLA Science Team, PDS Geosciences Node"
+  },
+  "png_sha256": "2caa4714797156935ad5e7df241dd09b8fd12a6ed8275d7aeefd111a2b74d401"
+}
