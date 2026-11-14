@@ -12,7 +12,7 @@ import { createScopedGlobeApi, type PickSlot } from './globeApi';
 import { GlobeStateContext, ValueStore, type GlobeState } from './globeState';
 import { Landing } from './Landing';
 import { isStaleChunkError, reloadForNewBuild } from './staleBuild';
-import type { ExitOrigin, ModeContext, ModeDefinition } from './modeContract';
+import { modeIsFullscreen, type ExitOrigin, type ModeContext, type ModeDefinition } from './modeContract';
 import { MODES, VISIBLE_MODES } from './modes';
 import { formatRoute, parentRoute, parseHash, sameRoute, type ShellRoute } from './routes';
 import './shell.css';
@@ -92,7 +92,7 @@ export function Shell() {
 
   const stage = route.view === 'landing' ? 'landing' : 'explore';
   const activeMode = route.view === 'mode' ? MODES.find((m) => m.id === route.modeId) ?? null : null;
-  const fullscreen = !!activeMode?.fullscreen;
+  const fullscreen = route.view === 'mode' && modeIsFullscreen(activeMode, route.params);
 
   // --- Адрес и история -------------------------------------------------------------------
 
@@ -294,7 +294,7 @@ export function Shell() {
               </nav>
             </header>
 
-            {activeMode && !activeMode.fullscreen && route.view === 'mode' && (
+            {activeMode && !fullscreen && route.view === 'mode' && (
               <aside className={`mode-panel${collapsed ? ' collapsed' : ''}`} aria-label={activeMode.title}>
                 <div className="mode-panel-head">
                   <h1 className="planner-title">{activeMode.title}</h1>
@@ -358,7 +358,7 @@ export function Shell() {
             </div>
           </div>
 
-          {activeMode?.fullscreen && route.view === 'mode' && (
+          {activeMode && fullscreen && (
             <div className="mode-fullscreen">
               <ModeHost
                 key={activeMode.id}

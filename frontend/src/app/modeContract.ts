@@ -88,8 +88,9 @@ export interface ModeDefinition {
    * true — режим занимает весь экран вместо глобуса (прогулка от первого лица):
    * оболочка ставит рендер глобуса на паузу и показывает Panel поверх всего.
    * false — Panel рисуется боковой панелью поверх глобуса.
+   * Функция — по параметрам адреса: прогулка без участка — панель выбора над шаром.
    */
-  fullscreen: boolean;
+  fullscreen: boolean | ((params: Record<string, string>) => boolean);
   /** Ключ параметра из адреса, если режим его принимает (`walk` → 'site'). */
   paramKey?: string;
   /** Не показывать кнопку в панели режимов (режим открывается только из других режимов). */
@@ -132,4 +133,11 @@ export interface WalkState {
   evaSeconds: number;
   /** Порог непроходимого уклона, градусы. */
   maxSlopeDeg: number;
+  /** Чем перемещаемся: ровер (вид с мачты) или пешком (скафандр). */
+  vehicle?: 'rover' | 'walk';
+}
+
+export function modeIsFullscreen(mode: ModeDefinition | null | undefined, params: Record<string, string>): boolean {
+  if (!mode) return false;
+  return typeof mode.fullscreen === 'function' ? mode.fullscreen(params) : mode.fullscreen;
 }

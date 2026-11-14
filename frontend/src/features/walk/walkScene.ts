@@ -12,11 +12,32 @@ import { bearingDeg, gridToLocal, localToLonLat, lonLatToLocal } from './geo';
 import { DEFAULT_MAX_SLOPE, stepBlocked, TerrainSampler, walkSpeed, type BlockReason } from './motion';
 import { BackdropPass } from './backdrop';
 import { dataLevelLabel, siteBaseUrl, type SitePackage } from './sitePackage';
+import { MAST_HEIGHT_M, RoverRig } from './roverRig';
 import { TerrainChunks } from './terrainMesh';
 
 export const EYE_HEIGHT_M = 1.7;
 /** Высота, на которую камера поднимается перед переходом на шар. */
 export const ASCENT_M = 2500;
+/**
+ * Скорость ровера в сцене. Реальный Perseverance ходит ~4,2 см/с (максимум ~12 см/с):
+ * здесь ускорено, чтобы по участку можно было проехать; подпись в настройках.
+ */
+export const ROVER_SPEED_MS = 1.0;
+export const ROVER_REAL_SPEED_MS = 0.042;
+const ROVER_TURN_RAD_S = 0.6;
+
+export type Vehicle = 'rover' | 'walk';
+
+interface LiftPose {
+  h: number;
+  pitch: number;
+  yaw: number;
+}
+
+/** Спуск с шара к старту. */
+const ARRIVE_MS = 2600;
+
+const TOP_VIEW: LiftPose = { h: ASCENT_M, pitch: -Math.PI / 2 + 0.001, yaw: 0 };
 export const TIME_SCALES = [1, 10, 60] as const;
 const TRACK_LABEL_RADIUS_M = 50;
 const FOG_DAY = new THREE.Color('#cfa47e');
@@ -50,6 +71,8 @@ export interface WalkExtra {
   blockedSlopeDeg: number;
   speedMs: number;
   locked: boolean;
+  /** Камера в подъёме/спуске между шаром и сценой. */
+  lifting: boolean;
   solar: SolarState;
 }
 
@@ -66,6 +89,8 @@ export interface WalkSceneOptions {
   minimap: HTMLCanvasElement | null;
   pkg: SitePackage;
   touch: boolean;
+  /** Прибытие с шара: камера начинает сверху (ASCENT_M) и опускается к старту. */
+  arrive?: boolean;
   onState(state: WalkState, extra: WalkExtra): void;
   onExit(): void;
 }
@@ -102,8 +127,13 @@ export class WalkScene {
   private sky: SkyDome;
   /** Дальний план (стены кратера и т.п.), если он есть в пакете участка. */
   private backdrop: BackdropPass | null = null;
-  private ascent: { start: number; duration: number; fromPitch: number; fromYaw: number; resolve: () => void } | null = null;
-  private ascended = false;
+  private lift: { from: LiftPose; to: LiftPose; start: number; duration: number; resolve: () => void } | null = null;
+  /** Поза камеры, пока она в воздухе (над грунтом на h, взгляд pitch/yaw). null — обычное управление. */
+  private liftHold: LiftPose | null = null;
+  private startYaw = 0;
+  private vehicle: Vehicle = 'rover';
+  private rover = new RoverRig();
+  private roverYaw = 0;
   private hemi: THREE.HemisphereLight;
   private fog: THREE.Fog;
   private geo: SolarGeometry;
@@ -223,6 +253,10 @@ export class WalkScene {
     this.buildPois();
     this.buildTeleports();
     this.placeAtStart();
+    this.scene.add(this.rover.group);
+    void this.rover.load(`${import.meta.env.BASE_URL}models/perseverance.glb`).then((ok) => {
+      if (ok) this.rover.setVisible(true);
+    });
     this.terrain.update(this.px, this.pz, Infinity);
     this.buildMinimap();
     this.setupInput();
@@ -230,6 +264,7 @@ export class WalkScene {
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
     this.raf = requestAnimationFrame(this.frame);
+    if (opts.arrive) void this.arrive(ARRIVE_MS);
   }
 
   // ---------- построение сцены ----------
@@ -398,7 +433,9 @@ export class WalkScene {
     this.baseX = x;
     this.baseZ = z;
     const look = target ? { dx: target.x - x, dz: target.z - z } : { dx: 0, dz: -1 };
-    this.camera.rotation.set(0, Math.atan2(-look.dx, -look.dz), 0);
+    this.startYaw = Math.atan2(-look.dx, -look.dz);
+    this.roverYaw = this.startYaw;
+    this.camera.rotation.set(0, this.startYaw, 0);
     this.updateCameraHeight();
   }
 
@@ -689,45 +726,89 @@ export class WalkScene {
 
   /**
    * Подъём перед выходом на шар: камера уходит вверх на ASCENT_M и разворачивается взглядом
-   * вниз. Шар потом появляется над той же точкой на той же высоте (см. exitOrigin).
+   * вниз и на север. Шар потом появляется над той же точкой на той же высоте (см. exitOrigin).
    */
   ascend(durationMs: number): Promise<void> {
     if (this.controls?.isLocked) this.controls.unlock();
     this.keys.clear();
     this.joyX = 0;
     this.joyY = 0;
-    this.ascent?.resolve();
+    const yaw = this.camera.rotation.y;
+    const fromYaw = yaw - Math.round(yaw / (2 * Math.PI)) * 2 * Math.PI;
+    return this.startLift({ h: 0, pitch: this.camera.rotation.x, yaw: fromYaw }, TOP_VIEW, durationMs);
+  }
+
+  /** Обратный ход: с высоты ASCENT_M, взгляд вниз — к земле, к курсу старта. Для прибытия с шара. */
+  arrive(durationMs: number): Promise<void> {
+    return this.startLift(TOP_VIEW, { h: 0, pitch: 0, yaw: this.startYaw }, durationMs);
+  }
+
+  private startLift(from: LiftPose, to: LiftPose, durationMs: number): Promise<void> {
+    this.lift?.resolve();
     return new Promise((resolve) => {
-      // Курс к северу кратчайшим поворотом: у шара север сверху.
-      const yaw = this.camera.rotation.y;
-      const fromYaw = yaw - Math.round(yaw / (2 * Math.PI)) * 2 * Math.PI;
-      this.ascent = { start: performance.now(), duration: Math.max(1, durationMs), fromPitch: this.camera.rotation.x, fromYaw, resolve };
-      if (durationMs <= 0) this.stepAscent(performance.now() + 1);
+      this.lift = { from, to, start: performance.now(), duration: Math.max(1, durationMs), resolve };
+      this.liftHold = from;
+      if (durationMs <= 0) this.stepLift(performance.now() + 1);
     });
   }
 
   /** Точка игрока и высота камеры над рельефом — для перехода на шар. */
   exitOrigin(): { lon: number; lat: number; altitudeKm: number } {
     const ll = localToLonLat(this.opts.pkg.frame, this.px, this.pz);
-    const lift = this.ascent || this.ascended ? ASCENT_M : 0;
-    return { lon: ll.lonEast, lat: ll.lat, altitudeKm: (EYE_HEIGHT_M + lift) / 1000 };
+    const eye = this.vehicle === 'rover' ? MAST_HEIGHT_M : EYE_HEIGHT_M;
+    return { lon: ll.lonEast, lat: ll.lat, altitudeKm: (eye + (this.liftHold?.h ?? 0)) / 1000 };
   }
 
-  private stepAscent(now: number): void {
-    const a = this.ascent;
-    if (!a && !this.ascended) return;
-    const t = a ? Math.min(1, (now - a.start) / a.duration) : 1;
-    const e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-    this.camera.position.y += ASCENT_M * e;
-    const fromPitch = a ? a.fromPitch : -Math.PI / 2 + 0.001;
-    this.camera.rotation.x = THREE.MathUtils.lerp(fromPitch, -Math.PI / 2 + 0.001, e);
-    this.camera.rotation.y = THREE.MathUtils.lerp(a ? a.fromYaw : 0, 0, e);
-    this.camera.rotation.z = 0;
-    if (a && t >= 1) {
-      this.ascent = null;
-      this.ascended = true;
-      a.resolve();
+  /** Камера «в полёте» (подъём/спуск или зависла сверху): ходить нельзя. */
+  get lifting(): boolean {
+    return this.liftHold !== null;
+  }
+
+  private stepLift(now: number): void {
+    const a = this.lift;
+    const hold = this.liftHold;
+    if (!a && !hold) return;
+    let pose: LiftPose;
+    if (a) {
+      const t = Math.min(1, (now - a.start) / a.duration);
+      const e = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+      pose = {
+        h: THREE.MathUtils.lerp(a.from.h, a.to.h, e),
+        pitch: THREE.MathUtils.lerp(a.from.pitch, a.to.pitch, e),
+        yaw: THREE.MathUtils.lerp(a.from.yaw, a.to.yaw, e),
+      };
+      if (t >= 1) {
+        this.lift = null;
+        this.liftHold = a.to.h > 0 ? a.to : null;
+        a.resolve();
+      }
+    } else {
+      pose = hold!;
     }
+    this.camera.position.y += pose.h;
+    this.camera.rotation.set(pose.pitch, pose.yaw, 0);
+    if (this.vehicle === 'rover' && !this.liftHold) this.roverYaw = pose.yaw;
+  }
+
+  /** Ровер или пешком. Ровер ставится туда, где стоит игрок, курсом по взгляду. */
+  setVehicle(vehicle: Vehicle): void {
+    if (vehicle === this.vehicle || this.liftHold) return;
+    this.vehicle = vehicle;
+    if (vehicle === 'rover') {
+      // Ровер подъезжает туда, где стоит человек, курсом по взгляду.
+      this.roverYaw = this.camera.rotation.y;
+    } else {
+      // Выходим из ровера вбок, чтобы не стоять внутри корпуса.
+      const side = this.nearestValid(this.px + Math.cos(this.roverYaw) * 2.5, this.pz - Math.sin(this.roverYaw) * 2.5);
+      this.px = side.x;
+      this.pz = side.z;
+    }
+    this.updateCameraHeight();
+    this.emitState(true);
+  }
+
+  get currentVehicle(): Vehicle {
+    return this.vehicle;
   }
 
   teleport(x: number, z: number): void {
@@ -751,7 +832,7 @@ export class WalkScene {
     this.applyLighting();
     this.move(dt);
     this.updateCameraHeight();
-    this.stepAscent(now);
+    this.stepLift(now);
 
     this.lodTimer -= dt;
     if (this.lodTimer <= 0) {
@@ -790,7 +871,8 @@ export class WalkScene {
   };
 
   private move(dt: number): void {
-    if (this.ascent) return;
+    if (this.liftHold) return;
+    if (this.vehicle === 'rover') return this.drive(dt);
     const k = this.keys;
     const f = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) + this.joyY;
     const s = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0) + this.joyX;
@@ -847,7 +929,49 @@ export class WalkScene {
     return true;
   }
 
+  /** Ровер: W/S — вперёд/назад по курсу, A/D — поворот на месте; взгляд мышью свободный. */
+  private drive(dt: number): void {
+    const k = this.keys;
+    const f = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) + this.joyY;
+    const turn = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0) + this.joyX;
+    if (Math.abs(turn) > 0.05) {
+      const dyaw = -turn * ROVER_TURN_RAD_S * dt * Math.min(this.timeScale, 10);
+      this.roverYaw += dyaw;
+      this.camera.rotation.y += dyaw;
+    }
+    if (Math.abs(f) < 0.05) {
+      this.speedMs = 0;
+      return;
+    }
+    const dir = Math.sign(f);
+    const mx = -Math.sin(this.roverYaw) * dir;
+    const mz = -Math.cos(this.roverYaw) * dir;
+    const v = ROVER_SPEED_MS * Math.min(1, Math.abs(f));
+    this.speedMs = v;
+    let remaining = v * dt * this.timeScale;
+    while (remaining > 1e-4) {
+      const d = Math.min(remaining, 0.5);
+      remaining -= d;
+      if (!this.tryStep(mx * d, mz * d)) {
+        this.speedMs = 0;
+        break;
+      }
+    }
+  }
+
+  private groundAt = (x: number, z: number): number => this.sampler.heightAt(x, z) - this.refY;
+
   private updateCameraHeight(): void {
+    if (this.vehicle === 'rover') {
+      this.rover.place(this.px, this.pz, this.roverYaw, this.groundAt);
+      if (this.rover.loaded) {
+        this.rover.mastPosition(this.camera.position);
+        return;
+      }
+      const g = this.groundAt(this.px, this.pz);
+      if (Number.isFinite(g)) this.camera.position.set(this.px, g + MAST_HEIGHT_M, this.pz);
+      return;
+    }
     const h = this.sampler.heightAt(this.px, this.pz);
     // Стоим только на данных; если вдруг NaN — оставляем прежнюю высоту.
     const y = Number.isFinite(h) ? h - this.refY + EYE_HEIGHT_M : this.camera.position.y;
@@ -929,6 +1053,7 @@ export class WalkScene {
       timeScale: this.timeScale,
       evaSeconds: this.evaMs / 1000,
       maxSlopeDeg: this.maxSlopeDeg,
+      vehicle: this.vehicle,
     };
     this.opts.onState(state, {
       fps: this.fps,
@@ -936,6 +1061,7 @@ export class WalkScene {
       blockedSlopeDeg: this.blockedSlopeDeg,
       speedMs: this.speedMs,
       locked: !!this.controls?.isLocked,
+      lifting: this.liftHold !== null,
       solar: this.solarState(),
     });
   }
@@ -967,6 +1093,7 @@ export class WalkScene {
     });
     materials.forEach((m) => m.dispose());
     this.sky.dispose();
+    this.rover.dispose();
     this.backdrop?.dispose();
     this.orthoTexture.dispose();
     this.sun.shadow.map?.dispose();

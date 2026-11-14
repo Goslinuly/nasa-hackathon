@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { ModeContext, WalkState } from '@/app/modeContract';
 import { Hud } from '@/features/hud/Hud';
 import { SLOPE_THRESHOLDS } from './motion';
-import { fetchManifest, fetchSiteIndex, loadSitePackage, type SiteIndexEntry, type SitePackage } from './sitePackage';
-import { TIME_SCALES, WalkScene, type TeleportTarget, type WalkExtra } from './walkScene';
+import { fetchManifest, fetchSiteIndex, loadSitePackage, siteBaseUrl, type SiteIndexEntry, type SitePackage } from './sitePackage';
+import { MARS_RADIUS_KM } from '@/features/globe/tiles';
+import { ASCENT_M, ROVER_REAL_SPEED_MS, ROVER_SPEED_MS, TIME_SCALES, WalkScene, type TeleportTarget, type WalkExtra } from './walkScene';
 
 /** Подъём камеры перед переходом на шар. */
 const ASCENT_MS = 1400;
@@ -15,9 +16,10 @@ import './walk.css';
 
 export default function WalkPanel(ctx: ModeContext) {
   const site = ctx.params.site;
+  if (!site) return <SiteChooser ctx={ctx} />;
   return (
     <div className="walk-root">
-      {site ? <WalkSite key={site} site={site} ctx={ctx} /> : <SiteChooser ctx={ctx} />}
+      <WalkSite key={site} site={site} ctx={ctx} />
     </div>
   );
 }
@@ -33,25 +35,57 @@ function useEscExit(exit: () => void, enabled: boolean) {
   }, [exit, enabled]);
 }
 
+/** Пакет участка, начатый загружаться во время спуска, чтобы сцена открылась без экрана загрузки. */
+const preloads = new Map<string, Promise<SitePackage>>();
+/** Участок, в который прилетаем с шара: сцена начнёт сверху и опустится к старту. */
+let pendingArrival: { site: string; at: number } | null = null;
+const ARRIVAL_TTL_MS = 20_000;
+
+/** Без побочных эффектов (StrictMode вызывает инициализаторы дважды); сброс — clearArrival. */
+function peekArrival(site: string): boolean {
+  return pendingArrival?.site === site && performance.now() - pendingArrival.at < ARRIVAL_TTL_MS;
+}
+
+function clearArrival(): void {
+  pendingArrival = null;
+}
+
+/** Обзор участка с шара: ~120 км над центром. */
+const OVERVIEW_ALTITUDE = 120 / MARS_RADIUS_KM;
+const OVERVIEW_FLY_MS = 2200;
+const DESCENT_MS = 3200;
+
+interface ChooserSite extends SiteIndexEntry {
+  note?: string;
+  /** Точка старта — первая метка участка. */
+  spawn: { lat: number; lon: number };
+}
+
 function SiteChooser({ ctx, notice }: { ctx: ModeContext; notice?: string }) {
-  const [sites, setSites] = useState<(SiteIndexEntry & { note?: string })[] | null>(null);
+  const [sites, setSites] = useState<ChooserSite[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEscExit(ctx.exit, true);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [descending, setDescending] = useState(false);
+  useEscExit(ctx.exit, !descending);
 
   useEffect(() => {
     let alive = true;
     fetchSiteIndex()
       .then(async (list) => {
-        const withNotes = await Promise.all(
-          list.map(async (s) => {
+        const full = await Promise.all(
+          list.map(async (s): Promise<ChooserSite> => {
             try {
-              return { ...s, note: (await fetchManifest(s.id)).note };
+              const m = await fetchManifest(s.id);
+              const poi = m.pois?.[0];
+              return { ...s, note: m.note, spawn: poi ? { lat: poi.lat, lon: poi.lon_east } : { lat: s.center.lat, lon: s.center.lon_east } };
             } catch {
-              return s;
+              return { ...s, spawn: { lat: s.center.lat, lon: s.center.lon_east } };
             }
           }),
         );
-        if (alive) setSites(withNotes);
+        if (!alive) return;
+        setSites(full);
+        setSelected((cur) => cur ?? full[0]?.id ?? null);
       })
       .catch((e: Error) => alive && setError(e.message));
     return () => {
@@ -59,28 +93,56 @@ function SiteChooser({ ctx, notice }: { ctx: ModeContext; notice?: string }) {
     };
   }, []);
 
+  // Выбор участка — камера шара летит к нему.
+  useEffect(() => {
+    const s = sites?.find((x) => x.id === selected);
+    if (!s || descending) return;
+    void ctx.globe.flyTo({ lon: s.center.lon_east, lat: s.center.lat, altitude: OVERVIEW_ALTITUDE }, OVERVIEW_FLY_MS);
+  }, [selected, sites, ctx.globe, descending]);
+
+  const descend = async (s: ChooserSite) => {
+    if (descending) return;
+    setDescending(true);
+    if (!preloads.has(s.id)) preloads.set(s.id, loadSitePackage(s.id));
+    // Дальний план и модель ровера — тоже заранее, чтобы при посадке они уже были в кэше браузера.
+    void fetchManifest(s.id)
+      .then((m) => m.backdrop && fetch(siteBaseUrl(s.id) + m.backdrop.file))
+      .catch(() => undefined);
+    void fetch(`${import.meta.env.BASE_URL}models/perseverance.glb`).catch(() => undefined);
+    // Сверху вниз к точке старта; дальше сцена прогулки продолжит спуск до мачты ровера.
+    await ctx.globe.flyTo({ lon: s.spawn.lon, lat: s.spawn.lat, altitude: ASCENT_M / 1000 / MARS_RADIUS_KM }, DESCENT_MS);
+    pendingArrival = { site: s.id, at: performance.now() };
+    ctx.openMode('walk', { site: s.id });
+  };
+
   return (
-    <div className="walk-chooser">
-      <div className="walk-chooser-head">
-        <h2>От первого лица</h2>
-        <button type="button" className="walk-btn" onClick={ctx.exit}>На глобус</button>
-      </div>
-      <p className="walk-muted">
-        Ходить можно только там, где есть подробная модель рельефа HiRISE (сетка 1–2 м). Выберите участок.
+    <div className="walk-chooser-panel">
+      <p className="walk-chooser-lead">
+        Подробная модель рельефа HiRISE (сетка 1–2 м) есть только на этих участках. Выберите участок: камера покажет его на шаре.
       </p>
       {notice && <p className="walk-notice">{notice}</p>}
       {error && <p className="walk-notice">{error}</p>}
-      {!sites && !error && <p className="walk-muted">Загрузка списка…</p>}
-      <div className="walk-cards">
-        {sites?.map((s) => (
-          <button key={s.id} type="button" className="walk-card" onClick={() => ctx.openMode('walk', { site: s.id })}>
-            <strong>{s.title}</strong>
-            {s.note && <span>{s.note}</span>}
-            <small>
-              {Math.abs(s.center.lat).toFixed(4)}° {s.center.lat >= 0 ? 'с. ш.' : 'ю. ш.'}, {s.center.lon_east.toFixed(4)}° в. д.
-            </small>
-          </button>
-        ))}
+      {!sites && !error && <p className="walk-chooser-lead">Загрузка списка…</p>}
+      <div className="walk-chooser-list">
+        {sites?.map((s) => {
+          const on = s.id === selected;
+          return (
+            <div key={s.id} className={`walk-pick${on ? ' is-on' : ''}`}>
+              <button type="button" className="walk-pick-main" disabled={descending} onClick={() => setSelected(s.id)}>
+                <strong>{s.title}</strong>
+                <small>
+                  {Math.abs(s.center.lat).toFixed(3)}° {s.center.lat >= 0 ? 'с. ш.' : 'ю. ш.'}, {s.center.lon_east.toFixed(3)}° в. д.
+                </small>
+                {on && s.note && <span>{s.note}</span>}
+              </button>
+              {on && (
+                <button type="button" className="walk-pick-go" disabled={descending} onClick={() => void descend(s)}>
+                  {descending ? 'Спуск…' : 'Спуститься'}
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -103,7 +165,9 @@ function WalkSite({ site, ctx }: { site: string; ctx: ModeContext }) {
           setStatus('missing');
           return;
         }
-        loaded = await loadSitePackage(site, ac.signal);
+        const pre = preloads.get(site);
+        preloads.delete(site);
+        loaded = await (pre ?? loadSitePackage(site, ac.signal));
         if (ac.signal.aborted) {
           loaded.ortho.close();
           return;
@@ -156,6 +220,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   const [shadows, setShadows] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
   const [touch] = useState(() => window.matchMedia?.('(pointer: coarse)').matches ?? false);
+  const [arrive] = useState(() => peekArrival(pkg.manifest.id));
   // «На глобус»: камера поднимается и смотрит вниз, затем шар отлетает от этой же точки.
   const leaving = useRef(false);
   const leave = () => {
@@ -181,6 +246,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         minimap: minimapRef.current,
         pkg,
         touch,
+        arrive,
         onState: (s, x) => {
           setState(s);
           setExtra(x);
@@ -192,6 +258,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       return;
     }
     sceneRef.current = scene;
+    clearArrival();
     setTeleports([...scene.teleports]);
     setShadows(scene.shadows);
     return () => {
@@ -223,6 +290,10 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
 
       <div className="walk-topbar">
         <button type="button" className="walk-btn" onClick={leave}>На глобус</button>
+        <div className="walk-timescale" role="group" aria-label="Чем перемещаться">
+          <button type="button" className={`walk-btn ${state?.vehicle !== 'walk' ? 'is-on' : ''}`} onClick={() => s?.setVehicle('rover')}>Ровер</button>
+          <button type="button" className={`walk-btn ${state?.vehicle === 'walk' ? 'is-on' : ''}`} onClick={() => s?.setVehicle('walk')}>Пешком</button>
+        </div>
         <button type="button" className={`walk-btn ${menu === 'teleport' ? 'is-on' : ''}`} onClick={() => setMenu(menu === 'teleport' ? 'none' : 'teleport')}>
           Перейти к точке
         </button>
@@ -266,6 +337,12 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
             <input type="checkbox" checked={shadows} onChange={(e) => { s?.setShadows(e.target.checked); setShadows(e.target.checked); }} />
             <span>Тени от рельефа</span>
           </label>
+          {state?.vehicle !== 'walk' && (
+            <p className="walk-muted">
+              Ровер Perseverance (модель NASA). Скорость в сцене {ROVER_SPEED_MS.toFixed(1).replace('.', ',')} м/с: это примерно в{' '}
+              {Math.round(ROVER_SPEED_MS / ROVER_REAL_SPEED_MS)} раз быстрее настоящего ровера ({(ROVER_REAL_SPEED_MS * 100).toFixed(1).replace('.', ',')} см/с), иначе по участку не проехать.
+            </p>
+          )}
           <p className="walk-muted">
             Скорость ходьбы задаёт симуляция: V = −0,01·θ + 0,75 м/с по модели выходов Apollo, но не меньше 0,1 м/с.
             {extra ? ` Сейчас ${extra.speedMs.toFixed(2).replace(".", ",")} м/с.` : ''}
@@ -290,10 +367,19 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </div>
       )}
 
-      {!touch && extra && !extra.locked && menu === 'none' && (
+      {!touch && extra && !extra.locked && !extra.lifting && menu === 'none' && (
         <div className="walk-hint" onClick={() => s?.lock()}>
-          <strong>Щёлкните, чтобы идти</strong>
-          <span>WASD или стрелки — шаг, мышь — взгляд, 1/2/3 — время ×1/×10/×60, Esc — отпустить мышь, Esc ещё раз — на глобус</span>
+          {state?.vehicle === 'walk' ? (
+            <>
+              <strong>Щёлкните, чтобы идти</strong>
+              <span>WASD или стрелки — шаг, мышь — взгляд, 1/2/3 — время ×1/×10/×60, Esc — отпустить мышь, Esc ещё раз — на глобус</span>
+            </>
+          ) : (
+            <>
+              <strong>Щёлкните, чтобы ехать</strong>
+              <span>W/S — вперёд и назад, A/D — поворот, мышь — взгляд с мачты, 1/2/3 — время ×1/×10/×60, Esc — отпустить мышь, Esc ещё раз — на глобус</span>
+            </>
+          )}
         </div>
       )}
     </>

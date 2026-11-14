@@ -95,3 +95,23 @@
   background: rgb(24, 13, 8); border: 1px solid rgba(255, 210, 170, 0.3); color: #f4e6d8;
 }
 .walk-link { font: inherit; color: #ffb27a; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+
+/* Выбор участка в боковой панели над шаром. */
+.walk-chooser-panel { display: flex; flex-direction: column; gap: 10px; }
+.walk-chooser-lead { margin: 0; font-size: 13px; line-height: 1.45; opacity: 0.8; }
+.walk-chooser-list { display: flex; flex-direction: column; gap: 8px; }
+.walk-pick { border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 8px; overflow: hidden; transition: border-color 0.2s; }
+.walk-pick.is-on { border-color: #ff9a62; }
+.walk-pick-main {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; font: inherit; color: inherit;
+  background: none; border: 0; padding: 10px 12px; cursor: pointer;
+}
+.walk-pick-main:disabled { cursor: default; }
+.walk-pick-main strong { font-size: 14px; }
+.walk-pick-main small { font-size: 12px; opacity: 0.65; font-variant-numeric: tabular-nums; }
+.walk-pick-main span { font-size: 12px; line-height: 1.4; opacity: 0.8; }
+.walk-pick-go {
+  display: block; width: calc(100% - 24px); margin: 0 12px 12px; padding: 8px 10px; font: inherit; font-size: 13px;
+  color: #1a0f0a; background: #ff9a62; border: 0; border-radius: 6px; cursor: pointer;
+}
+.walk-pick-go:disabled { opacity: 0.7; cursor: progress; }

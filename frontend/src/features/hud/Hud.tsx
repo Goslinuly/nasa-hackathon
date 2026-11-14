@@ -130,6 +130,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
   );
   if (level === 'hidden') return <div className="hud walk-hud hud--hidden">{toggle}</div>;
   const full = level === 'full';
+  const rover = s.vehicle === 'rover';
 
   const lmst = lmstHours(t, s.lonEast);
   const ltst = ltstHours(t, s.lonEast);
@@ -267,13 +268,18 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
           prov="data"
           tip={slopeTip}
         />
-        <Row
+        {rover && (
+          <div className="hud-note">
+            Вы в ровере: показатели скафандра (ресурс, запас, доза за выход) нужны при выходе пешком.
+          </div>
+        )}
+        {!rover && <Row
           label="Возврат"
           value={`${formatDuration(budget.backS)} · ${formatDistance(s.baseDistanceM)}`}
           prov="model"
           tip="Время пути на базу по прямой со скоростью по ровному 0,75 м/с: V = −0,01·θ + 0,75 м/с, калибровка по выходам Apollo (ТЗ EVA 9.1). Обходы и уклоны не учтены, поэтому реальное время больше."
-        />
-        {full && (
+        />}
+        {full && !rover && (
           <>
             <Row
               label="Ресурс"
@@ -290,7 +296,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
             />
           </>
         )}
-        {full && <RadiationRows state={s} rad={ext.rad} />}
+        {full && <RadiationRows state={s} rad={ext.rad} rover={rover} />}
         {full && <SpaceWeatherRow sw={ext.spaceWeather} />}
       </section>
 
@@ -315,7 +321,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
   );
 }
 
-function RadiationRows({ state: s, rad }: { state: WalkState; rad: RadSummary | null | undefined }) {
+function RadiationRows({ state: s, rad, rover = false }: { state: WalkState; rad: RadSummary | null | undefined; rover?: boolean }) {
   const galeKm = distanceToGaleKm(s.lat, s.lonEast);
   const inGale = galeKm <= GALE.radiusKm;
   const dose = evaDose(s.evaSeconds);
@@ -364,12 +370,12 @@ function RadiationRows({ state: s, rad }: { state: WalkState; rad: RadSummary | 
           '(ТЗ EVA 9.4). Коэффициент качества ~3 (3,05 ± 0,3; по уточнению 2019 года 2,1–2,7). Сутки земные. Высота и рельеф не учтены.'
         }
       />
-      <Row
+      {!rover && <Row
         label="Доза за выход"
         value={`≈ ${fmtNum(dose.typicalMSv, doseDigits)} мЗв (${fmtNum(dose.lowMSv, doseDigits)}–${fmtNum(dose.highMSv, doseDigits)})`}
         prov="model"
         tip={`Мощность × время выхода (${formatDuration(s.evaSeconds)} по модельным часам). По солнечному циклу: ${fmtNum(dose.cycleMinMSv, doseDigits)}–${fmtNum(dose.cycleMaxMSv, doseDigits)} мЗв.`}
-      />
+      />}
     </>
   );
 }
