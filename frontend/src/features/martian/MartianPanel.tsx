@@ -174,8 +174,8 @@ export default function MartianPanel({ globe, openMode, exit }: ModeContext) {
           </blockquote>
 
           <p className="mt-credit">
-            Снимки: NASA/JPL-Caltech/ASU (THEMIS), NASA/JPL/University of Arizona (HiRISE). Роман «Марсианин» —
-            Энди Вейр.
+            Снимки: NASA/JPL-Caltech/ASU (THEMIS), NASA/JPL/University of Arizona (HiRISE). Роман «Марсианин»
+            Энди Вейра.
           </p>
         </>
       )}

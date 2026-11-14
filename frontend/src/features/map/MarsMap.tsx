@@ -80,7 +80,7 @@ export function MarsMap({ selected, onSelect, focus, route }: {
       </article>)}
       <article className="map-layer">
         <label><input type="checkbox" checked={names} onChange={e => setNames(e.target.checked)} />Названия · IAU</label>
-        <small>Подписи появляются по мере приближения; точечные объекты — на крупных масштабах</small>
+        <small>Подписи появляются по мере приближения, точечные объекты видны на крупных масштабах</small>
       </article>
       <article className="map-layer">
         <label><input type="checkbox" checked={geology.visible} onChange={e => setGeology(g => ({ ...g, visible: e.target.checked }))} />Геология · карта SIM 3292</label>
@@ -89,7 +89,7 @@ export function MarsMap({ selected, onSelect, focus, route }: {
         {geology.visible && legend && <GeologyLegend legend={legend} />}
         {geology.visible && legendError && <p role="alert">{legendError}</p>}
       </article>
-      <div className="layer-note"><strong>Что доступно</strong><p>CTX даёт снимки, а не трёхмерный рельеф. Пустые области снимков не означают отсутствие исследований.</p><p>HiRISE DTM и числовые высоты пока не подключены к этой карте. Проверяйте покрытие выбранной точки справа.</p><p>Путь А → Б — обзорная линия поиска исследований, не проверенная проходимая тропа.</p></div>
+      <div className="layer-note"><strong>Что доступно</strong><p>CTX даёт только снимки, без трёхмерного рельефа. Пустые области снимков не означают отсутствие исследований.</p><p>HiRISE DTM и числовые высоты пока не подключены к этой карте. Проверяйте покрытие выбранной точки справа.</p><p>Путь А → Б показывает обзорную линию для поиска исследований. Это не проверенная проходимая тропа.</p></div>
     </aside>
     <section className="map-center">
       <div className="map-toolbar"><form onSubmit={event => {
@@ -138,11 +138,11 @@ export function MarsMap({ selected, onSelect, focus, route }: {
           {selected && <g transform={`translate(${project(selected.longitude_deg, selected.latitude_deg).join(' ')})`}><circle r="8" fill="none" stroke="#fff" strokeWidth="2" /><path d="M-15 0H15M0 -15V15" stroke="#fff" /></g>}
         </svg>
         </div>
-        <div className="map-badge">{active?.title ?? (pending ? pending.title : 'Слои выключены')}<br />{active && unavailable[active.id] ? `Источник не отвечает — показана ${layers.find(l => l.id !== active.id)?.title ?? 'обзорная мозаика'}` : pending && !active ? `Появится с z${pending.minZoom}: источник не отдаёт такую область целиком` : active && zoom > active.nativeZoom ? `Увеличение пикселей: новых деталей нет (${active.resolution} м/пикс)` : 'Архивная карта · покрытие зависит от участка'}{pending && active ? <><br />{`${pending.title} — с z${pending.minZoom}`}</> : null}</div>
+        <div className="map-badge">{active?.title ?? (pending ? pending.title : 'Слои выключены')}<br />{active && unavailable[active.id] ? `Источник не отвечает, показана ${layers.find(l => l.id !== active.id)?.title ?? 'обзорная мозаика'}` : pending && !active ? `Появится с z${pending.minZoom}: источник не отдаёт такую область целиком` : active && zoom > active.nativeZoom ? `Увеличение пикселей: новых деталей нет (${active.resolution} м/пикс)` : 'Архивная карта · покрытие зависит от участка'}{pending && active ? <><br />{`${pending.title}: с z${pending.minZoom}`}</> : null}</div>
         <div className="map-scale"><span style={{ width: 120 }} />≈{scale >= 1000 ? `${(scale / 1000).toFixed(1)} км` : `${scale.toFixed(1)} м`} на широте центра</div>
         <div className="map-credit">{[...layers.filter(l => l.visible && l.opacity > 0).map(l => l.credit), ...(names && nomenclature ? ['Названия: ' + nomenclature.credit] : []), ...(geology.visible && geology.opacity > 0 ? ['Геология: ' + (legend?.credit ?? 'USGS SIM 3292, Tanaka et al. (2014)')] : [])].join(' / ')}</div>
       </div>
-      <div className="map-panner" role="button" tabIndex={0} aria-label="Обзор Марса: клик перемещает центр; Enter — вся планета" onKeyDown={e => { if (e.key === 'Enter') { recenter(0, 0); setZoom(0); } }} onClick={event => { const b = event.currentTarget.getBoundingClientRect(); recenter((event.clientX - b.left) / b.width * 360 - 180, 90 - (event.clientY - b.top) / b.height * 180); }}>
+      <div className="map-panner" role="button" tabIndex={0} aria-label="Обзор Марса: клик перемещает центр, Enter показывает всю планету" onKeyDown={e => { if (e.key === 'Enter') { recenter(0, 0); setZoom(0); } }} onClick={event => { const b = event.currentTarget.getBoundingClientRect(); recenter((event.clientX - b.left) / b.width * 360 - 180, 90 - (event.clientY - b.top) / b.height * 180); }}>
         {[0, 1].map(x => <img key={x} src={mapTileUrl('viking', 0, x, 0)} alt="" draggable={false} />)}
         <svg viewBox="0 0 360 180" preserveAspectRatio="none">{[-360, 0, 360].map(offset => <rect key={offset} x={center.lon + 180 - size.width / ppd / 2 + offset} y={90 - center.lat - size.height / ppd / 2} width={size.width / ppd} height={size.height / ppd} fill="#21d9c333" stroke="#64ffe5" strokeWidth="2" vectorEffect="non-scaling-stroke" />)}<circle cx={center.lon + 180} cy={90 - center.lat} r="2" fill="#fff" /></svg><span>ОБЗОР ПЛАНЕТЫ</span>
       </div>

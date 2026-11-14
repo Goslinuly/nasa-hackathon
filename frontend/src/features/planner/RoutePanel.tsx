@@ -288,7 +288,7 @@ export default function RoutePanel({ globe }: ModeContext) {
         {terrain.status === 'loading' && <p className="dim">Загрузка карты высот…</p>}
         {terrain.status === 'failed' && (
           <p className="warn">
-            {terrain.message ?? 'Карта высот недоступна'} — расчёт рельефного маршрута недоступен.{' '}
+            Маршрут по рельефу построить нельзя: {terrain.message ?? 'карта высот недоступна'}{' '}
             <button type="button" className="link-button" onClick={() => window.location.reload()}>
               Перезагрузить страницу
             </button>
@@ -366,8 +366,8 @@ export default function RoutePanel({ globe }: ModeContext) {
             />
             <p className="planner-note">
               Обзорная оценка по MOLA ~7.4 км/пикс{routeMs != null ? ` · расчёт ${Math.round(routeMs)} мс` : ''}.
-              Участки круче {options.maxSlopeDeg}° исключены, но обрывы, камни и кратеры мельче ~7 км не учтены:
-              это направление, а не проверенная тропа. Время — симуляция при {speedKmh} км/ч без остановок.
+              Участки круче {options.maxSlopeDeg}° исключены, но обрывы, камни и кратеры мельче ~7 км не учтены.
+              Это направление, а не проверенная тропа. Время рассчитано для {speedKmh} км/ч без остановок.
             </p>
             <EvaPanel profile={route.points} />
           </>
