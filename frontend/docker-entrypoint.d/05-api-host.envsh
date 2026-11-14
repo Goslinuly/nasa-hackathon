@@ -1,28 +1,34 @@
 #!/bin/sh
-# Нормализация API_HOST до старта nginx: убирает схему и добавляет порт 8000 по умолчанию.
+# Нормализация API_HOST: https://-адрес значит публичный домен backend (порт 443), иначе приватный host:port (порт 8000 по умолчанию).
+
+API_SCHEME="http"
+API_HOST_NAME='$host'
 
 case "${API_HOST}" in
   "")
     echo "ВНИМАНИЕ: API_HOST пуст. Все запросы к /api/ будут отвечать ошибкой." >&2
-    echo "  Задайте переменную фронтенд-сервиса: API_HOST=<host>:<port> backend-а." >&2
-    echo "  В Railway: API_HOST=\${{<имя backend-сервиса>.RAILWAY_PRIVATE_DOMAIN}}:8000" >&2
+    echo "  Приватная сеть Railway: API_HOST=<приватный домен backend>:8000" >&2
+    echo "  Публичный домен backend: API_HOST=https://<домен backend>.up.railway.app" >&2
     ;;
   *)
+    case "${API_HOST}" in
+      https://*) API_SCHEME="https" ;;
+    esac
     stripped=$(printf '%s' "${API_HOST}" | sed -e 's#^[a-zA-Z][a-zA-Z0-9+.-]*://##' -e 's#/*$##')
-    if [ "${stripped}" != "${API_HOST}" ]; then
-      echo "API_HOST: убрана схема, осталось '${stripped}'." >&2
-    fi
-
     case "${stripped}" in
       *:[0-9]*) ;;
       *)
-        stripped="${stripped}:8000"
-        echo "API_HOST без порта — добавлен :8000 ('${stripped}')." >&2
-        echo "  Если backend слушает другой порт, задайте его в переменной явно." >&2
+        if [ "${API_SCHEME}" = "https" ]; then
+          stripped="${stripped}:443"
+        else
+          stripped="${stripped}:8000"
+        fi
         ;;
     esac
-
-    export API_HOST="${stripped}"
-    echo "API_HOST=${API_HOST}"
+    API_HOST="${stripped}"
+    API_HOST_NAME="${stripped%:*}"
+    echo "API_HOST=${API_HOST} (схема ${API_SCHEME}, Host ${API_HOST_NAME})"
     ;;
 esac
+
+export API_HOST API_SCHEME API_HOST_NAME
