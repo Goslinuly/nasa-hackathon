@@ -398,8 +398,8 @@ def heights_at(pkg: dict, x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return hts[row, col] - pkg["manifest"]["height"]["base_m"]
 
 
-def load_backdrop_grid(path: Path) -> tuple[np.ndarray, float, float, float]:
-    """Импорт GLB и восстановление регулярной сетки: G[строка с юга, столбец с запада], шаг, центр."""
+def load_backdrop_grid(path: Path) -> tuple[np.ndarray, float, float, float, float]:
+    """Импорт GLB и восстановление регулярной сетки: G[строка с юга, столбец с запада], шаги по X и Y, центр."""
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(path))
     new = [o for o in bpy.data.objects if o not in before]
@@ -417,14 +417,15 @@ def load_backdrop_grid(path: Path) -> tuple[np.ndarray, float, float, float]:
         raise SystemExit(f"Подложка {path.name}: {len(co)} вершин — это не квадратная регулярная сетка")
     x0, x1 = co[:, 0].min(), co[:, 0].max()
     y0, y1 = co[:, 1].min(), co[:, 1].max()
-    step = (x1 - x0) / (n - 1)
-    i = np.rint((co[:, 0] - x0) / step).astype(int)
-    k = np.rint((co[:, 1] - y0) / step).astype(int)
+    step_x = (x1 - x0) / (n - 1)
+    step_y = (y1 - y0) / (n - 1)  # у Езеро шаг по долготе уже сжат на cos(широты)
+    i = np.rint((co[:, 0] - x0) / step_x).astype(int)
+    k = np.rint((co[:, 1] - y0) / step_y).astype(int)
     g = np.full((n, n), np.nan)
     g[k, i] = co[:, 2]
     if np.isnan(g).any():
         raise SystemExit(f"Подложка {path.name}: сетка с пропусками, калибровка не подходит")
-    return g, step, (x0 + x1) / 2, (y0 + y1) / 2
+    return g, step_x, step_y, (x0 + x1) / 2, (y0 + y1) / 2
 
 
 def build_backdrop(pkg: dict, args: argparse.Namespace) -> tuple[dict, bpy.types.Object, dict]:
@@ -432,15 +433,14 @@ def build_backdrop(pkg: dict, args: argparse.Namespace) -> tuple[dict, bpy.types
     if not calib_path.exists():
         raise SystemExit(f"Нет калибровки {calib_path}: без неё неизвестны масштаб, место и преувеличение подложки")
     cal = json.loads(calib_path.read_text(encoding="utf-8"))
-    g, step, cxu, cyu = load_backdrop_grid(args.backdrop)
+    g, step_x, step_y, cxu, cyu = load_backdrop_grid(args.backdrop)
     n = g.shape[0]
 
     # Узлы сетки → широта/долгота (калибровка по MOLA) → локальные метры участка.
     km = cal["horizontal_km_per_unit"]
     clat, clon = cal["center"]["lat"], cal["center"]["lon_east"]
-    u = np.arange(n) * step + (cxu - (n - 1) / 2 * step)
-    dx_m = (u - cxu) * km * 1000.0
-    dy_m = dx_m.copy()  # квадратная сетка, тот же шаг на север
+    dx_m = (np.arange(n) - (n - 1) / 2) * step_x * km * 1000.0
+    dy_m = (np.arange(n) - (n - 1) / 2) * step_y * km * 1000.0
     DX, DY = np.meshgrid(dx_m, dy_m)  # строки — с юга на север
     lat = clat + np.degrees(DY / MARS_R)
     lon = clon + np.degrees(DX / (MARS_R * math.cos(math.radians(clat))))
@@ -464,8 +464,8 @@ def build_backdrop(pkg: dict, args: argparse.Namespace) -> tuple[dict, bpy.types
     def backdrop_z(qx: np.ndarray, qy: np.ndarray) -> np.ndarray:
         qlat = np.degrees((qy + (south + north) / 2) / MARS_R)
         qlon = np.degrees((qx / pkg["kx"] + (west + east) / 2) / MARS_R)
-        fi = np.radians(qlon - ((clon + 180) % 360 - 180)) * MARS_R * math.cos(math.radians(clat)) / (km * 1000 * step) + (n - 1) / 2
-        fk = np.radians(qlat - clat) * MARS_R / (km * 1000 * step) + (n - 1) / 2
+        fi = np.radians(qlon - ((clon + 180) % 360 - 180)) * MARS_R * math.cos(math.radians(clat)) / (km * 1000 * step_x) + (n - 1) / 2
+        fk = np.radians(qlat - clat) * MARS_R / (km * 1000 * step_y) + (n - 1) / 2
         i0 = np.clip(np.floor(fi).astype(int), 0, n - 2)
         k0 = np.clip(np.floor(fk).astype(int), 0, n - 2)
         ti, tk = fi - i0, fk - k0

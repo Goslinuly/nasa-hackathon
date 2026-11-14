@@ -1,0 +1,23 @@
+{
+  "file": "jezerocode.glb",
+  "sha256": "4a2ae767c94555d315f87a628070da2b04d5086a06d9cc44eb1419ee6cc05656",
+  "description": "Кратер Езеро и окрестности (модель Жанель): регулярная сетка 500 × 500, шаг 0,1897 ед. по востоку и 0,2 ед. по северу (по долготе уже сжато на cos 18,4°)",
+  "grid": "в сетке меша: X — восток, Y — север (glTF −Z), Z — вверх",
+  "horizontal_km_per_unit": 1.0,
+  "center": {
+    "lat": 18.444,
+    "lon_east": 77.46
+  },
+  "vertical_m_per_unit": 354.2,
+  "vertical_offset_m": -3083.3,
+  "vertical_exaggeration_in_file": 2.82,
+  "pixel_m": 200,
+  "calibration": {
+    "method": "масштаб и вертикаль — по MOLA MEGDR 8 px/deg (корреляция 0,963); положение уточнено по высотам участка прогулки jezero (HiRISE 1 м + CTX 20 м), корреляция 0,988",
+    "correlation_mola": 0.9626,
+    "correlation_site": 0.9878,
+    "rotation_deg": 0,
+    "note": "В jezero_day.json/jezero_night.json центр 18,4°/77,5°; по данным модель стоит в 18,444°/77,46° (сдвиг ~5 км). Остаток относительно участка после калибровки: медиана 27 м, его снимает переход по краю."
+  },
+  "credit": "Обзорный рельеф кратера Езеро (~200 м/пикс), подготовлен командой по глобальным данным; масштаб и положение проверены по MOLA MEGDR (NASA/GSFC MOLA Science Team) и HiRISE/CTX DTM Mars 2020 TRN (USGS)"
+}
