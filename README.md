@@ -49,6 +49,7 @@ Official resources from the challenge page.
 | TES thermal inertia (Putzig & Mellon, 2007), [ASU WMS](http://ms-mars.mars.asu.edu/TES_TI_Putzig_day_numeric) | Ground type proxy for route cost | NASA/JPL/ASU, MGS TES |
 | [ISWA HAPI](https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi), dataset `msl_rad_dosimetry` | Live RAD dose rate at Gale | NASA CCMC ISWA; MSL RAD, NASA/JPL-Caltech/SwRI |
 | [NOAA SWPC JSON services](https://services.swpc.noaa.gov/json/): GOES protons and X-rays | Live space weather at Earth with NOAA scales | NOAA Space Weather Prediction Center |
+| [MSL REMS weather feed](https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json) | Gale weather in the EVA panel; the feed is labelled by NASA as for public outreach | NASA/JPL-Caltech, CAB (CSIC-INTA) |
 | [NASA CCMC DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/), API `https://ccmc.gsfc.nasa.gov/DONKI/WS/get/` | Space weather events in the walk HUD (`/api/v1/space-weather/events`). Conditions near Earth; arrival at Mars is an estimate | NASA CCMC |
 | [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/), API `https://ssd.jpl.nasa.gov/api/horizons.api` | Earth–Mars one-way light time table 2026–2028 | NASA/JPL Solar System Dynamics |
 | [NASA GISS Mars24 algorithm](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) and [technical notes](https://www.giss.nasa.gov/tools/mars24/help/notes.html) | Mars local time, sol numbers, sun position in the HUD | NASA GISS |

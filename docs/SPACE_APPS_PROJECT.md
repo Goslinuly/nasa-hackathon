@@ -26,24 +26,37 @@ Martian Map is a web map for planning a Marswalk. It starts from a 3D globe of M
 
 ### What it does
 
-**Current state** (works on the live site):
+**Current state** (works on the live site, checked on 14 November 2026):
 
-- 3D globe of Mars with switchable layers: natural colour (Viking MDIM 2.1), relief shading and hypsometry (HRSC + MOLA), THEMIS day and night infrared, CTX 5 m imagery and HiRISE 0.25 m imagery in Jezero crater. The globe relief is built from MOLA elevation data.
-- For any point on Mars the map reports what data exists there: overview only, or a candidate detailed terrain model (37 HiRISE DTMs registered for six regions).
-- 2D atlas map with the same imagery.
-- Route planner from any point A to any point B: shortest path over the MOLA elevation grid with a slope limit, with an elevation profile. The page states that this is an overview estimate on a ~7 km grid, not a checked walking path.
-- Research along the route: landing sites and studies near the planned path, and an analysis of archived Curiosity RAD radiation measurements, labelled as archive data from Gale crater.
+- **Main screen.** A 3D Mars globe sits in the background of the landing page. «Explore Mars» flies the camera in, and mode buttons appear on the globe: build a route, first-person walk, rover routes, The Martian route, memorial, 2D atlas, layers. Every mode has its own link (`#rovers`, `#walk/gale-boxwork`, …).
+- **Layered globe and atlas.** Natural colour (Viking MDIM 2.1), relief and hypsometry (HRSC + MOLA), THEMIS day and night infrared, CTX 5 m and HiRISE 0.25 m imagery, the USGS geologic map (SIM 3292) with a legend, and 1897 official feature names. For any point the map says what data exists there.
+- **Route planner A → B.** Works for any two points on Mars. Overview routing on MOLA, and on detailed terrain where it exists. Edge cost is the oxygen the astronaut spends: suit walking speed and metabolic cost depend on slope, ground type comes from TES thermal inertia, and very rough ground is excluded. The planner can route through science stops. It shows an elevation profile, time and oxygen corridors, the return rule with a 30 min reserve, slope thresholds with their origin, and the data level of each part of the route.
+- **First-person walk** on real HiRISE terrain in three places:
+  - Gale crater, boxwork area on Mount Sharp, where Curiosity studied boxwork in 2025. The terrain is 1 m with 0.25 m imagery, and Curiosity's real track lies on it.
+  - Ares 3, Acidalia Planitia: the site from The Martian, imaged by HiRISE at the coordinates Andy Weir sent to the HiRISE team.
+  - Jezero crater, with Perseverance's recent route. There, the ground under the astronaut is labelled HiRISE 1 m or CTX 20 m, because HiRISE does not cover the rover's current position.
 
-**In progress:**
+  Walking speed follows the suit model, too-steep slopes and areas without data are blocked, the sky follows Mars local time, and the walk starts in the morning.
+- **Helmet HUD.** Coordinates and height, compass to base, Mars local time (LMST, LTST), Mars Sol Date, the rover's mission sol, UTC, signal delay to Earth (JPL Horizons), the sun and time to sunset, slope underfoot and ahead, time back to base, consumables and point of no return, and radiation:
+  - Curiosity RAD, live, at Gale; elsewhere «no local measurements»;
+  - a dose corridor for this walk;
+  - GOES protons and X-rays with NOAA scales;
+  - DONKI events, with the note that they describe conditions near Earth.
 
-- Local EVA scene for the lower slopes of Mount Sharp (Gale crater, boxwork area), where Curiosity studied boxwork formations in 2025: a 680 m walk between two points with real surface panoramas, on 1 m HiRISE terrain.
-- First-person view with a helmet-style display: coordinates, Mars local time and Earth time, signal delay to Earth, slope underfoot, time to return to base, radiation dose for the walk.
-- Walking speed in a spacesuit as a function of slope, point of no return, radiation dose corrected for altitude and terrain shielding.
-- The Martian locations: Ares 3 and Ares 4 from Andy Weir's novel, on real HiRISE terrain models of those exact places.
+  Every value has a badge: data, archive, model or no data.
+- **Rover routes.** Perseverance, Curiosity and Ingenuity routes and last known positions from NASA MMGIS. A Perseverance 3D model drives the route on the globe.
+- **The Martian route.** Mark Watney's 3,500 km route from Ares 3 to Ares 4 over the MOLA relief, with an elevation profile, a fly-through, real THEMIS and HiRISE images of each stop, and the HiRISE team's note that the real terrain is much harder than in the book.
+- **Memorial.** Missions that ended on the surface (Viking 1 and 2, Pathfinder and Sojourner, Spirit, Opportunity, Phoenix, InSight, Ingenuity, Zhurong), with dates and achievements, a candle, and quiet music synthesised in the browser.
+
+**Not done or limited** (stated on the site where relevant):
+
+- Terrain shielding from the real horizon, dust storm probability, pressure for any point (Mars Climate Database).
+- Rover positions are a snapshot from the last data update, not live tracking.
+- Frame rate is checked on an Apple M4 laptop (60 FPS); slower laptops are not measured yet.
 
 ### How it addresses the challenge
 
-- **Layered view from several missions:** MGS (MOLA), Viking, Mars Express (HRSC), Mars Odyssey (THEMIS), MRO (CTX, HiRISE), MSL Curiosity (RAD, traverse), Mars 2020 Perseverance (traverse, images). Data types: optical, topographic, thermal, radiation.
+- **Layered view from several missions:** MGS (MOLA, TES), Viking, Mars Express (HRSC), Mars Odyssey (THEMIS), MRO (CTX, HiRISE), MSL Curiosity (RAD, REMS weather, traverse), Mars 2020 Perseverance and Ingenuity (traverse), plus GOES and DONKI for space weather. Data types: optical, topographic, thermal, geological, radiation, atmospheric.
 - **Hyperlocal scale:** the challenge notes that existing tools work at regional and global scale. We go from the globe to 1–2 m terrain models of a single excursion area.
 - **Safety first:** slope limits, return time and point of no return, radiation as a separate panel, space weather alerts. Every value is labelled as measurement, archive, model or "no data".
 - **Point-of-view imagery:** rover panoramas and images at the places where they were taken.
