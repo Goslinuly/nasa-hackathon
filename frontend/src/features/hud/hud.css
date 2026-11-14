@@ -169,6 +169,11 @@
   cursor: pointer;
 }
 
+/* Верхняя строка с кнопками прогулки шире компаса: на узких экранах компас — во второй ряд. */
+@media (max-width: 1500px) {
+  .walk-hud .hud-tc { top: 60px; }
+}
+
 @media (max-width: 760px) {
   .hud.walk-hud { font-size: 11px; }
   .walk-hud .hud-tc { top: auto; bottom: 120px; }

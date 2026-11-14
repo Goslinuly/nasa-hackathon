@@ -170,6 +170,7 @@ function WalkSite({ site, ctx }: { site: string; ctx: ModeContext }) {
         loaded = await (pre ?? loadSitePackage(site, ac.signal));
         if (ac.signal.aborted) {
           loaded.ortho.close();
+          loaded.orthoHi?.close();
           return;
         }
         setPkg(loaded);
@@ -183,6 +184,7 @@ function WalkSite({ site, ctx }: { site: string; ctx: ModeContext }) {
     return () => {
       ac.abort();
       loaded?.ortho.close();
+      loaded?.orthoHi?.close();
     };
   }, [site]);
 
