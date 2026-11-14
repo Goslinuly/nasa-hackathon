@@ -128,7 +128,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
       HUD: {LEVEL_TITLE[level]} · H
     </button>
   );
-  if (level === 'hidden') return <div className="hud hud--hidden">{toggle}</div>;
+  if (level === 'hidden') return <div className="hud walk-hud hud--hidden">{toggle}</div>;
   const full = level === 'full';
 
   const lmst = lmstHours(t, s.lonEast);
@@ -153,7 +153,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
     'Разные модели рельефа дают разный уклон; допуск сравним с порогом.';
 
   return (
-    <div className="hud" aria-live="off">
+    <div className="hud walk-hud" aria-live="off">
       <div className="hud-visor" />
 
       {/* Положение */}
