@@ -355,9 +355,7 @@ def export_glb(pkg: dict, args: argparse.Namespace, out: Path, material: bpy.typ
     nt = glb_mat.node_tree
     tex = next(n for n in nt.nodes if n.type == "TEX_IMAGE")
     tex.image = small
-    # glTF не знает узел Mix → подключаем снимок напрямую, оттенок кладём в base color factor.
-    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
-    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    # Узел Mix MULTIPLY экспортёр понимает: снимок → baseColorTexture, оттенок → baseColorFactor.
 
     obj = build_terrain(pkg, args.glb_step, args.vexag, f"{args.site}_glb", glb_mat)
     bpy.ops.object.select_all(action="DESELECT")
