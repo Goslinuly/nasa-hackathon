@@ -14,6 +14,7 @@ import { BackdropPass } from './backdrop';
 import { dataLevelLabel, siteBaseUrl, type SitePackage } from './sitePackage';
 import { MAST_HEIGHT_M, RoverRig } from './roverRig';
 import { applyGroundDetail, type GroundDetail } from './terrainDetail';
+import { shadowNeedsRefresh } from './shadowPolicy';
 import { TerrainChunks } from './terrainMesh';
 import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
 
@@ -203,6 +204,8 @@ export class WalkScene {
 
   private tmp = new THREE.Vector3();
   private sunDir = new THREE.Vector3(0, 1, 0);
+  /** Где и при каком солнце последний раз рисовалась карта теней (shadowPolicy.ts). */
+  private shadowAt = { x: NaN, z: NaN, t: 0, sun: new THREE.Vector3() };
 
   private get latDeg(): number {
     return this.opts.pkg.manifest.center.lat;
@@ -223,6 +226,9 @@ export class WalkScene {
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.shadowMap.enabled = !opts.touch;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Карта теней рисуется не каждый кадр, а когда что-то заметно сдвинулось (refreshShadows).
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
     // Без тонмаппинга солнце + небо выбивали снимок в ровный оранжевый: детали HiRISE пропадали.
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = WALK_EXPOSURE;
@@ -753,6 +759,7 @@ export class WalkScene {
 
   setShadows(on: boolean): void {
     this.renderer.shadowMap.enabled = on;
+    this.shadowAt.x = NaN;
     this.terrain.material.needsUpdate = true;
   }
 
@@ -840,6 +847,7 @@ export class WalkScene {
   setVehicle(vehicle: Vehicle): void {
     if (vehicle === this.vehicle || this.liftHold) return;
     this.vehicle = vehicle;
+    this.shadowAt.x = NaN;
     if (vehicle === 'rover') {
       // Ровер подъезжает туда, где стоит человек, курсом по взгляду.
       this.roverYaw = this.camera.rotation.y;
@@ -861,6 +869,7 @@ export class WalkScene {
     const p = this.nearestValid(x, z);
     this.px = p.x;
     this.pz = p.z;
+    this.shadowAt.x = NaN;
     this.terrain.update(this.px, this.pz, Infinity);
     this.updateCameraHeight();
     this.emitState(true);
@@ -888,6 +897,7 @@ export class WalkScene {
     this.sun.target.position.set(this.px, this.camera.position.y, this.pz);
     this.sun.position.copy(this.sun.target.position).addScaledVector(this.sunDir, 1500);
     this.sky.mesh.position.copy(this.camera.position);
+    this.refreshShadows(now);
 
     if (this.backdrop) {
       this.backdrop.sync(this.camera, {
@@ -1128,6 +1138,29 @@ export class WalkScene {
       this.resize();
       this.fastSeconds = 0;
     }
+  }
+
+  /** Перерисовать карту теней в этом кадре, если игрок или солнце заметно сдвинулись. */
+  private refreshShadows(now: number): void {
+    if (!this.renderer.shadowMap.enabled) return;
+    const s = this.shadowAt;
+    const fresh = Number.isFinite(s.x);
+    if (
+      fresh &&
+      !shadowNeedsRefresh({
+        movedM: Math.hypot(this.px - s.x, this.pz - s.z),
+        sunDot: this.tmp.copy(this.sunDir).normalize().dot(s.sun),
+        ageS: (now - s.t) / 1000,
+        vehicle: this.vehicle,
+      })
+    ) {
+      return;
+    }
+    this.renderer.shadowMap.needsUpdate = true;
+    s.x = this.px;
+    s.z = this.pz;
+    s.t = now;
+    s.sun.copy(this.sunDir).normalize();
   }
 
   private resize(): void {
