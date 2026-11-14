@@ -141,6 +141,7 @@ interface Props {
 export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_KG, loadKg = DEFAULT_LOAD_KG }: Props) {
   const [ownSurface, setSurface] = useState<EvaSurface>('firm');
   const surface = surfaceProp ?? ownSurface;
+  const [crew, setCrew] = useState<1 | 2>(2);
   const [o2Input, setO2Input] = useState('');
 
   const points = useMemo(() => buildEvaPoints(profile), [profile]);
@@ -215,6 +216,20 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
       <h3 className="eva-heading">
         Время и расходники <Badge kind="model" />
       </h3>
+      <div className="day-toggle" role="radiogroup" aria-label="Состав выхода">
+        {([2, 1] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={crew === value}
+            className={crew === value ? 'active' : undefined}
+            onClick={() => setCrew(value)}
+          >
+            {value === 2 ? 'Пара' : 'Один'}
+          </button>
+        ))}
+      </div>
       <div className="day-toggle" role="radiogroup" aria-label="Поверхность" hidden={surfaceProp !== undefined}>
         {(['firm', 'sand'] as EvaSurface[]).map((value) => (
           <button
@@ -238,10 +253,18 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
                 <dd>{formatDuration(data.totals.time_s)}</dd>
               </div>
               <div>
-                <dt>Кислород</dt>
-                <dd className="eva-corridor">{formatCorridor(data.totals.o2_l.low, data.totals.o2_l.high, 'л')}</dd>
+                <dt>{crew === 2 ? 'Кислород на пару' : 'Кислород'}</dt>
+                <dd className="eva-corridor">
+                  {formatCorridor(data.totals.o2_l.low * crew, data.totals.o2_l.high * crew, 'л')}
+                </dd>
               </div>
             </dl>
+            {crew === 2 && (
+              <p className="planner-note">
+                Выход парой — правило NASA: напарник страхует при одиночном отказе и удваивает науку за выход.
+                Кислород здесь — сумма двух комплектов; запас и возврат каждый несёт свои, общих баллонов в модели нет.
+              </p>
+            )}
             <p className="planner-note">
               Значения даны коридором: расход у каждого человека свой, это видно по расхождению прогнозов и фактов Apollo.
               На пеших траверсах раньше кислорода кончается вода на охлаждение.
@@ -258,7 +281,7 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
         Возврат <Badge kind="rule" />
       </h3>
       <label className="eva-field">
-        <span>Запас кислорода, л</span>
+        <span>Запас кислорода на человека, л</span>
         <input
           type="number"
           min="1"
