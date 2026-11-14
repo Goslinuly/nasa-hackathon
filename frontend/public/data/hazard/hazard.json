@@ -1,0 +1,40 @@
+{
+ "pixels_per_degree": 8,
+ "rows": "строка 0 — северный край, столбцы идут на восток от 0° в. д.",
+ "slope": {
+  "file": "slope.png",
+  "width": 2880,
+  "height": 1440,
+  "step": 0.125,
+  "encoding": "значение = пиксель * step",
+  "max_encoded": 31.875,
+  "units": "градусы",
+  "source": "MOLA + HRSC blended slope v2, исходное разрешение около 200 м/пикс",
+  "status": "measurement",
+  "note": "В ячейке сетки 7.4 км хранится уклон, посчитанный на масштабе 200 м: это признак изрезанности участка, а не уклон под ногами",
+  "observed_max_deg": 24.019912719726562,
+  "median_deg": 0.6683148741722107
+ },
+ "thermal_inertia": {
+  "file": "thermal_inertia.png",
+  "width": 2880,
+  "height": 1440,
+  "step": 8.0,
+  "encoding": "значение = пиксель * step",
+  "max_encoded": 2040.0,
+  "units": "Дж м^-2 К^-1 с^-1/2",
+  "source": "MGS TES, дневная тепловая инерция, Putzig et al. (2005), сетка 20 пикс/градус",
+  "status": "measurement",
+  "note": "0 — нет данных; значения выше 1200 обычно лёд и артефакты полярных шапок",
+  "median": 223.0,
+  "nodata_fraction": 0.031667148919753085
+ },
+ "surface_from_inertia": {
+  "status": "model",
+  "note": "Порог грунта по тепловой инерции: ниже 150 считаем рыхлым песком, выше — плотным грунтом. Это трактовка измерения, а не доля камней на площади",
+  "sand_below": 150
+ },
+ "retrieved": "2026-11-14",
+ "service": "http://ms-mars.mars.asu.edu/TES_TI_Putzig_day_numeric",
+ "credit": "NASA/JPL/GSFC/ASU; Putzig et al. (2005); ESA/DLR/FU Berlin для HRSC"
+}

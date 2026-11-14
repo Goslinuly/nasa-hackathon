@@ -675,12 +675,18 @@ export default function RoutePanel({ globe }: ModeContext) {
             </dl>
             {route.hazard && (
               <div className="hazard-summary">
-                <p>{formatSand(route.hazard.sandM)}</p>
-                <p className="planner-note">
-                  грунт по тепловой инерции TES — трактовка измерения, не доля камней
-                  {route.eva?.surface === 'per_cell' ? '. Расход уже посчитан по грунту каждой ячейки' : ''}
-                </p>
-                {formatUnknownSurface(route.hazard.unknownSurfaceM) && <p>{formatUnknownSurface(route.hazard.unknownSurfaceM)}</p>}
+                {route.hazard.surfaceFromData && (
+                  <>
+                    <p>{formatSand(route.hazard.sandM)}</p>
+                    <p className="planner-note">
+                      грунт по тепловой инерции TES — трактовка измерения, не доля камней
+                      {route.eva?.surface === 'per_cell' ? '. Расход уже посчитан по грунту каждой ячейки' : ''}
+                    </p>
+                  </>
+                )}
+                {route.hazard.surfaceFromData && formatUnknownSurface(route.hazard.unknownSurfaceM) && (
+                  <p>{formatUnknownSurface(route.hazard.unknownSurfaceM)}</p>
+                )}
                 {formatBlockedCells(route.hazard.blockedByRuggedness, route.hazard.maxRuggedSlopeDeg) && (
                   <>
                     <p>{formatBlockedCells(route.hazard.blockedByRuggedness, route.hazard.maxRuggedSlopeDeg)}</p>
