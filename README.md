@@ -39,6 +39,7 @@ Every dataset added to the project is listed here with its source and credit, as
 - [Техническое задание версии 4.1 в Word](docs/TZ_Martian_Map_SpaceApps2026_v4_1.docx)
 - [Ресурсы, источники информации и базы данных](docs/RESOURCES.md)
 - [Ресурсы, источники информации и базы данных в Word](docs/RESOURCES.docx)
+- [Деплой на Railway без CLI](docs/DEPLOY_RAILWAY.md)
 
 ## Team
 
