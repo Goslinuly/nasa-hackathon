@@ -27,14 +27,14 @@
  ],
  "height": {
   "file": "height.png",
-  "width": 900,
-  "height": 1200,
-  "pixel_m": 2.0,
+  "width": 1800,
+  "height": 2400,
+  "pixel_m": 1.0,
   "encoding": "units=(R<<8)|G; height_m=base_m+(units-1)*step_m; units=0 is NoData",
   "base_m": -3860.0,
   "step_m": 0.01,
-  "min_m": -3859.37,
-  "max_m": -3365.68,
+  "min_m": -3859.24,
+  "max_m": -3365.18,
   "nodata_fraction": 0.0,
   "vertical_reference": "areoid (как в продукте HiRISE DTM USGS)",
   "rows": "first row is north edge, columns go east"
@@ -45,6 +45,36 @@
   "height": 4800,
   "pixel_m": 0.5,
   "value_0": "нет данных"
+ },
+ "ortho_hi": {
+  "file": "ortho_hi.webp",
+  "width": 4096,
+  "height": 4096,
+  "pixel_m": 0.25,
+  "bounds_eqc_m": [
+   8142858.61,
+   -285211.09,
+   8143882.61,
+   -284187.09
+  ],
+  "center": {
+   "lat": -4.803046,
+   "lon_east": 137.383588
+  },
+  "product": "ESP_019698_1750_RED_A_01_ORTHO",
+  "url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_019698_1750_ESP_019988_1750/ESP_019698_1750_RED_A_01_ORTHO.tif",
+  "source_pixel_m": 0.2529,
+  "hirise_fraction": 1.0,
+  "alpha": "есть только при пропусках: 255 — снимок HiRISE, 0 — нет данных (брать ortho)",
+  "stretch": "та же линейная растяжка яркости, что у ortho.webp",
+  "resampling": "bilinear из исходного пикселя; без повышения резкости",
+  "choice": "окно покрывает место старта и все метки участка",
+  "blend_m": 25,
+  "start": {
+   "lat": -4.797816,
+   "lon_east": 137.385921
+  },
+  "sha256": "9e1ea7be8ac8658f6b8f3ec01538a472b588d5b030a7fb48d01af782e8e6fdf2"
  },
  "sources": [
   {
@@ -59,6 +89,7 @@
    "role": "ortho",
    "product": "ESP_019698_1750_RED_A_01_ORTHO",
    "url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_019698_1750_ESP_019988_1750/ESP_019698_1750_RED_A_01_ORTHO.tif",
+   "source_pixel_m": 0.253,
    "credit": "NASA/JPL/University of Arizona (HiRISE); DTM USGS Astrogeology",
    "license": "CC0-1.0 по STAC item"
   }
@@ -89,17 +120,18 @@
   ],
   "dtm_minus_rover_m": {
    "n": 164,
-   "median": 12.54,
-   "p10": 10.04,
-   "p90": 14.99
+   "median": 12.61,
+   "p10": 10.0,
+   "p90": 14.96
   },
   "note": "Высота трека — телеметрия ровера (elev_geoid). Линию маршрута класть на рельеф DTM; разница — смещение вертикального датума, а не ошибка точки."
  },
  "generated_by": "backend/scripts/build_local_package.py",
  "sha256": {
-  "height": "80deea5d104530d7bc94160e39772c0183b766895a2dab8e9e957f93a69671f4",
+  "height": "ee4af842363491ce1cc6784f36fbe7a2640621ab419ee693b913f61304834bc6",
   "ortho": "b666a1542d0c2ff01bbf5c013724ad4a1c7a6f13684af9a28f4e4266b8cf24eb",
-  "track": "0d0c26d52a0bb1eb3d212f46b0015faa181bdd390202dd0f163da74141052ac9",
+  "ortho_hi": "9e1ea7be8ac8658f6b8f3ec01538a472b588d5b030a7fb48d01af782e8e6fdf2",
+  "track": "06d8df7728155a821549e7605b8903d306d3433c56bf6f5716c188d45c14f615",
   "backdrop": "2dbe987447f5626d08b5ca6a440931e45adeb2f223bd8155f9f747e2f947c2f5"
  },
  "backdrop": {

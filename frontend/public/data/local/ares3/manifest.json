@@ -27,14 +27,14 @@
  ],
  "height": {
   "file": "height.png",
-  "width": 1000,
-  "height": 1000,
-  "pixel_m": 2.0,
+  "width": 2000,
+  "height": 2000,
+  "pixel_m": 1.0,
   "encoding": "units=(R<<8)|G; height_m=base_m+(units-1)*step_m; units=0 is NoData",
   "base_m": -4156.0,
   "step_m": 0.01,
-  "min_m": -4155.28,
-  "max_m": -4090.45,
+  "min_m": -4155.27,
+  "max_m": -4090.44,
   "nodata_fraction": 0.0,
   "vertical_reference": "areoid (как в продукте HiRISE DTM USGS)",
   "rows": "first row is north edge, columns go east"
@@ -45,6 +45,36 @@
   "height": 4000,
   "pixel_m": 0.5,
   "value_0": "нет данных"
+ },
+ "ortho_hi": {
+  "file": "ortho_hi.webp",
+  "width": 4096,
+  "height": 4096,
+  "pixel_m": 0.25,
+  "bounds_eqc_m": [
+   -1697487.32,
+   1859528.01,
+   -1696463.32,
+   1860552.01
+  ],
+  "center": {
+   "lat": 31.38,
+   "lon_east": 331.371
+  },
+  "product": "ESP_040776_2115_RED_A_01_ORTHO",
+  "url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_041277_2115_ESP_040776_2115/ESP_040776_2115_RED_A_01_ORTHO.tif",
+  "source_pixel_m": 0.258,
+  "hirise_fraction": 1.0,
+  "alpha": "есть только при пропусках: 255 — снимок HiRISE, 0 — нет данных (брать ortho)",
+  "stretch": "та же линейная растяжка яркости, что у ortho.webp",
+  "resampling": "bilinear из исходного пикселя; без повышения резкости",
+  "choice": "окно покрывает место старта и все метки участка",
+  "blend_m": 25,
+  "start": {
+   "lat": 31.38,
+   "lon_east": 331.371
+  },
+  "sha256": "295ee66ad1ff5cd3f344167198120e711488630d21ae61e8f6bcc71a69af5833"
  },
  "sources": [
   {
@@ -59,6 +89,7 @@
    "role": "ortho",
    "product": "ESP_040776_2115_RED_A_01_ORTHO",
    "url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_041277_2115_ESP_040776_2115/ESP_040776_2115_RED_A_01_ORTHO.tif",
+   "source_pixel_m": 0.258,
    "credit": "NASA/JPL/University of Arizona (HiRISE); DTM USGS Astrogeology",
    "license": "CC0-1.0 по STAC item"
   }
@@ -75,7 +106,8 @@
  "track": null,
  "generated_by": "backend/scripts/build_local_package.py",
  "sha256": {
-  "height": "ed51556805dd537cdbdc33e45e0a88c9dd6ddaec87ac039b9ce7b77db06a1e3b",
-  "ortho": "d925d765f5ee3d8e10b385dfa50027727e315198985f91b1b92f0468cda68119"
+  "height": "3116144c05f55d5657874d0f443af49c992c7b85a166976f6122e66b7f8b1b5f",
+  "ortho": "d925d765f5ee3d8e10b385dfa50027727e315198985f91b1b92f0468cda68119",
+  "ortho_hi": "295ee66ad1ff5cd3f344167198120e711488630d21ae61e8f6bcc71a69af5833"
  }
 }

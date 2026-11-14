@@ -27,14 +27,14 @@
  ],
  "height": {
   "file": "height.png",
-  "width": 1500,
-  "height": 1000,
-  "pixel_m": 2.0,
+  "width": 3000,
+  "height": 2000,
+  "pixel_m": 1.0,
   "encoding": "units=(R<<8)|G; height_m=base_m+(units-1)*step_m; units=0 is NoData",
   "base_m": -2014.0,
   "step_m": 0.01,
-  "min_m": -2013.69,
-  "max_m": -1645.49,
+  "min_m": -2013.7,
+  "max_m": -1645.47,
   "nodata_fraction": 0.0,
   "vertical_reference": "areoid (как в продукте HiRISE DTM USGS)",
   "rows": "first row is north edge, columns go east",
@@ -45,8 +45,8 @@
     "1": "CTX DTM 20 м (билинейная интерполяция)",
     "2": "переходная полоса"
    },
-   "hirise_fraction": 0.2554,
-   "fill_fraction": 0.7446,
+   "hirise_fraction": 0.2552,
+   "fill_fraction": 0.7448,
    "hirise_shift_m": -5.58,
    "hirise_minus_fill_m": {
     "p10": 1.02,
@@ -64,6 +64,36 @@
   "hirise_fraction": 0.2547,
   "fill_note": "где нет HiRISE — JEZ_ctx_B_soc_008_orthoMosaic_6m, яркость подогнана к HiRISE"
  },
+ "ortho_hi": {
+  "file": "ortho_hi.webp",
+  "width": 4096,
+  "height": 4096,
+  "pixel_m": 0.25,
+  "bounds_eqc_m": [
+   4578853.64,
+   1092705.05,
+   4579877.64,
+   1093729.05
+  ],
+  "center": {
+   "lat": 18.443233,
+   "lon_east": 77.256668
+  },
+  "product": "JEZ_hirise_soc_007_orthoMosaic_25cm_Ortho_blend120",
+  "url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/HiRISE/JEZ_hirise_soc_007_orthoMosaic_25cm_Ortho_blend120.tif",
+  "source_pixel_m": 0.25,
+  "hirise_fraction": 0.8158,
+  "alpha": "есть только при пропусках: 255 — снимок HiRISE, 0 — нет данных (брать ortho)",
+  "stretch": "та же линейная растяжка яркости, что у ortho.webp",
+  "resampling": "bilinear из исходного пикселя; без повышения резкости",
+  "choice": "метки не помещаются в одно окно; окно содержит место старта и сдвинуто к большей площади HiRISE",
+  "blend_m": 25,
+  "start": {
+   "lat": 18.440094,
+   "lon_east": 77.253116
+  },
+  "sha256": "bd5f0609de1f47bbe699c43be1107aaa64a75bc2ea8ea45789d96326cb140c23"
+ },
  "sources": [
   {
    "role": "dtm",
@@ -77,6 +107,7 @@
    "role": "ortho",
    "product": "JEZ_hirise_soc_007_orthoMosaic_25cm_Ortho_blend120",
    "url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/HiRISE/JEZ_hirise_soc_007_orthoMosaic_25cm_Ortho_blend120.tif",
+   "source_pixel_m": 0.25,
    "credit": "NASA/JPL/University of Arizona (HiRISE); Mars 2020 TRN HiRISE DTM и ортомозаика USGS Astrogeology (Fergason et al., 2020), doi:10.5066/P9REJ9JN",
    "license": "USGS, общественное достояние"
   },
@@ -124,11 +155,11 @@
   "by_dtm_source": {
    "hirise": {
     "points": 31,
-    "median_dtm_minus_rover_m": -2.07
+    "median_dtm_minus_rover_m": -2.08
    },
    "blend": {
     "points": 1,
-    "median_dtm_minus_rover_m": -6.83
+    "median_dtm_minus_rover_m": -6.84
    },
    "fill": {
     "points": 96,
@@ -138,9 +169,10 @@
  },
  "generated_by": "backend/scripts/build_local_package.py",
  "sha256": {
-  "height": "a02f090c1330623d9bd567228cd2e8f6e5b8330625adbb4e7a9ba5ba6b0bd1ae",
+  "height": "3b1b5f31fa2c282579f2bd629f0ca0b4f1e87b5ab2f48b3b3abe5c8a3f83106d",
   "ortho": "643db123b85fff482e71d3c294ce204d1e88a020d83d0773cd75061295400d06",
-  "track": "4fabe85082d5f3b65c8331181ba53b874e345f379793924bfe3245857aa400a6",
+  "ortho_hi": "bd5f0609de1f47bbe699c43be1107aaa64a75bc2ea8ea45789d96326cb140c23",
+  "track": "e2ebde3d77fa96798437bf46dff8d9df2eeefa0ca3f2f6a4a56e1b9cb95af9c8",
   "backdrop": "c5835b92d6956dc5733b6ee714e5d42924e861e6ea065a8f5f028fcbc790e323"
  },
  "quality_note": "HiRISE-часть участка — стереопара CR (Crater Rim), самая западная в мозаике TRN. Паспорт USGS: «several quality issues due to uncompensated y-parallax ... users should be cautious when using this area for analysis». Подписывать как зону пониженного качества. Западнее HiRISE DTM нет ни в TRN, ни в PDS: там высоты CTX 20 м и ортофото CTX 6 м, мелкий рельеф не виден.",
