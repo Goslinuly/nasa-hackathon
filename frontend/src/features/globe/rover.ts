@@ -6,6 +6,7 @@ const MODEL_URL = '/models/perseverance.glb';
 
 export class RoverTrack {
   readonly group = new THREE.Group();
+  surfaceRadius: ((at: THREE.Vector3) => number) | null = null;
   private pivot = new THREE.Group();
   private curve: THREE.Curve<THREE.Vector3> | null = null;
   private routeLength = 0;
@@ -40,6 +41,10 @@ export class RoverTrack {
     const { progress, scale } = roverCycle(nowMs - this.startedAt);
     const position = this.curve.getPointAt(progress);
     const tangent = this.curve.getTangentAt(progress);
+    if (this.surfaceRadius) {
+      const min = this.surfaceRadius(position);
+      if (position.length() < min) position.setLength(min);
+    }
     this.group.matrix.copy(roverBasis(position, tangent));
     this.group.matrixWorldNeedsUpdate = true;
     const size = roverSizeForView(cameraAltitude, this.routeLength);

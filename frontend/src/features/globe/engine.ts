@@ -336,6 +336,7 @@ export class MarsGlobeEngine {
   private markerGroup = new THREE.Group();
   private lineGroup = new THREE.Group();
   private rover = new RoverTrack();
+  private roverPath: LonLat[] | null = null;
   private selectionMarker: THREE.Sprite;
   private selection: LonLat | null = null;
   private textures: TextureStore;
@@ -380,7 +381,8 @@ export class MarsGlobeEngine {
     private events: GlobeEvents,
   ) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarse ? 1.5 : 2));
     this.textures = new TextureStore(Math.min(4, this.renderer.capabilities.getMaxAnisotropy()));
     this.whiteTexture = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
     this.whiteTexture.needsUpdate = true;
@@ -423,6 +425,12 @@ export class MarsGlobeEngine {
     this.scene.add(this.lineGroup);
     this.scene.add(this.markerGroup);
     this.scene.add(this.rover.group);
+    this.rover.surfaceRadius = (at) => {
+      const lon = THREE.MathUtils.radToDeg(Math.atan2(-at.z, at.x));
+      const lat = THREE.MathUtils.radToDeg(Math.atan2(at.y, Math.hypot(at.x, at.z)));
+      return 1 + this.heightScene(lon, lat) + this.overlayLift;
+    };
+    this.footprintGroup.visible = false;
 
     this.selectionMarker = this.makeMarker(this.makeDotTexture('#ffffff'), 0.02);
     this.selectionMarker.visible = false;
@@ -709,7 +717,7 @@ export class MarsGlobeEngine {
   private buildLineLayer(layer: LineLayer): void {
     this.clearLineLayer(layer);
     for (const line of layer.lines) {
-      const points = densifyPath(line.points, 0.5);
+      const points = densifyPath(line.points, 0.05);
       if (points.length < 2) continue;
       const positions: number[] = [];
       for (const point of points) {
@@ -826,6 +834,14 @@ export class MarsGlobeEngine {
     return this.overlays.has(id);
   }
 
+  setFootprintsVisible(on: boolean): void {
+    this.footprintGroup.visible = on;
+  }
+
+  getFootprintsVisible(): boolean {
+    return this.footprintGroup.visible;
+  }
+
   setSpectrum(id: SpectrumId): void {
     if (this.spectrum.id === id) return;
     this.spectrum = SPECTRA[id];
@@ -907,10 +923,12 @@ export class MarsGlobeEngine {
 
   setRoverRoute(points: LonLat[] | null): LonLat[] | null {
     if (!points || points.length < 2) {
+      this.roverPath = null;
       this.rover.setCurve(null, true);
       return null;
     }
-    const dense = densifyPath(points, 0.2);
+    const dense = densifyPath(points, 0.05);
+    this.roverPath = dense;
     const curve = buildRouteCurve(dense.map((p) => this.surfacePoint(p.lon, p.lat, this.overlayLift * 2)));
     this.rover.setCurve(curve, true);
     const smooth: LonLat[] = [];
@@ -1061,6 +1079,12 @@ export class MarsGlobeEngine {
       this.overlayLift = lift;
       this.buildOverlays();
       this.rebuildLines();
+      if (this.roverPath) {
+        this.rover.setCurve(
+          buildRouteCurve(this.roverPath.map((p) => this.surfacePoint(p.lon, p.lat, this.overlayLift * 2))),
+          false,
+        );
+      }
     }
   }
 
