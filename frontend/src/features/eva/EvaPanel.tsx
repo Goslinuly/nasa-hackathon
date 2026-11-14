@@ -227,8 +227,8 @@ export function EvaPanel({ profile }: Props) {
               </div>
             </dl>
             <p className="planner-note">
-              Коридор, а не точное число: расход индивидуален, подтверждено сравнением прогнозов и фактов Apollo. Для
-              пеших траверсов ограничивает вода на охлаждение, а не кислород.
+              Значения даны коридором: расход у каждого человека свой, это видно по расхождению прогнозов и фактов Apollo.
+              На пеших траверсах раньше кислорода кончается вода на охлаждение.
             </p>
             <p className="planner-note">{data.provenance.time_note}</p>
             {[data.provenance.speed, data.provenance.terrain, data.provenance.power, data.provenance.oxygen].map((p) => (
@@ -283,7 +283,7 @@ export function EvaPanel({ profile }: Props) {
       </div>
       <p className="planner-note">
         <span className="eva-badge eva-ok">&lt; 15°</span> <span className="eva-badge eva-warn">15–20°</span>{' '}
-        <span className="eva-badge eva-limit">&gt; 20° — вне области модели</span>
+        <span className="eva-badge eva-limit">&gt; 20°: вне области модели</span>
       </p>
       <Status load={slopes}>
         {(data) => (
@@ -291,7 +291,7 @@ export function EvaPanel({ profile }: Props) {
             <ul className="eva-list">
               {data.thresholds.map((t) => (
                 <li key={t.key}>
-                  <strong>±{t.high_deg}°</strong> — {t.label}{' '}
+                  <strong>±{t.high_deg}°</strong>: {t.label}{' '}
                   <span className="planner-note">
                     ({t.nature === 'operational_rule' ? 'правило, не требование стандарта' : t.nature})
                   </span>

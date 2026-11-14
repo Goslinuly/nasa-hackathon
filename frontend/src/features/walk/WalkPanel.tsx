@@ -120,7 +120,7 @@ function WalkSite({ site, ctx }: { site: string; ctx: ModeContext }) {
   }, [site]);
 
   if (status === 'missing') {
-    return <SiteChooser ctx={ctx} notice="Подробного рельефа здесь нет — доступен обзорный режим. Выберите участок с DTM HiRISE." />;
+    return <SiteChooser ctx={ctx} notice="Подробного рельефа здесь нет, доступен только обзорный режим. Выберите участок с DTM HiRISE." />;
   }
   if (status === 'error') {
     return (
@@ -247,14 +247,14 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
             ))}
           </div>
           <p className="walk-muted">
-            20° — эксплуатационное правило инструмента планирования NASA, 15° — консервативный порог планов миссий, 25° — ориентир «доступно пешком». Требования NASA с числом нет.
+            20°: эксплуатационное правило инструмента планирования NASA. 15°: консервативный порог из планов миссий. 25°: ориентир «доступно пешком». Числового требования NASA нет.
           </p>
           <label className="walk-menu-row">
             <input type="checkbox" checked={shadows} onChange={(e) => { s?.setShadows(e.target.checked); setShadows(e.target.checked); }} />
             <span>Тени от рельефа</span>
           </label>
           <p className="walk-muted">
-            Скорость ходьбы — параметр симуляции: V = −0,01·θ + 0,75 м/с (модель по выходам Apollo), не меньше 0,1 м/с.
+            Скорость ходьбы задаёт симуляция: V = −0,01·θ + 0,75 м/с по модели выходов Apollo, но не меньше 0,1 м/с.
             {extra ? ` Сейчас ${extra.speedMs.toFixed(2).replace(".", ",")} м/с.` : ''}
           </p>
           <p className="walk-muted">Кадров в секунду: {extra ? Math.round(extra.fps) : '—'}</p>
@@ -262,7 +262,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       )}
 
       <div className="walk-minimap">
-        <canvas ref={minimapRef} title="Щелчок — перейти в точку" />
+        <canvas ref={minimapRef} title="Щёлкните, чтобы перейти в точку" />
         <div className="walk-minimap-credit">
           {credit ? `${credit.product} · ${credit.credit ?? ''}` : ''}
           {pkg.manifest.backdrop ? ` · ${pkg.manifest.backdrop.label}` : ''}
@@ -272,7 +272,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       {extra?.blocked && (
         <div className="walk-blocked">
           {extra.blocked === 'nodata'
-            ? 'Дальше нет данных рельефа — шагнуть нельзя'
+            ? 'Дальше нет данных рельефа, шагнуть нельзя'
             : `Слишком круто: ${Math.round(extra.blockedSlopeDeg)}° при пороге ${state?.maxSlopeDeg ?? ''}°`}
         </div>
       )}

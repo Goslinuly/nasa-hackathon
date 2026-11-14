@@ -31,7 +31,7 @@ export function CoverageCard({ point }: { point: MarsPoint | null }) {
         setError(
           requestError instanceof ApiError
             ? `${requestError.message} (${requestError.code})`
-            : 'Сервер недоступен. Запущен ли backend на порту 8001?',
+            : 'Сервер недоступен. Проверьте, что backend запущен на порту 8001.',
         );
       })
       .finally(() => {
@@ -46,9 +46,9 @@ export function CoverageCard({ point }: { point: MarsPoint | null }) {
     return (
       <div className="coverage-card coverage-empty">
         <p>
-          Кликните по любой точке планеты — сервис определит, какие данные реально
-          доступны для этого направления: обзорная карта, подробный рельеф или
-          пробел покрытия.
+          Кликните по любой точке планеты, и сервис покажет, какие данные есть
+          для этого направления: обзорная карта, подробный рельеф или
+          пробел в покрытии.
         </p>
       </div>
     );
@@ -101,8 +101,8 @@ export function CoverageCard({ point }: { point: MarsPoint | null }) {
             ))}
           </ul>
           <p className="dim small">
-            Кандидатные записи — зарегистрированные в каталоге продукты, а не
-            подтверждённое покрытие этой точки. Footprints проверяются при импорте.
+            Кандидатные записи взяты из каталога продуктов и не подтверждают
+            покрытие этой точки. Footprints проверяются при импорте.
           </p>
         </>
       )}

@@ -80,7 +80,7 @@ export default function RoversPanel({ globe, openMode, exit }: ModeContext) {
         <>
           <p className="rv-dim">
             Позиции на {formatUtc(data.current.fetched_utc)} (дата выгрузки из NASA MMGIS). Роверы
-            едут дальше — на глобусе последняя известная нам точка.
+            едут дальше, а на глобусе показана последняя известная нам точка.
           </p>
           <ul className="rv-list">
             {items.map(item => (

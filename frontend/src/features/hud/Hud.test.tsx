@@ -57,7 +57,7 @@ describe('HUD', () => {
   it('вне Гейла: местных измерений нет и расстояние до Гейла', () => {
     const jezero = { ...gale, lat: 18.44, lonEast: 77.45, nearestTrackPoint: undefined };
     const html = renderToStaticMarkup(<HudView state={jezero} ext={{ rad, spaceWeather: null }} level="full" />);
-    expect(html).toMatch(/местных измерений нет — ближайшие: RAD, кратер Гейл, 3\d{3} км/);
+    expect(html).toMatch(/местных измерений нет; ближайшие: RAD, кратер Гейл, 3\d{3} км/);
     expect(html).toContain('Perseverance');
     expect(html).not.toContain('мкГр/ч');
   });
@@ -71,7 +71,7 @@ describe('HUD', () => {
     };
     const html = renderToStaticMarkup(<HudView state={gale} ext={{ spaceWeather: sw }} level="full" />);
     expect(html).toContain('выброс массы 2026-11-12 08:00 UTC');
-    expect(html).toContain('приход к Марсу — оценка');
+    expect(html).toContain('прихода к Марсу оценочное');
   });
 
   it('минимум и скрыт', () => {

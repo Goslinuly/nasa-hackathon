@@ -71,7 +71,7 @@ export function TimeControls({ scene, solar }: Props) {
           </label>
         </>
       )}
-      <p className="walk-muted">Модель: Mars24 (Allison &amp; McEwen). Панорама неба: производная, источник указывает команда. τ — модельная оптическая толщина, не измерение.</p>
+      <p className="walk-muted">Модель: Mars24 (Allison &amp; McEwen). Панорама неба производная, её источник указывает команда. Оптическая толщина τ взята из модели, это не измерение.</p>
     </div>
   );
 }

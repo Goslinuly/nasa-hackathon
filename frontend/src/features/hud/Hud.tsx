@@ -148,9 +148,9 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
     'Алгоритм NASA GISS Mars24 (Allison & McEwen 2000), расчёт в браузере по модельным часам выхода. ' +
     'Точность ~1 с для LMST. Долгота восточная.';
   const slopeTip =
-    `Уклон по модели рельефа сцены (${s.dataLevel}), градусы. Зелёный — до 15°, жёлтый — до порога ` +
-    `${s.maxSlopeDeg}°, красный — выше. Порог — правило планирования, не норматив NASA (ТЗ EVA 9.3). ` +
-    'Разные модели рельефа дают разный уклон; допуск сравним с порогом.';
+    `Уклон в градусах по модели рельефа сцены (${s.dataLevel}). Зелёный: до 15°, жёлтый: до порога ` +
+    `${s.maxSlopeDeg}°, красный: выше. Порог взят из правил планирования, это не норматив NASA (ТЗ EVA 9.3). ` +
+    'Разные модели рельефа дают разный уклон, и допуск сравним с порогом.';
 
   return (
     <div className="hud walk-hud" aria-live="off">
@@ -193,14 +193,14 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
               label="MSD"
               value={`${fmtNum(t.msd, 3)} · Ls ${fmtNum(t.lsDeg, 1)}°`}
               prov="model"
-              tip={`Mars Sol Date — сквозной счёт солов; Ls — солнечная долгота Марса (сезон). ${marsTimeTip}`}
+              tip={`Mars Sol Date: сквозной счёт солов. Ls: солнечная долгота Марса, по ней определяют сезон. ${marsTimeTip}`}
             />
             {mission && (
               <Row
                 label={mission.title}
                 value={`sol ${missionSol(mission, s.simTimeMs)}`}
                 prov="model"
-                tip={`Сол миссии: сол посадки — sol 0, счёт по LMST на ${mission.clockLonEastDeg}° в. д. (часы миссии). Источник соглашения: NASA, Mars24.`}
+                tip={`Сол миссии: сол посадки считается sol 0, отсчёт по LMST на ${mission.clockLonEastDeg}° в. д. (часы миссии). Источник соглашения: NASA, Mars24.`}
               />
             )}
           </>
@@ -216,7 +216,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
               tip={
                 light
                   ? `Время света в одну сторону, расстояние ${fmtNum(light.distanceAu, 3)} а.е. Интерполяция по таблице ${light.source} (создана ${light.generatedUtc}). Без задержек ретрансляции.`
-                  : 'Таблицы расстояний JPL Horizons нет или момент вне её диапазона — число не подставляется.'
+                  : 'Таблицы расстояний JPL Horizons нет, или момент вне её диапазона, поэтому число не показано.'
               }
             />
             <Row
@@ -245,7 +245,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
           <div className="hud-alert">
             {sun.elevationDeg < 0
               ? 'Темно: Солнце под горизонтом'
-              : `До заката ${formatDuration(toSunset ?? 0)} — меньше времени возврата`}
+              : `До заката ${formatDuration(toSunset ?? 0)}, это меньше времени возврата`}
           </div>
         )}
         {budget.pastNoReturn && <div className="hud-alert hud-alert--danger">Точка невозврата: пора на базу</div>}
@@ -271,7 +271,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
           label="Возврат"
           value={`${formatDuration(budget.backS)} · ${formatDistance(s.baseDistanceM)}`}
           prov="model"
-          tip="Время пути на базу по прямой со скоростью по ровному 0,75 м/с: V = −0,01·θ + 0,75 м/с, калибровка по выходам Apollo (ТЗ EVA 9.1). Обходы и уклоны не учтены — реальное время больше."
+          tip="Время пути на базу по прямой со скоростью по ровному 0,75 м/с: V = −0,01·θ + 0,75 м/с, калибровка по выходам Apollo (ТЗ EVA 9.1). Обходы и уклоны не учтены, поэтому реальное время больше."
         />
         {full && (
           <>
@@ -283,7 +283,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
             />
             <Row
               label="Запас"
-              value={budget.pastNoReturn ? 'нет — возврат сейчас' : `можно отойти ещё ${formatDistance(budget.extraOutM)}`}
+              value={budget.pastNoReturn ? 'нет, возвращайтесь сейчас' : `можно отойти ещё ${formatDistance(budget.extraOutM)}`}
               prov="model"
               tone={budget.pastNoReturn ? 'danger' : budget.slackS < 1800 ? 'warn' : undefined}
               tip="Остаток минус время возврата минус резерв 30 мин. Правило: возврат должен быть возможен при любом одиночном отказе (ТЗ EVA 9.2)."
@@ -302,7 +302,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
               label="Рядом"
               value={`${s.nearestTrackPoint.mission}, sol ${s.nearestTrackPoint.sol}, ${formatDistance(s.nearestTrackPoint.distanceM)}`}
               prov="data"
-              tip="Ближайшая точка пути ровера по файлу локализаций NASA MMGIS; sol — сол заезда."
+              tip="Ближайшая точка пути ровера по файлу локализаций NASA MMGIS. Поле sol показывает сол заезда."
             />
           ) : (
             <Row label="Трек ровера" value="рядом нет" prov="nodata" tip="В этой сцене нет маршрута ровера." />
@@ -329,9 +329,9 @@ function RadiationRows({ state: s, rad }: { state: WalkState; rad: RadSummary | 
     measured = (
       <Row
         label="Радиация"
-        value={`местных измерений нет — ближайшие: RAD, кратер Гейл, ${Math.round(galeKm)} км`}
+        value={`местных измерений нет; ближайшие: RAD, кратер Гейл, ${Math.round(galeKm)} км`}
         prov="nodata"
-        tip="На поверхности дозу измеряли только приборы на роверах. Для этой точки измерения нет; расстояние — по дуге до кратера Гейл."
+        tip="На поверхности дозу измеряли только приборы на роверах. Для этой точки измерений нет. Расстояние до кратера Гейл указано по дуге."
       />
     );
   } else if (rad === null) {
@@ -361,7 +361,7 @@ function RadiationRows({ state: s, rad }: { state: WalkState; rad: RadSummary | 
         prov="model"
         tip={
           `Типичная эквивалентная доза на поверхности по RAD; по солнечному циклу ${fmtNum(r.min, 2)}–${fmtNum(r.max, 2)} мЗв/сут ` +
-          '(ТЗ EVA 9.4). Коэффициент качества ~3 (3,05 ± 0,3; уточнение 2019 года — 2,1–2,7). Сутки земные. Высота и рельеф не учтены.'
+          '(ТЗ EVA 9.4). Коэффициент качества ~3 (3,05 ± 0,3; по уточнению 2019 года 2,1–2,7). Сутки земные. Высота и рельеф не учтены.'
         }
       />
       <Row
@@ -375,7 +375,7 @@ function RadiationRows({ state: s, rad }: { state: WalkState; rad: RadSummary | 
 }
 
 function SpaceWeatherRow({ sw }: { sw: SpaceWeather | null | undefined }) {
-  const note = 'DONKI описывает обстановку у Земли; приход к Марсу — оценка.';
+  const note = 'DONKI описывает обстановку у Земли. Время прихода к Марсу оценочное.';
   if (sw === undefined) return null;
   const ev = latestRelevantEvent(sw);
   if (!sw || !ev) {

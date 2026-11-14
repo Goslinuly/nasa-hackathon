@@ -38,7 +38,7 @@ export function GlobeHud() {
       )}
       {state?.overLimit && (
         <div className="hud-warn">
-          Предел источника ({formatResolution(state.nativeResolutionM)}): дальше — увеличение без новых деталей.
+          Предел источника ({formatResolution(state.nativeResolutionM)}). Дальше идёт только увеличение, новых деталей нет.
         </div>
       )}
     </div>

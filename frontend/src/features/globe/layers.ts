@@ -106,7 +106,7 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
     id: 'themis-night',
     title: 'ИК ночь',
     description:
-      'THEMIS ночной ИК, 100 м: тёплые ночью участки — камни и скальные выходы (высокая тепловая инерция), тёмные — пыль и песок.',
+      'THEMIS ночной ИК, 100 м. Ночью тёплыми остаются камни и скальные выходы с высокой тепловой инерцией, а пыль и песок выглядят тёмными.',
     color: trek('THEMIS_NightIR_ControlledMosaics_100m_v2_oct2018', 'png', 9),
     fallback: 'natural',
     maxNativeZoom: 9,

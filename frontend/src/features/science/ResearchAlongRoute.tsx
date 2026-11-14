@@ -80,7 +80,7 @@ export function ResearchAlongRoute({ endpoints, route, onFocus }: Props) {
     <section className="research-route">
       <h2 className="planner-subtitle">Исследования рядом с путём</h2>
       <p className="planner-note">
-        Поиск по каталогу: какие исследования находятся рядом с этим путём, с их источниками.
+        Находит в каталоге исследования рядом с этим путём и показывает их источники.
         Близость исследования к маршруту не переносит его измерения на ваш путь.
       </p>
       <div className="research-controls">
@@ -101,7 +101,7 @@ export function ResearchAlongRoute({ endpoints, route, onFocus }: Props) {
       </div>
       {!path && <p className="dim">Поставьте точки A и Б, чтобы искать исследования по пути.</p>}
       {path && route?.status !== 'ok' && (
-        <p className="dim">Маршрут ещё не рассчитан — поиск пойдёт по прямой между A и Б.</p>
+        <p className="dim">Маршрут ещё не рассчитан, поэтому поиск пойдёт по прямой между A и Б.</p>
       )}
       {error && (
         <p className="warn" role="alert">
@@ -124,13 +124,13 @@ export function ResearchAlongRoute({ endpoints, route, onFocus }: Props) {
             <div className="research-nearby">
               <p className="dim">
                 {result.matched_total === 0
-                  ? 'По самой линии ничего нет, но рядом есть — в стороне от неё:'
+                  ? 'На самой линии ничего нет, но в стороне от неё нашлось:'
                   : 'Рядом с линией, но за коридором:'}
               </p>
               <ul className="dim">
                 {result.nearby.map((study) => (
                   <li key={study.id}>
-                    {study.title} — {formatOffset(study)}
+                    {study.title}, {formatOffset(study)}
                   </li>
                 ))}
               </ul>
