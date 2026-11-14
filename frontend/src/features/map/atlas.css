@@ -28,3 +28,5 @@
 .atlas-inspector[hidden]{display:none}
 .atlas-header nav a{color:var(--dim);font-size:11px;text-decoration:none;letter-spacing:.12em;padding:8px;text-transform:uppercase}
 .atlas-header nav a[aria-current=page]{color:var(--accent)}
+
+.map-geology{position:absolute;inset:0;pointer-events:none}.geology-legend{margin-top:10px;font-size:10px;color:var(--dim)}.geology-legend summary{cursor:pointer}.geology-legend ul{list-style:none;margin:8px 0;padding:0;max-height:220px;overflow-y:auto}.geology-legend li{display:flex;gap:6px;align-items:baseline;line-height:1.5;margin-bottom:4px}.geology-legend i{flex:none;width:12px;height:12px;border:1px solid var(--hairline);border-radius:2px}.geology-legend a{color:var(--accent)}

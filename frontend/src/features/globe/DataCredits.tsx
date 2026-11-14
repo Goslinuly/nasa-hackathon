@@ -24,6 +24,10 @@ export function DataCredits() {
           NASA/GSFC MOLA Science Team, PDS Geosciences Node; уменьшено до 8 px/°.
         </li>
         <li>
+          <strong>Геология (атлас)</strong> — USGS SIM 3292, Tanaka et al. (2014); сервис USGS Astrogeology ArcGIS.
+          Производный растр из векторной публикации.
+        </li>
+        <li>
           <strong>Тайловые сервисы</strong> — NASA Mars Trek (JPL), Caltech Murray Lab.
         </li>
       </ul>
