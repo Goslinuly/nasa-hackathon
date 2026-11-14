@@ -27,6 +27,13 @@ dev = [
     "pytest-asyncio>=0.23",
     "ruff>=0.5",
 ]
+# Сборка OBJ-моделей рельефа для Blender (scripts/build_martian_obj.py)
+terrain = [
+    "rasterio>=1.4",
+    "numpy>=1.26",
+    "pillow>=10",
+    "matplotlib>=3.8",
+]
 
 [build-system]
 requires = ["hatchling"]
