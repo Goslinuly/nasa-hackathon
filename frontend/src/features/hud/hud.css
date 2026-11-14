@@ -174,8 +174,45 @@
   .walk-hud .hud-tc { top: 60px; }
 }
 
+/* Телефон стоя. Сверху: кнопки прогулки (1 ряд), время и уровень HUD (2 ряд), панели (3 ряд), компас.
+   Снизу: джойстик слева, мини-карта справа. */
 @media (max-width: 760px) {
   .hud.walk-hud { font-size: 11px; }
-  .walk-hud .hud-tc { top: auto; bottom: 120px; }
+  .walk-hud .hud-panel { max-width: calc(50vw - 12px); }
+  .walk-hud .hud-tl { top: calc(104px + env(safe-area-inset-top)); left: 8px; }
+  .walk-hud .hud-tr { top: calc(104px + env(safe-area-inset-top)); right: 8px; }
+  .walk-hud .hud-tc {
+    top: calc(176px + env(safe-area-inset-top));
+    max-width: calc(100vw - 16px);
+    overflow: hidden;
+  }
+  /* Внизу джойстик и мини-карта, поэтому безопасность — под компасом. */
+  .walk-hud .hud-bl { left: 8px; top: calc(236px + env(safe-area-inset-top)); bottom: auto; max-width: calc(100vw - 16px); }
   .walk-hud .hud-bc { display: none; }
+  .walk-hud .hud-toggle {
+    top: calc(56px + env(safe-area-inset-top));
+    bottom: auto;
+    left: auto;
+    right: 8px;
+    transform: none;
+    min-height: 40px;
+    white-space: nowrap;
+  }
+}
+
+/* Телефон лёжа: панели по углам ниже кнопок, компас меньше, безопасность между джойстиком и мини-картой. */
+@media (max-height: 500px) and (min-width: 761px) {
+  .hud.walk-hud { font-size: 11px; }
+  .walk-hud .hud-tl { top: 52px; left: max(8px, env(safe-area-inset-left)); max-width: 32vw; }
+  .walk-hud .hud-tr { top: 52px; right: max(8px, env(safe-area-inset-right)); max-width: 30vw; }
+  .walk-hud .hud-tc { top: 52px; transform: translateX(-50%) scale(0.75); transform-origin: top center; }
+  .walk-hud .hud-bl { left: 156px; bottom: max(8px, env(safe-area-inset-bottom)); max-width: 40vw; }
+  .walk-hud .hud-bc { display: none; }
+  .walk-hud .hud-toggle {
+    left: auto;
+    right: 224px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    transform: none;
+    min-height: 40px;
+  }
 }

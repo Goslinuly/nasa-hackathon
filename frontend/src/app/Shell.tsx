@@ -80,6 +80,9 @@ function ModeHost({ mode, engine, pick, params, exit, exitFrom, openMode }: Mode
 
 export function Shell() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const [globe, setGlobe] = useState<GlobeState | null>(null);
   const [route, setRoute] = useState<ShellRoute>(readRoute);
@@ -243,6 +246,11 @@ export function Shell() {
 
   useEffect(() => setCollapsed(false), [activeMode?.id]);
 
+  // На телефоне кнопки режимов прокручиваются: активная должна быть видна.
+  useEffect(() => {
+    barRef.current?.querySelector('.mode-bar button.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeMode?.id]);
+
   const enterRegion = (slug: string) => {
     const marker = REGION_MARKERS.find((m) => m.slug === slug);
     if (marker) pendingFocus.current = { lon: marker.lon, lat: marker.lat, altitude: 0.25 };
@@ -250,9 +258,64 @@ export function Shell() {
   };
 
   const showPointCard = stage === 'explore' && !activeMode && pointOpen && point;
+  const panelOpen = stage === 'explore' && !fullscreen && Boolean(activeMode || showPointCard);
+
+  // Нижний край верхней панели над колонкой боковой панели: ниже него начинается панель режима.
+  // Кнопки режимов справа, в несколько рядов, панель не сдвигают.
+  useEffect(() => {
+    const bar = barRef.current;
+    const shell = shellRef.current;
+    if (!bar || !shell) return;
+    const update = () => {
+      const items = bar.querySelectorAll<HTMLElement>('.explore-back, .explore-brand, .mode-bar button');
+      let bottom = 0;
+      items.forEach((item) => {
+        const rect = item.getBoundingClientRect();
+        if (rect.width > 0 && rect.left < 420) bottom = Math.max(bottom, rect.bottom);
+      });
+      shell.style.setProperty('--bar-h', `${Math.ceil(bottom || bar.getBoundingClientRect().height)}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(bar);
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [globe]);
+
+  // Панель закрывает часть шара: центр кадра и цели полёта сдвигаются в свободную часть.
+  useEffect(() => {
+    if (!engine) return;
+    const panel = panelRef.current;
+    if (!panelOpen || !panel) {
+      engine.setViewInset({});
+      return;
+    }
+    const update = () => {
+      const rect = panel.getBoundingClientRect();
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      if (rect.width === 0) engine.setViewInset({});
+      else if (rect.bottom >= height - 2 && rect.width >= width * 0.9) {
+        // Нижняя шторка телефона: свободна полоса между верхней панелью и шторкой.
+        const top = barRef.current?.getBoundingClientRect().bottom ?? 0;
+        engine.setViewInset({ top, bottom: Math.max(0, height - rect.top) });
+      } else engine.setViewInset({ left: Math.max(0, rect.right) });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(panel);
+    window.addEventListener('resize', update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+    };
+  }, [engine, panelOpen, activeMode?.id, collapsed]);
 
   return (
-    <div className={`shell stage-${stage}${fullscreen ? ' is-fullscreen' : ''}`}>
+    <div ref={shellRef} className={`shell stage-${stage}${fullscreen ? ' is-fullscreen' : ''}`}>
       <div className="shell-globe" aria-hidden={stage === 'landing'}>
         <canvas ref={canvasRef} className="globe-canvas" />
         <div ref={labelsRef} className="globe-labels" />
@@ -270,7 +333,7 @@ export function Shell() {
       {globe && (
         <GlobeStateContext.Provider value={globe}>
           <div className="explore-ui" aria-hidden={stage !== 'explore' || fullscreen}>
-            <header className="explore-bar">
+            <header ref={barRef} className="explore-bar">
               <button type="button" className="explore-back" onClick={goUp}>
                 ← Назад
               </button>
@@ -295,7 +358,11 @@ export function Shell() {
             </header>
 
             {activeMode && !fullscreen && route.view === 'mode' && (
-              <aside className={`mode-panel${collapsed ? ' collapsed' : ''}`} aria-label={activeMode.title}>
+              <aside
+                ref={panelRef}
+                className={`mode-panel${collapsed ? ' collapsed' : ''}`}
+                aria-label={activeMode.title}
+              >
                 <div className="mode-panel-head">
                   <h1 className="planner-title">{activeMode.title}</h1>
                   <button
@@ -326,7 +393,7 @@ export function Shell() {
             )}
 
             {showPointCard && (
-              <aside className="mode-panel point-panel" aria-label="Данные точки">
+              <aside ref={panelRef} className="mode-panel point-panel" aria-label="Данные точки">
                 <div className="mode-panel-head">
                   <h1 className="planner-title">Данные точки</h1>
                   <button type="button" className="panel-close" aria-label="Закрыть" onClick={() => {

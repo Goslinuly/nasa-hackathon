@@ -366,6 +366,8 @@ export class MarsGlobeEngine {
   private flight: FlightState | null = null;
   private framing: GlobeFraming = 'explore';
   private viewOffset = new THREE.Vector2(0, 0);
+  /** Края экрана, закрытые панелями, px: шар и цели полёта — по центру свободной части. */
+  private viewInset = { top: 0, left: 0, bottom: 0 };
   private width = 1;
   private height = 1;
   private detailTimer: number | undefined;
@@ -482,7 +484,10 @@ export class MarsGlobeEngine {
     if (this.maxFps > 0 && elapsed < 1000 / this.maxFps - 2) return;
     this.lastFrame = now;
     if (this.flight) this.stepFlight(now);
-    else this.controls.update(Math.min(elapsed, 100) / 1000);
+    else {
+      this.controls.update(Math.min(elapsed, 100) / 1000);
+      this.easeViewOffset(elapsed);
+    }
     this.adaptToAltitude();
     this.updateLabels();
     if (this.rover.active) this.rover.update(now, this.altitudeScene());
@@ -532,7 +537,10 @@ export class MarsGlobeEngine {
 
   private framingTarget(framing: GlobeFraming): { distance: number; offset: THREE.Vector2 } {
     const fit = this.fitDistance();
-    if (framing === 'explore') return { distance: fit, offset: new THREE.Vector2(0, 0) };
+    if (framing === 'explore') {
+      const { top, left, bottom } = this.viewInset;
+      return { distance: fit, offset: new THREE.Vector2(-left / (2 * this.width), (bottom - top) / (2 * this.height)) };
+    }
     const wide = this.width >= 760 && this.width > this.height;
     return {
       distance: fit * 1.35,
@@ -544,6 +552,21 @@ export class MarsGlobeEngine {
     const { x, y } = this.viewOffset;
     if (x === 0 && y === 0) this.camera.clearViewOffset();
     else this.camera.setViewOffset(this.width, this.height, x * this.width, y * this.height, this.width, this.height);
+  }
+
+  /** Панель закрыла часть экрана: центр кадра плавно смещается в свободную часть. */
+  setViewInset(inset: { top?: number; left?: number; bottom?: number }): void {
+    this.viewInset = { top: inset.top ?? 0, left: inset.left ?? 0, bottom: inset.bottom ?? 0 };
+  }
+
+  private easeViewOffset(elapsedMs: number): void {
+    const target = this.framingTarget(this.framing).offset;
+    if (this.viewOffset.distanceToSquared(target) < 1e-8) return;
+    const k = 1 - Math.exp(-Math.min(elapsedMs, 100) / 140);
+    this.viewOffset.lerp(target, k);
+    if (this.viewOffset.distanceToSquared(target) < 1e-6) this.viewOffset.copy(target);
+    this.applyViewOffset();
+    this.scheduleDetailUpdate();
   }
 
   setSize(width: number, height: number): void {
@@ -580,7 +603,7 @@ export class MarsGlobeEngine {
     const direction = lonLatToVec3(lonDeg, latDeg, 1).normalize();
     this.userMoved = true;
     this.controls.autoRotate = false;
-    return this.startFlight(direction, altitudeScene, this.viewOffset.clone(), durationMs);
+    return this.startFlight(direction, altitudeScene, this.framingTarget(this.framing).offset, durationMs);
   }
 
   private startFlight(toDir: THREE.Vector3, toAlt: number, toOffset: THREE.Vector2, durationMs: number): Promise<void> {

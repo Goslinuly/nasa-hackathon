@@ -115,3 +115,30 @@
   color: #1a0f0a; background: #ff9a62; border: 0; border-radius: 6px; cursor: pointer;
 }
 .walk-pick-go:disabled { opacity: 0.7; cursor: progress; }
+
+/* Телефон: кнопки прогулки одной прокручиваемой строкой, цели нажатия не меньше 40 px. */
+@media (max-width: 760px), (max-height: 500px) {
+  .walk-btn { min-height: 40px; }
+  .walk-menu { max-height: 55dvh; }
+  .walk-minimap { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
+  .walk-joystick { left: max(24px, env(safe-area-inset-left)); bottom: max(24px, env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 760px) {
+  .walk-topbar {
+    top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px; max-width: none;
+    flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none;
+  }
+  .walk-topbar::-webkit-scrollbar { display: none; }
+  .walk-topbar > * { flex: none; }
+  .walk-time { top: calc(56px + env(safe-area-inset-top)); left: 8px; width: min(330px, calc(100% - 16px)); }
+  .walk-menu { top: calc(104px + env(safe-area-inset-top)); right: 8px; width: calc(100% - 16px); }
+  .walk-minimap-credit { max-width: 180px; }
+}
+
+@media (max-height: 500px) and (min-width: 761px) {
+  .walk-topbar { top: 8px; right: max(8px, env(safe-area-inset-right)); }
+  .walk-time { top: 8px; left: max(8px, env(safe-area-inset-left)); max-height: calc(100dvh - 16px); overflow: auto; }
+  .walk-time:has(> .walk-btn:only-child) { overflow: visible; }
+  .walk-menu { top: 56px; max-height: calc(100dvh - 72px); }
+}

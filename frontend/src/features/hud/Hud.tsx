@@ -51,7 +51,10 @@ export interface HudProps {
 }
 
 export function Hud({ state }: HudProps) {
-  const [level, setLevel] = useState<HudLevel>('full');
+  // На телефоне полный HUD закрывает сцену: начинаем с минимума.
+  const [level, setLevel] = useState<HudLevel>(() =>
+    window.matchMedia?.('(max-width: 760px), (max-height: 500px)').matches ? 'min' : 'full',
+  );
   const [ext, setExt] = useState<HudExternal>({});
 
   useEffect(() => {
