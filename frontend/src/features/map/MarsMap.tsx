@@ -65,14 +65,17 @@ export function MarsMap({ selected, onSelect, focus, route }: {
   const mpp = METERS_PER_DEGREE * Math.cos(center.lat * Math.PI / 180) / ppd;
   const scale = Math.max(.001, mpp * 120);
   const routeCoords = route?.geometry.coordinates ?? [];
+  // На телефоне панель слоёв — шторка поверх карты (atlas.css); на широком экране всегда открыта.
+  const [layersOpen, setLayersOpen] = useState(false);
   function updateLayer(id: string, change: { visible?: boolean; opacity?: number }) { setLayers(value => value.map(layer => layer.id === id ? { ...layer, ...change } : layer)); }
   function zoomTo500() {
     const degrees = 500 / (METERS_PER_DEGREE * Math.max(.01, Math.cos(center.lat * Math.PI / 180)));
     setZoom(Math.min(18, Math.max(0, Math.round(Math.log2(size.width * 360 / (degrees * 512))))));
   }
   return <div className="map-workbench">
-    <aside className="layer-manager">
-      <div className="pane-title">Слои <span>ПОРЯДОК СВЕРХУ ВНИЗ</span></div>
+    {layersOpen && <div className="layer-scrim" onClick={() => setLayersOpen(false)} />}
+    <aside className={'layer-manager' + (layersOpen ? ' is-open' : '')} id="atlas-layers">
+      <div className="pane-title"><div>Слои <span>ПОРЯДОК СВЕРХУ ВНИЗ</span></div><button type="button" className="layer-close" aria-label="Закрыть слои" onClick={() => setLayersOpen(false)}>×</button></div>
       {layers.map((layer, i) => <article className="map-layer" key={layer.id}>
         <label><input type="checkbox" checked={layer.visible} onChange={e => updateLayer(layer.id, { visible: e.target.checked })} />{layer.title}</label>
         <small>{formatResolution(layer.resolution)} · {layer.id === 'ctx' ? 'архивные снимки, возможны пробелы' : 'обзор поверхности'}</small>
@@ -93,7 +96,7 @@ export function MarsMap({ selected, onSelect, focus, route }: {
       <div className="layer-note"><strong>Что доступно</strong><p>CTX даёт только снимки, без трёхмерного рельефа. Пустые области снимков не означают отсутствие исследований.</p><p>HiRISE DTM и числовые высоты пока не подключены к этой карте. Проверяйте покрытие выбранной точки справа.</p><p>Путь А → Б показывает обзорную линию для поиска исследований. Это не проверенная проходимая тропа.</p></div>
     </aside>
     <section className="map-center">
-      <div className="map-toolbar"><form onSubmit={event => {
+      <div className="map-toolbar"><button type="button" className="map-layers-toggle" aria-controls="atlas-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(v => !v)}>Слои</button><form onSubmit={event => {
         event.preventDefault();
         try { const parts = coords.split(',').map(s => s.trim()); if (parts.length !== 2 || parts.some(s => s === '')) throw new Error(); const p = makeMarsPoint(+parts[0], +parts[1]); recenter(p.longitude_deg, p.latitude_deg); onSelect(p); setError(''); } catch { setError('Введите широту −90…90 и восточную долготу через запятую.'); }
       }}><input aria-label="Широта, восточная долгота" value={coords} onChange={e => setCoords(e.target.value)} /><button>Перейти</button></form>
