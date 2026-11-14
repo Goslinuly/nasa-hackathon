@@ -22,7 +22,13 @@ const SUN_NOON = new THREE.Color('#fff0d8');
 const SUN_LOW = new THREE.Color('#ff7a4a');
 const HEMI_SKY_DAY = new THREE.Color('#f6d6b4');
 const HEMI_SKY_NIGHT = new THREE.Color('#2a3350');
-const FOG_FAR_DAY_M = 2800;
+// Пыльная дымка только на дальнем плане: с 300 м она съедала контраст всего участка.
+const FOG_FAR_DAY_M = 6000;
+const FOG_NEAR_FRACTION = 0.3;
+const SUN_LIGHT_DAY = 2.4;
+const SKY_LIGHT_DAY = 1.2;
+const SKY_LIGHT_NIGHT = 0.3;
+const WALK_EXPOSURE = 1.5;
 
 export interface SolarState {
   ltstHours: number;
@@ -161,6 +167,9 @@ export class WalkScene {
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.shadowMap.enabled = !opts.touch;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Без тонмаппинга солнце + небо выбивали снимок в ровный оранжевый: детали HiRISE пропадали.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = WALK_EXPOSURE;
     this.renderer.domElement.className = 'walk-canvas';
     container.appendChild(this.renderer.domElement);
 
@@ -168,15 +177,15 @@ export class WalkScene {
     this.camera.rotation.order = 'YXZ';
 
     this.geo = solarGeometry(this.simTimeMs, this.latDeg, this.lonEastDeg);
-    this.fog = new THREE.Fog(FOG_DAY, 300, FOG_FAR_DAY_M);
+    this.fog = new THREE.Fog(FOG_DAY, FOG_FAR_DAY_M * FOG_NEAR_FRACTION, FOG_FAR_DAY_M);
     this.scene.fog = this.fog;
     this.scene.background = FOG_DAY.clone();
     this.sky = new SkyDome(import.meta.env.BASE_URL);
     this.scene.add(this.sky.mesh);
 
-    this.hemi = new THREE.HemisphereLight('#f6d6b4', '#7a4a30', 1.9);
+    this.hemi = new THREE.HemisphereLight('#f6d6b4', '#7a4a30', SKY_LIGHT_DAY);
     this.scene.add(this.hemi);
-    this.sun = new THREE.DirectionalLight('#fff0d8', 2.8);
+    this.sun = new THREE.DirectionalLight('#fff0d8', SUN_LIGHT_DAY);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     const sc = this.sun.shadow.camera;
@@ -191,6 +200,7 @@ export class WalkScene {
     this.scene.add(this.sun, this.sun.target);
 
     this.orthoTexture = this.makeOrthoTexture(pkg.ortho);
+    this.renderer.toneMappingExposure = WALK_EXPOSURE * orthoExposureGain(pkg.ortho);
     const material = new THREE.MeshLambertMaterial({ map: this.orthoTexture, color: new THREE.Color('#ffc49a') });
     this.terrain = new TerrainChunks(pkg.grid, pkg.frame, this.refY, material);
     this.terrain.buildAll();
@@ -226,9 +236,10 @@ export class WalkScene {
     const tex = new THREE.Texture(image);
     // Первая строка снимка — северный край, как и у сетки высот; v = row / rows.
     tex.flipY = false;
-    // Яркость снимка HiRISE после линейной растяжки ближе к линейной, поэтому без sRGB.
-    tex.colorSpace = THREE.NoColorSpace;
-    tex.anisotropy = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    // 8-битный снимок после растяжки рассчитан на экран (как в мини-карте), поэтому sRGB:
+    // в линейном виде средние тона поднимались и рельеф выглядел мутным.
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.needsUpdate = true;
@@ -358,13 +369,47 @@ export class WalkScene {
     const start = this.nearestValid(x, z);
     x = start.x;
     z = start.z;
+    let target = second;
+    // Если первая метка лежит в заполнении (CTX 20 м), стартуем на ближайшем подробном
+    // рельефе HiRISE и смотрим на метку: у ног тогда реальные детали, а не размытое заполнение.
+    if (first && this.sampler.sourceAt(x, z) !== 0) {
+      const hi = this.nearestHirise(x, z);
+      if (hi) {
+        this.teleports.unshift({ id: 'hirise-start', label: 'Начало подробного рельефа HiRISE', x: hi.x, z: hi.z });
+        x = hi.x;
+        z = hi.z;
+        target = first;
+      }
+    }
     this.px = x;
     this.pz = z;
     this.baseX = x;
     this.baseZ = z;
-    const look = second ? { dx: second.x - x, dz: second.z - z } : { dx: 0, dz: -1 };
+    const look = target ? { dx: target.x - x, dz: target.z - z } : { dx: 0, dz: -1 };
     this.camera.rotation.set(0, Math.atan2(-look.dx, -look.dz), 0);
     this.updateCameraHeight();
+  }
+
+  /**
+   * Ближайшая точка с рельефом HiRISE (код источника 0), отступив от границы на 40 м внутрь,
+   * чтобы у ног не было переходной полосы. null — подробного рельефа на участке нет.
+   */
+  private nearestHirise(x: number, z: number): { x: number; z: number } | null {
+    const isHi = (qx: number, qz: number) => this.sampler.sourceAt(qx, qz) === 0 && Number.isFinite(this.sampler.heightAt(qx, qz));
+    const step = 10;
+    for (let r = step; r < 4000; r += step) {
+      const n = Math.max(8, Math.ceil((2 * Math.PI * r) / step));
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2;
+        if (!isHi(x + Math.cos(a) * r, z + Math.sin(a) * r)) continue;
+        for (const extra of [40, 20, 0]) {
+          const qx = x + Math.cos(a) * (r + extra);
+          const qz = z + Math.sin(a) * (r + extra);
+          if (isHi(qx, qz)) return { x: qx, z: qz };
+        }
+      }
+    }
+    return null;
   }
 
   /** Ближайшая точка с данными рельефа (поиск по спирали с шагом сетки). */
@@ -599,12 +644,13 @@ export class WalkScene {
     const [sx, sy, sz] = enuToScene(g.enu);
     this.sunDir.set(sx, sy, sz);
     this.sun.color.copy(SUN_LOW).lerp(SUN_NOON, smoothstep(0, 25, el));
-    this.sun.intensity = 2.8 * smoothstep(-1, 10, el);
+    this.sun.intensity = SUN_LIGHT_DAY * smoothstep(-1, 10, el);
     this.sun.castShadow = el > 0.5;
-    this.hemi.intensity = THREE.MathUtils.lerp(0.3, 1.9, day);
+    this.hemi.intensity = THREE.MathUtils.lerp(SKY_LIGHT_NIGHT, SKY_LIGHT_DAY, day);
     this.hemi.color.copy(HEMI_SKY_NIGHT).lerp(HEMI_SKY_DAY, day);
     this.fog.color.copy(FOG_NIGHT).lerp(FOG_DAY, day);
-    this.fog.far = THREE.MathUtils.clamp((FOG_FAR_DAY_M * DEFAULT_TAU) / this.tau, 1200, 5000);
+    this.fog.far = THREE.MathUtils.clamp((FOG_FAR_DAY_M * DEFAULT_TAU) / this.tau, 1500, 8000);
+    this.fog.near = this.fog.far * FOG_NEAR_FRACTION;
     (this.scene.background as THREE.Color).copy(this.fog.color);
     this.sky.update({
       sunEnu: g.enu,
@@ -867,6 +913,34 @@ export class WalkScene {
 }
 
 const MOVE_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+
+const srgbToLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+/**
+ * Снимки HiRISE растянуты по-разному: медиана Ares 3 — 65 из 255, Гейла — 129.
+ * Выравниваем экспозицию к средне-серому, чтобы тёмный продукт не выглядел ночью.
+ * Только яркость кадра, сами данные снимка не меняются.
+ */
+export function orthoExposureGain(bitmap: ImageBitmap | HTMLCanvasElement): number {
+  try {
+    const n = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = n;
+    canvas.height = n;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return 1;
+    ctx.drawImage(bitmap, 0, 0, n, n);
+    const px = ctx.getImageData(0, 0, n, n).data;
+    const values: number[] = [];
+    for (let i = 0; i < px.length; i += 4) if (px[i] > 0) values.push(px[i]);
+    if (values.length < 100) return 1;
+    values.sort((x, y) => x - y);
+    const median = values[values.length >> 1] / 255;
+    return THREE.MathUtils.clamp(srgbToLinear(0.5) / srgbToLinear(median), 0.8, 2.2);
+  } catch {
+    return 1;
+  }
+}
 
 export function formatDistance(m: number): string {
   return m < 1000 ? `${Math.round(m)} м` : `${(m / 1000).toFixed(2).replace('.', ',')} км`;
