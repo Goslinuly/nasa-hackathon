@@ -40,6 +40,13 @@ Every dataset added to the project is listed here with its source and credit, as
 - [Ресурсы, источники информации и базы данных](docs/RESOURCES.md)
 - [Ресурсы, источники информации и базы данных в Word](docs/RESOURCES.docx)
 
+## Team
+
+| Member | Area |
+|---|---|
+| Tomiris | Frontend, infrastructure, backend application, tests and data, documentation |
+| Nursultan | Repository, CI, deployment on Railway, code review, Space Apps project page, data credits, demo and presentation |
+
 ## License
 
 Code in this repository is released under the [MIT License](LICENSE).
