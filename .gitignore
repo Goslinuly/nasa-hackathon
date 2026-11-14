@@ -33,3 +33,6 @@ Thumbs.db
 infra/volumes/
 
 *.tsbuildinfo
+
+# Локальные рабочие копии
+.claude/
