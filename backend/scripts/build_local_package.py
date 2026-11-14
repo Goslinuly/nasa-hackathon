@@ -7,6 +7,9 @@
   Канал B — источник высоты: 0 — HiRISE, 1 — заполнение (CTX), 2 — переходная полоса.
   У участков без заполнения B = 0 везде. Браузер декодирует PNG без потерь.
 - `ortho.webp` — ортофото HiRISE RED в тех же границах (где HiRISE нет — заполнение CTX).
+- `ortho_hi.webp` — детальное окно ортофото в родном разрешении HiRISE (0,25 м, ~1 × 1 км)
+  вокруг места старта; та же растяжка яркости, что у `ortho.webp`. Где в окне нет HiRISE,
+  альфа-канал 0 и сцена берёт базовый снимок (заполнение CTX в детальное окно не попадает).
 - `track.geojson` — путевые точки ровера внутри участка (если есть) с высотой
   DTM под каждой точкой и разницей с высотой из телеметрии ровера.
 - `manifest.json` — продукты, CRS, границы, кодирование, кредиты, точки интереса,
@@ -16,9 +19,13 @@
 целиком не скачиваются.
 
 Запуск из backend (`pip install -e ".[terrain]"`):
-    python scripts/build_local_package.py --site all
-    python scripts/build_local_package.py --site gale-boxwork --height-px 1
-    python scripts/build_local_package.py --site jezero
+    python scripts/build_local_package.py --site all            # высоты 1 м, снимок 0,5 м + окно 0,25 м
+    python scripts/build_local_package.py --site gale-boxwork --height-px 2 --no-hi
+    python scripts/build_local_package.py --site jezero --hi-center 18.4380,77.2450
+
+Трек ровера по умолчанию берётся из уже собранного `track.geojson` (пересчитываются только
+высоты DTM под точками), чтобы пересборка рельефа не меняла набор точек; `--refresh-track`
+скачивает путевые точки заново.
 """
 
 import argparse
@@ -26,7 +33,7 @@ import hashlib
 import json
 import math
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -96,6 +103,8 @@ class Site:
     ortho_fill: Fill | None = None
     feather_m: float = 40.0
     quality_note: str | None = None
+    # Последний сол трека: метка ровера подписана этим солом, новые точки её бы обогнали.
+    track_max_sol: int | None = None
 
 
 SITES = {
@@ -160,6 +169,7 @@ SITES = {
         ),
         track_url=M20_WAYPOINTS,
         track_mission="M20",
+        track_max_sol=2022,
         dtm_credit=TRN_HIRISE_CREDIT,
         ortho_credit=TRN_HIRISE_CREDIT,
         license="USGS, общественное достояние",
@@ -344,6 +354,24 @@ def track_points(features: list[dict]):
         yield lon % 360.0, lat, p
 
 
+def saved_track_features(path: Path) -> list[dict] | None:
+    """Путевые точки из ранее собранного track.geojson в виде свойств MMGIS (для build_track)."""
+    if not path.exists():
+        return None
+    out = []
+    for f in json.loads(path.read_text(encoding="utf-8"))["features"]:
+        if f["geometry"]["type"] != "Point":
+            continue
+        p = f["properties"]
+        props = {"sol": p.get("sol"), "site": p.get("site"), "drive": p.get("drive"),
+                 "elev_geoid": p.get("rover_elev_geoid_m"), "pitch": p.get("pitch_deg"),
+                 "roll": p.get("roll_deg")}
+        if p.get("localization") is not None:
+            props["Note"] = p["localization"]
+        out.append({"geometry": f["geometry"], "properties": props})
+    return out
+
+
 def build_track(site: Site, z: np.ndarray, bounds: tuple, px: float,
                 source: np.ndarray | None = None,
                 features_in: list[dict] | None = None) -> tuple[dict, dict] | None:
@@ -354,6 +382,9 @@ def build_track(site: Site, z: np.ndarray, bounds: tuple, px: float,
     west, south, east, north = bounds
     features, offsets = [], []
     for lon, lat, p in track_points(features_in):
+        sol = track_number(p, "sol")
+        if site.track_max_sol is not None and sol is not None and sol > site.track_max_sol:
+            continue
         x, y = lonlat_to_eqc(lon, lat)
         if not (west <= x <= east and south <= y <= north):
             continue
@@ -422,7 +453,156 @@ def build_track(site: Site, z: np.ndarray, bounds: tuple, px: float,
     return collection, stats
 
 
-def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict:
+@dataclass(frozen=True)
+class HiOptions:
+    """Детальное окно ортофото в родном разрешении HiRISE вокруг места старта."""
+    pixel_m: float = 0.25
+    size_px: int = 4096
+    # None — выбрать автоматически (старт + метки); иначе (lat, lon_east) центра окна.
+    center: tuple[float, float] | None = None
+    quality: int = 88
+
+
+def read_ortho(site: Site, bounds: tuple, shape: tuple[int, int], crs,
+               resampling: Resampling) -> np.ndarray:
+    """Ортофото HiRISE в сетке bounds × shape; 0 — нет данных."""
+    if site.ortho_warp:
+        img, lit_mask, _ = read_grid(site.ortho_url, bounds, shape, crs, resampling)
+        return np.where(lit_mask, img, 0)
+    with rasterio.open(site.ortho_url) as ortho:
+        return ortho.read(1, window=from_bounds(*bounds, transform=ortho.transform),
+                          out_shape=shape, resampling=resampling,
+                          boundless=True, fill_value=0).astype("float64")
+
+
+def start_point(site: Site, z: np.ndarray, valid: np.ndarray, source: np.ndarray | None,
+                bounds: tuple, px: float) -> tuple[float, float]:
+    """Место старта прогулки в м eqc — как walkScene.placeAtStart / nearestHirise.
+
+    Первая метка участка; если под ней заполнение (не HiRISE), ближайшая по кольцам (шаг 10 м)
+    точка HiRISE, отступив на 40 м вглубь. Поиск в метрах по земле (x сжат на cos широты).
+    """
+    west, south, east, north = bounds
+    if site.pois:
+        x0, y0 = lonlat_to_eqc(site.pois[0].lon_east, site.pois[0].lat)
+    else:
+        x0, y0 = (west + east) / 2, (south + north) / 2
+    if source is None:
+        return x0, y0
+    kx = math.cos(((south + north) / 2) / MARS_R)
+
+    def is_hi(x: float, y: float) -> bool:
+        c, r = round((x - west) / px - 0.5), round((north - y) / px - 0.5)
+        if not (0 <= c < z.shape[1] and 0 <= r < z.shape[0]):
+            return False
+        return bool(valid[r, c]) and int(source[r, c]) == SRC_HIRISE
+
+    if is_hi(x0, y0):
+        return x0, y0
+    step = 10.0
+    r = step
+    while r < 4000:
+        n = max(8, math.ceil(2 * math.pi * r / step))
+        for k in range(n):
+            a = k / n * 2 * math.pi
+            # Локальные оси сцены: x на восток (м по земле), z на юг.
+            if not is_hi(x0 + math.cos(a) * r / kx, y0 - math.sin(a) * r):
+                continue
+            for extra in (40, 20, 0):
+                qx, qy = x0 + math.cos(a) * (r + extra) / kx, y0 - math.sin(a) * (r + extra)
+                if is_hi(qx, qy):
+                    return qx, qy
+        r += step
+    return x0, y0
+
+
+def choose_hi_window(site: Site, bounds: tuple, height_px: float, window_m: float,
+                     start: tuple[float, float], hirise: np.ndarray) -> tuple[tuple, str]:
+    """Окно window_m × window_m (м eqc) с узлами на сетке высот; возвращает (bounds, пояснение).
+
+    Если старт и все метки участка помещаются с полем 100 м — окно по их центру. Иначе окно
+    содержит старт (с полем) и сдвигается так, чтобы в него попало больше снимка HiRISE.
+    """
+    west, south, east, north = bounds
+    margin = 100.0
+    targets = [lonlat_to_eqc(p.lon_east, p.lat) for p in site.pois]
+    pts = [start, *targets]
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    if max(xs) - min(xs) + 2 * margin <= window_m and max(ys) - min(ys) + 2 * margin <= window_m:
+        cx, cy = (min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2
+        why = "окно покрывает место старта и все метки участка"
+    else:
+        # Интегральное изображение доли HiRISE: сумма по окну за O(1).
+        integral = np.pad(hirise.astype("float64").cumsum(0).cumsum(1), ((1, 0), (1, 0)))
+        n = round(window_m / height_px)
+        best = None
+        reach = window_m / 2 - margin
+        for dx in np.arange(-reach, reach + 1, 32.0):
+            for dy in np.arange(-reach, reach + 1, 32.0):
+                c0 = round((start[0] + dx - window_m / 2 - west) / height_px)
+                r0 = round((north - (start[1] + dy + window_m / 2)) / height_px)
+                c0 = min(max(c0, 0), hirise.shape[1] - n)
+                r0 = min(max(r0, 0), hirise.shape[0] - n)
+                frac = (integral[r0 + n, c0 + n] - integral[r0, c0 + n]
+                        - integral[r0 + n, c0] + integral[r0, c0]) / (n * n)
+                score = (round(float(frac), 3), -math.hypot(dx, dy))
+                if best is None or score > best[0]:
+                    best = (score, start[0] + dx, start[1] + dy)
+        _, cx, cy = best
+        why = ("метки не помещаются в одно окно; окно содержит место старта и сдвинуто "
+               "к большей площади HiRISE")
+    half = window_m / 2
+    cx = min(max(cx, west + half), east - half)
+    cy = min(max(cy, south + half), north - half)
+    # Углы окна на узлах сетки высот (и, значит, базового снимка 0,5 м).
+    w0 = west + round((cx - half - west) / height_px) * height_px
+    n0 = north - round((north - (cy + half)) / height_px) * height_px
+    return (w0, n0 - window_m, w0 + window_m, n0), why
+
+
+def build_ortho_hi(site: Site, out: Path, bounds: tuple, crs, hi: HiOptions,
+                   lo: float, hi_val: float, base8: np.ndarray, base_bounds: tuple,
+                   ortho_px: float, why: str, source_res: float) -> dict:
+    """Детальное окно ортофото: та же растяжка яркости, что у ortho.webp; альфа — есть HiRISE."""
+    n = hi.size_px
+    img = read_ortho(site, bounds, (n, n), crs, Resampling.bilinear)
+    lit = img > 0
+    gray = np.clip((img - lo) / (hi_val - lo) * 254 + 1, 1, 255)
+    # Где HiRISE нет — значения базового снимка (только чтобы фильтрация у края альфы не
+    # тянула чёрное); сцена там всё равно показывает ortho.webp.
+    span = round((bounds[2] - bounds[0]) / ortho_px)
+    c0 = round((bounds[0] - base_bounds[0]) / ortho_px)
+    r0 = round((base_bounds[3] - bounds[3]) / ortho_px)
+    crop = base8[r0:r0 + span, c0:c0 + span]
+    up = np.asarray(Image.fromarray(crop, "L").resize((n, n), Image.BILINEAR), dtype="float64")
+    gray = np.where(lit, gray, up).astype(np.uint8)
+    path = out / "ortho_hi.webp"
+    if lit.all():
+        Image.fromarray(gray, "L").save(path, quality=hi.quality, method=6)
+    else:
+        alpha = np.where(lit, 255, 0).astype(np.uint8)
+        Image.fromarray(np.dstack([gray, gray, gray, alpha]), "RGBA").save(
+            path, quality=hi.quality, method=6, alpha_quality=100)
+    west, south, east, north = bounds
+    c_lon, c_lat = eqc_to_lonlat((west + east) / 2, (south + north) / 2)
+    return {
+        "file": path.name,
+        "width": n, "height": n, "pixel_m": hi.pixel_m,
+        "bounds_eqc_m": [round(v, 2) for v in bounds],
+        "center": {"lat": round(c_lat, 6), "lon_east": round(c_lon, 6)},
+        "product": site.ortho_product, "url": site.ortho_url,
+        "source_pixel_m": round(source_res, 4),
+        "hirise_fraction": round(float(lit.mean()), 4),
+        "alpha": "есть только при пропусках: 255 — снимок HiRISE, 0 — нет данных (брать ortho)",
+        "stretch": "та же линейная растяжка яркости, что у ortho.webp",
+        "resampling": "bilinear из исходного пикселя; без повышения резкости",
+        "choice": why,
+        "blend_m": 25,
+    }
+
+
+def build(site: Site, out_root: Path, height_px: float, ortho_px: float,
+          hi: HiOptions | None = HiOptions(), refresh_track: bool = False) -> dict:
     cx, cy = lonlat_to_eqc(site.center_lon_east, site.center_lat)
     w_m, h_m = site.size_m
     bounds = (cx - w_m / 2, cy - h_m / 2, cx + w_m / 2, cy + h_m / 2)
@@ -430,7 +610,11 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict
 
     with rasterio.open(site.dtm_url) as ds:
         window = from_bounds(*bounds, transform=ds.transform)
-        z = ds.read(1, window=window, out_shape=(hh, hw), resampling=Resampling.average,
+        # Шаг около родного (1 м при пикселе DTM 1,01 м): среднее по площади вырождается в
+        # ближайший пиксель со ступеньками, поэтому билинейная интерполяция без сглаживания.
+        dtm_resampling = (Resampling.average if height_px >= 1.5 * ds.res[0]
+                          else Resampling.bilinear)
+        z = ds.read(1, window=window, out_shape=(hh, hw), resampling=dtm_resampling,
                     boundless=True, fill_value=ds.nodata if ds.nodata is not None else -3.4e38)
         z = z.astype("float64")
         valid = np.isfinite(z) & (z > -1e30)
@@ -452,14 +636,9 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict
         raise SystemExit(f"{site.id}: в участке меньше половины валидных высот")
 
     ow, oh = round(w_m / ortho_px), round(h_m / ortho_px)
-    if site.ortho_warp:
-        img, lit_mask, _ = read_grid(site.ortho_url, bounds, (oh, ow), crs, Resampling.average)
-        img = np.where(lit_mask, img, 0)
-    else:
-        with rasterio.open(site.ortho_url) as ortho:
-            img = ortho.read(1, window=from_bounds(*bounds, transform=ortho.transform),
-                             out_shape=(oh, ow), resampling=Resampling.average,
-                             boundless=True, fill_value=0).astype("float64")
+    img = read_ortho(site, bounds, (oh, ow), crs, Resampling.average)
+    with rasterio.open(site.ortho_url) as ortho:
+        ortho_res = ortho.res[0]
     ortho_hirise_fraction = float((img > 0).mean())
     if site.ortho_fill:
         fill_img, fill_mask, _ = read_grid(site.ortho_fill.url, bounds, (oh, ow), crs,
@@ -468,8 +647,9 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict
         # Ноль зарезервирован под «нет данных».
         img = np.where(img > 0, img, np.where(fill_mask, np.maximum(fill_img, 1e-3), 0))
     lit = img[img > 0]
-    lo, hi = np.percentile(lit, [0.5, 99.5])
-    img8 = np.where(img > 0, np.clip((img - lo) / (hi - lo) * 254 + 1, 1, 255), 0).astype(np.uint8)
+    lo, hi_val = np.percentile(lit, [0.5, 99.5])
+    img8 = np.where(img > 0, np.clip((img - lo) / (hi_val - lo) * 254 + 1, 1, 255),
+                    0).astype(np.uint8)
 
     out = out_root / site.id
     out.mkdir(parents=True, exist_ok=True)
@@ -480,7 +660,27 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict
     Image.fromarray(img8, "L").save(out / "ortho.webp", quality=82, method=6)
 
     files = {"height": "height.png", "ortho": "ortho.webp"}
-    track = build_track(site, np.where(valid, z, np.nan), bounds, height_px, source)
+    ortho_hi_meta = None
+    if hi:
+        hirise = valid if source is None else valid & (source == SRC_HIRISE)
+        if hi.center:
+            start = lonlat_to_eqc(hi.center[1], hi.center[0])
+            hi_bounds, why = choose_hi_window(
+                replace(site, pois=()), bounds, height_px, hi.pixel_m * hi.size_px, start, hirise)
+            why = "центр окна задан вручную (--hi-center)"
+        else:
+            start = start_point(site, z, valid, source, bounds, height_px)
+            hi_bounds, why = choose_hi_window(site, bounds, height_px, hi.pixel_m * hi.size_px,
+                                              start, hirise)
+        ortho_hi_meta = build_ortho_hi(site, out, hi_bounds, crs, hi, lo, hi_val, img8, bounds,
+                                       ortho_px, why, ortho_res)
+        start_lon, start_lat = eqc_to_lonlat(*start)
+        ortho_hi_meta["start"] = {"lat": round(start_lat, 6), "lon_east": round(start_lon, 6)}
+        files["ortho_hi"] = ortho_hi_meta["file"]
+    elif (out / "ortho_hi.webp").exists():
+        (out / "ortho_hi.webp").unlink()
+    track_in = None if refresh_track else saved_track_features(out / "track.geojson")
+    track = build_track(site, np.where(valid, z, np.nan), bounds, height_px, source, track_in)
     track_stats = None
     if track:
         collection, track_stats = track
@@ -494,7 +694,8 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict
          "source_pixel_m": round(source_res, 3), "credit": site.dtm_credit,
          "license": site.license},
         {"role": "ortho", "product": site.ortho_product, "url": site.ortho_url,
-         "credit": site.ortho_credit, "license": site.license},
+         "source_pixel_m": round(ortho_res, 3), "credit": site.ortho_credit,
+         "license": site.license},
     ]
     height_meta = {
         "file": files["height"],
@@ -541,12 +742,15 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict
         "size_m": [w_m, h_m],
         "height": height_meta,
         "ortho": ortho_meta,
+        **({"ortho_hi": ortho_hi_meta} if ortho_hi_meta else {}),
         "sources": sources,
         "pois": [poi.__dict__ for poi in site.pois],
         "track": track_stats,
         "generated_by": "backend/scripts/build_local_package.py",
         "sha256": {name: sha256(out / f) for name, f in files.items()},
     }
+    if ortho_hi_meta:
+        ortho_hi_meta["sha256"] = manifest["sha256"]["ortho_hi"]
     if site.quality_note:
         manifest["quality_note"] = site.quality_note
     # Дальний план (backdrop.glb) собирает Blender-скрипт site_scene.py --backdrop; пересборка
@@ -560,7 +764,7 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict
     (out / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1))
     sizes = {f: round((out / f).stat().st_size / 1e6, 2) for f in files.values()}
     print(json.dumps({"id": site.id, "mb": sizes, "height": manifest["height"],
-                      "track": track_stats}, ensure_ascii=False))
+                      "ortho_hi": ortho_hi_meta, "track": track_stats}, ensure_ascii=False))
     return manifest
 
 
@@ -568,11 +772,25 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--site", choices=[*SITES, "all"], default="all")
     parser.add_argument("--out", type=Path, default=OUT_ROOT)
-    parser.add_argument("--height-px", type=float, default=2.0, help="шаг сетки высот, м")
-    parser.add_argument("--ortho-px", type=float, default=0.5, help="размер пикселя ортофото, м")
+    parser.add_argument("--height-px", type=float, default=1.0,
+                        help="шаг сетки высот, м (1 — родной шаг HiRISE DTM)")
+    parser.add_argument("--ortho-px", type=float, default=0.5,
+                        help="размер пикселя базового ортофото на весь участок, м")
+    parser.add_argument("--hi-px", type=float, default=0.25,
+                        help="размер пикселя детального окна ortho_hi.webp, м")
+    parser.add_argument("--hi-size", type=int, default=4096,
+                        help="сторона детального окна в пикселях")
+    parser.add_argument("--hi-center", type=str, default=None,
+                        help="центр детального окна «lat,lon_east»; по умолчанию — по месту старта")
+    parser.add_argument("--no-hi", action="store_true", help="не собирать ortho_hi.webp")
+    parser.add_argument("--refresh-track", action="store_true",
+                        help="скачать путевые точки ровера заново, а не брать из track.geojson")
     args = parser.parse_args()
+    center = tuple(float(v) for v in args.hi_center.split(",")) if args.hi_center else None
+    hi = None if args.no_hi else HiOptions(pixel_m=args.hi_px, size_px=args.hi_size,
+                                             center=center)
     for key in SITES if args.site == "all" else [args.site]:
-        build(SITES[key], args.out, args.height_px, args.ortho_px)
+        build(SITES[key], args.out, args.height_px, args.ortho_px, hi, args.refresh_track)
 
 
 if __name__ == "__main__":

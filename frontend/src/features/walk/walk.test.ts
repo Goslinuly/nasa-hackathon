@@ -1,11 +1,14 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bearingDeg, eqcToLonLat, gridToLocal, localToGrid, localToLonLat, lonLatToEqc, lonLatToLocal, makeFrame, MARS_R } from './geo';
 import { decodeHeights, decodeHeightUnits, sampleBilinear, sourceCode, type HeightGrid } from './heightGrid';
 import { directionalSlopeDeg, slopeFromSamples, stepBlocked, TerrainSampler, walkSpeed } from './motion';
 import { decodePng } from './png';
-import { dataLevelLabel, parseTrack, type SiteManifest } from './sitePackage';
+import { dataLevelLabel, loadSitePackage, parseTrack, type SiteManifest } from './sitePackage';
+import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
+import { chunkCellsFor, LOD_STEPS, lodDistances, lodForDistance } from './terrainMesh';
 
 const dataDir = (site: string) => fileURLToPath(new URL(`../../../public/data/local/${site}/`, import.meta.url));
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
@@ -21,18 +24,18 @@ describe('декодирование высот', () => {
     const dir = dataDir('gale-boxwork');
     const manifest: SiteManifest = readJson(dir + 'manifest.json');
     const png = await decodePng(readFileSync(dir + 'height.png'));
-    expect(png.width).toBe(900);
-    expect(png.height).toBe(1200);
+    expect(png.width).toBe(1800);
+    expect(png.height).toBe(2400);
     expect(png.channels).toBe(3);
-    // Пиксели (col 450, row 600) и (123, 456), посчитаны отдельным декодером на Python.
-    const px = (c: number, r: number) => Array.from(png.data.subarray((r * 900 + c) * 3, (r * 900 + c) * 3 + 3));
-    expect(px(450, 600)).toEqual([92, 72, 0]);
-    expect(px(123, 456)).toEqual([52, 46, 0]);
+    // Пиксели (col 900, row 1200) и (246, 912) сетки 1 м, посчитаны отдельным декодером на Python.
+    const px = (c: number, r: number) => Array.from(png.data.subarray((r * 1800 + c) * 3, (r * 1800 + c) * 3 + 3));
+    expect(px(900, 1200)).toEqual([92, 92, 0]);
+    expect(px(246, 912)).toEqual([52, 32, 0]);
 
     const h = manifest.height;
     const grid = decodeHeights(png.data, png.channels, png.width, png.height, h.base_m, h.step_m);
     expect(grid.data[0]).toBeCloseTo(h.min_m, 2);
-    expect(grid.data[600 * 900 + 450]).toBeCloseTo(-3623.77, 2);
+    expect(grid.data[1200 * 1800 + 900]).toBeCloseTo(-3623.57, 2);
     let max = -Infinity;
     for (const v of grid.data) if (v > max) max = v;
     expect(max).toBeCloseTo(h.max_m, 2);
@@ -158,7 +161,7 @@ describe('источник высот под ногами', () => {
 
   it('пакет без канала источника подписывается как HiRISE', () => {
     const manifest = JSON.parse(readFileSync(dataDir('ares3') + 'manifest.json', 'utf8')) as SiteManifest;
-    expect(dataLevelLabel(manifest, 0)).toBe('HiRISE DTM, сетка сцены 2 м');
+    expect(dataLevelLabel(manifest, 0)).toBe('HiRISE DTM, сетка сцены 1 м');
   });
 
   it('пакет не из HiRISE подписывается своим data_label', () => {
@@ -174,5 +177,143 @@ describe('источник высот под ногами', () => {
     expect(manifest.backdrop?.label).toContain('200 м/пикс');
     expect(manifest.backdrop?.label).toContain('без снимка');
     expect(readFileSync(dataDir(site) + 'backdrop.glb').subarray(0, 4).toString()).toBe('glTF');
+  });
+});
+
+describe('пакет с детальным снимком ortho_hi и без него', () => {
+  const site = 'ares3';
+  const dir = dataDir(site);
+  const realManifest = (): SiteManifest => readJson(dir + 'manifest.json');
+
+  function stubNetwork(manifest: SiteManifest, opts: { hiStatus?: number } = {}) {
+    const requested: string[] = [];
+    const height = readFileSync(dir + 'height.png');
+    vi.stubGlobal('fetch', async (url: string) => {
+      requested.push(url);
+      const name = url.split('/').pop();
+      if (name === 'manifest.json') return new Response(JSON.stringify(manifest));
+      if (name === manifest.height.file) return new Response(height);
+      if (name === manifest.ortho.file) return new Response(new Blob([`ortho:${manifest.ortho.width}x${manifest.ortho.height}`]));
+      if (manifest.ortho_hi && name === manifest.ortho_hi.file) {
+        if (opts.hiStatus && opts.hiStatus !== 200) return new Response('', { status: opts.hiStatus });
+        return new Response(new Blob([`ortho:${manifest.ortho_hi.width}x${manifest.ortho_hi.height}`]));
+      }
+      return new Response('', { status: 404 });
+    });
+    // Вместо декодирования WebP — размер из «содержимого» заглушки.
+    vi.stubGlobal('createImageBitmap', async (blob: Blob) => {
+      const [w, h] = (await blob.text()).replace('ortho:', '').split('x').map(Number);
+      return { width: w, height: h, close: vi.fn() };
+    });
+    return requested;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it.each(['gale-boxwork', 'ares3', 'jezero'])('%s: паспорт описывает окно 0,25 м внутри участка, сетка высот 1 м', (id) => {
+    const m: SiteManifest & { sha256: Record<string, string> } = readJson(dataDir(id) + 'manifest.json');
+    const hi = m.ortho_hi!;
+    expect(hi.file).toBe('ortho_hi.webp');
+    expect(hi.pixel_m).toBe(0.25);
+    expect(hi.width).toBe(4096);
+    const [w, s, e, n] = m.bounds_eqc_m;
+    const [hw, hs, he, hn] = hi.bounds_eqc_m;
+    expect(he - hw).toBeCloseTo(hi.width * hi.pixel_m, 6);
+    expect(hn - hs).toBeCloseTo(hi.height * hi.pixel_m, 6);
+    expect(hw).toBeGreaterThanOrEqual(w - 1e-6);
+    expect(he).toBeLessThanOrEqual(e + 1e-6);
+    expect(hs).toBeGreaterThanOrEqual(s - 1e-6);
+    expect(hn).toBeLessThanOrEqual(n + 1e-6);
+    expect(m.sha256.ortho_hi).toMatch(/^[0-9a-f]{64}$/);
+    expect(m.height.pixel_m).toBe(1);
+    expect(statSync(dataDir(id) + hi.file).size).toBeLessThan(8e6);
+    expect(statSync(dataDir(id) + m.height.file).size).toBeLessThan(8e6);
+  });
+
+  it('с ortho_hi: детальный снимок загружается', async () => {
+    const manifest = realManifest();
+    const requested = stubNetwork(manifest);
+    const pkg = await loadSitePackage(site);
+    expect(requested.some((u) => u.endsWith('/ortho_hi.webp'))).toBe(true);
+    expect(pkg.orthoHi?.width).toBe(4096);
+    expect(pkg.ortho.width).toBe(manifest.ortho.width);
+    expect(pkg.grid.width).toBe(manifest.height.width);
+  });
+
+  it('без ortho_hi (старый пакет): работает на базовом снимке', async () => {
+    const manifest = realManifest();
+    delete manifest.ortho_hi;
+    const requested = stubNetwork(manifest);
+    const pkg = await loadSitePackage(site);
+    expect(pkg.orthoHi).toBeNull();
+    expect(requested.some((u) => u.includes('ortho_hi'))).toBe(false);
+    expect(pkg.ortho.width).toBe(manifest.ortho.width);
+  });
+
+  it('ortho_hi в паспорте, но файл недоступен: пакет грузится без него', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    stubNetwork(realManifest(), { hiStatus: 404 });
+    const pkg = await loadSitePackage(site);
+    expect(pkg.orthoHi).toBeNull();
+    expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe('материал и уровни детализации рельефа', () => {
+  it('окно ortho_hi в uv базового снимка', () => {
+    const p = orthoHiPlacement([0, 0, 2000, 2000], [500, 700, 1524, 1724], 25);
+    // u: запад окна на 500 м от запада участка; v считается с севера: 2000 − 1724 = 276 м.
+    expect(p.offset[0]).toBeCloseTo(0.25, 9);
+    expect(p.offset[1]).toBeCloseTo(276 / 2000, 9);
+    expect(p.scale[0]).toBeCloseTo(2000 / 1024, 9);
+    expect(p.fade[0]).toBeCloseTo(25 / 1024, 9);
+    // Северо-западный угол окна → (0, 0), юго-восточный → (1, 1).
+    const toHi = (u: number, v: number) => [(u - p.offset[0]) * p.scale[0], (v - p.offset[1]) * p.scale[1]];
+    const nw = toHi(500 / 2000, 276 / 2000);
+    expect(nw[0]).toBeCloseTo(0, 9);
+    expect(nw[1]).toBeCloseTo(0, 9);
+    const se = toHi(1524 / 2000, (2000 - 700) / 2000);
+    expect(se[0]).toBeCloseTo(1, 9);
+    expect(se[1]).toBeCloseTo(1, 9);
+  });
+
+  it('у ног шаг сетки 1 м, куски ~128 м; у пакетов 2 м — прежние пороги', () => {
+    expect(chunkCellsFor(1)).toBe(128);
+    expect(chunkCellsFor(2)).toBe(64);
+    expect(LOD_STEPS[lodForDistance(10, 1)]).toBe(1);
+    expect(LOD_STEPS[lodForDistance(150, 1)]).toBe(2);
+    expect(LOD_STEPS[lodForDistance(300, 1)]).toBe(4);
+    expect(LOD_STEPS[lodForDistance(5000, 1)]).toBe(16);
+    expect(lodDistances(2).slice(0, 3)).toEqual([180, 450, 950]);
+    expect(LOD_STEPS[lodForDistance(10, 2)]).toBe(1);
+  });
+
+  it('материал: детальное окно через define и цепочечный onBeforeCompile', () => {
+    const map = new THREE.Texture();
+    const base = createTerrainMaterial(map);
+    expect(base.defines?.TERRAIN_ORTHO_HI).toBeUndefined();
+    const hi = createTerrainMaterial(map, { texture: new THREE.Texture(), placement: orthoHiPlacement([0, 0, 10, 10], [2, 2, 6, 6]) });
+    expect(hi.defines?.TERRAIN_ORTHO_HI).toBe('');
+    // Второй патч поверх: оба срабатывают, маркеры шейдера остаются для следующих.
+    const prev = hi.onBeforeCompile;
+    let second = false;
+    hi.onBeforeCompile = function (shader, renderer) {
+      prev.call(this, shader, renderer);
+      second = shader.fragmentShader.includes('#include <map_fragment>');
+    };
+    const shader = {
+      uniforms: {},
+      vertexShader: THREE.ShaderLib.lambert.vertexShader,
+      fragmentShader: THREE.ShaderLib.lambert.fragmentShader,
+    } as unknown as THREE.WebGLProgramParametersWithUniforms;
+    hi.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+    expect(second).toBe(true);
+    expect(shader.fragmentShader).toContain('uniform sampler2D terrainOrthoHi;');
+    expect(shader.fragmentShader.indexOf('#include <map_fragment>')).toBeLessThan(shader.fragmentShader.indexOf('terrainHiUv'));
+    expect(Object.keys(shader.uniforms)).toEqual(['terrainOrthoHi', 'terrainHiRect', 'terrainHiFade']);
+    expect(hi.customProgramCacheKey()).toContain('terrain-ortho-hi');
   });
 });

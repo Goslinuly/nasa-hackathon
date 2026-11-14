@@ -1,17 +1,45 @@
-// Рельеф кусками: каждый кусок — 64×64 ячейки сетки DTM с несколькими уровнями детализации.
-// Вблизи — полная сетка, дальше — реже. Треугольники с NoData не строятся.
+// Рельеф кусками: каждый кусок ~128 × 128 м сетки DTM с несколькими уровнями детализации.
+// Вблизи — полная сетка (шаг пакета, 1 м у новых пакетов), дальше — реже.
+// Треугольники с NoData не строятся.
 
 import * as THREE from 'three';
 import { gridToLocal, type LocalFrame } from './geo';
 import { gridValue, type HeightGrid } from './heightGrid';
 
+/** Сторона куска в ячейках сетки при шаге 2 м (128 м); при шаге 1 м — 128 ячеек. */
 export const CHUNK_CELLS = 64;
-/** Шаг по сетке для уровней и дальность (м по горизонтали), до которой уровень нужен. */
-export const LOD_STEPS = [1, 2, 4, 8] as const;
-const LOD_DIST = [180, 450, 950, Infinity];
+const CHUNK_M = 128;
+/** Шаг по сетке для уровней (в ячейках). */
+export const LOD_STEPS = [1, 2, 4, 8, 16] as const;
+/**
+ * До какого расстояния (м по горизонтали) нужен уровень с данным шагом по земле, м.
+ * Для пакетов с шагом 2 м это прежние 180 / 450 / 950 м для 2 / 4 / 8 м.
+ */
+const LOD_DIST_BY_SPACING: [spacingM: number, distM: number][] = [
+  [1, 130],
+  [2, 180],
+  [4, 450],
+  [8, 950],
+];
 
-export function lodForDistance(distM: number): number {
-  return LOD_DIST.findIndex((d) => distM < d);
+/** Сторона куска в ячейках для шага сетки pixelM: куски около 128 м, не меньше 64 ячеек. */
+export function chunkCellsFor(pixelM: number): number {
+  return Math.max(CHUNK_CELLS, Math.round(CHUNK_M / pixelM));
+}
+
+/** Пороги дальности для уровней LOD_STEPS при шаге сетки pixelM. */
+export function lodDistances(pixelM: number): number[] {
+  return LOD_STEPS.map((step, i) => {
+    if (i === LOD_STEPS.length - 1) return Infinity;
+    const spacing = step * pixelM;
+    // Шаг мельче 1 м по земле не строим дальше, чем 1 м; уровни грубее 8 м — до горизонта.
+    const row = LOD_DIST_BY_SPACING.find(([s]) => spacing <= s + 1e-6);
+    return row ? row[1] : Infinity;
+  });
+}
+
+export function lodForDistance(distM: number, pixelM = 2): number {
+  return lodDistances(pixelM).findIndex((d) => distM < d);
 }
 
 interface Chunk {
@@ -35,11 +63,12 @@ export function buildChunkGeometry(
   step: number,
   refY: number,
   origin: { x: number; z: number },
+  cells: number = CHUNK_CELLS,
 ): THREE.BufferGeometry | null {
   const cs: number[] = [];
   const rs: number[] = [];
-  const cEnd = Math.min(c0 + CHUNK_CELLS, grid.width - 1);
-  const rEnd = Math.min(r0 + CHUNK_CELLS, grid.height - 1);
+  const cEnd = Math.min(c0 + cells, grid.width - 1);
+  const rEnd = Math.min(r0 + cells, grid.height - 1);
   for (let c = c0; c < cEnd; c += step) cs.push(c);
   cs.push(cEnd);
   for (let r = r0; r < rEnd; r += step) rs.push(r);
@@ -143,6 +172,8 @@ export class TerrainChunks {
   readonly group = new THREE.Group();
   private chunks: Chunk[] = [];
   private empty = new THREE.BufferGeometry();
+  private readonly cells: number;
+  private readonly lodDist: number[];
 
   constructor(
     private grid: HeightGrid,
@@ -150,10 +181,12 @@ export class TerrainChunks {
     private refY: number,
     readonly material: THREE.Material,
   ) {
-    for (let r0 = 0; r0 < grid.height - 1; r0 += CHUNK_CELLS) {
-      for (let c0 = 0; c0 < grid.width - 1; c0 += CHUNK_CELLS) {
+    const cells = (this.cells = chunkCellsFor(frame.pixelM));
+    this.lodDist = lodDistances(frame.pixelM);
+    for (let r0 = 0; r0 < grid.height - 1; r0 += cells) {
+      for (let c0 = 0; c0 < grid.width - 1; c0 += cells) {
         const a = gridToLocal(frame, c0, r0);
-        const b = gridToLocal(frame, Math.min(c0 + CHUNK_CELLS, grid.width - 1), Math.min(r0 + CHUNK_CELLS, grid.height - 1));
+        const b = gridToLocal(frame, Math.min(c0 + cells, grid.width - 1), Math.min(r0 + cells, grid.height - 1));
         const mesh = new THREE.Mesh(this.empty, material);
         mesh.position.set((a.x + b.x) / 2, 0, (a.z + b.z) / 2);
         mesh.castShadow = true;
@@ -173,7 +206,7 @@ export class TerrainChunks {
   private geometry(ch: Chunk, level: number): THREE.BufferGeometry | null {
     let g = ch.levels[level];
     if (!g) {
-      g = buildChunkGeometry(this.grid, this.frame, ch.c0, ch.r0, LOD_STEPS[level], this.refY, ch.mesh.position);
+      g = buildChunkGeometry(this.grid, this.frame, ch.c0, ch.r0, LOD_STEPS[level], this.refY, ch.mesh.position, this.cells);
       ch.levels[level] = g ?? this.empty;
     }
     return g === this.empty ? null : g;
@@ -198,7 +231,7 @@ export class TerrainChunks {
       const dx = Math.max(ch.minX - x, 0, x - ch.maxX);
       const dz = Math.max(ch.minZ - z, 0, z - ch.maxZ);
       const dist = Math.hypot(dx, dz);
-      return { ch, dist, level: lodForDistance(dist) };
+      return { ch, dist, level: this.lodDist.findIndex((d) => dist < d) };
     });
     want.sort((a, b) => a.dist - b.dist);
     let builds = 0;
@@ -214,7 +247,7 @@ export class TerrainChunks {
     for (const w of want) {
       for (let l = 0; l < w.level; l++) {
         const g = w.ch.levels[l];
-        if (g && g !== this.empty && l !== w.ch.level && w.dist > LOD_DIST[l] * 1.6) {
+        if (g && g !== this.empty && l !== w.ch.level && w.dist > this.lodDist[l] * 1.6) {
           g.dispose();
           w.ch.levels[l] = null;
         }
