@@ -125,6 +125,10 @@
 }
 
 @media (max-width: 760px) {
+  .walk-minimap-credit { max-width: 132px; font-size: 8px; }
+  .walk-hint { top: auto; bottom: calc(190px + env(safe-area-inset-bottom)); max-width: min(78vw, 340px); padding: 10px 14px; }
+  .walk-hint strong { font-size: 14px; }
+  .walk-hint span { display: none; }
   .walk-topbar {
     top: max(8px, env(safe-area-inset-top)); left: 8px; right: 8px; max-width: none;
     flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none;

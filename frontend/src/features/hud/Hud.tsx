@@ -53,7 +53,7 @@ export interface HudProps {
 export function Hud({ state }: HudProps) {
   // На телефоне полный HUD закрывает сцену: начинаем с минимума.
   const [level, setLevel] = useState<HudLevel>(() =>
-    window.matchMedia?.('(max-width: 760px), (max-height: 500px)').matches ? 'min' : 'full',
+    window.matchMedia?.('(max-width: 760px), (max-height: 500px), (pointer: coarse)').matches ? 'min' : 'full',
   );
   const [ext, setExt] = useState<HudExternal>({});
 
@@ -160,6 +160,12 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
     <div className="hud walk-hud" aria-live="off">
       <div className="hud-visor" />
 
+      {/* Компас */}
+      <section className="hud-tc">
+        <Compass headingDeg={s.headingDeg} baseBearingDeg={s.baseBearingDeg} baseDistanceM={s.baseDistanceM} />
+      </section>
+
+      <div className="hud-stack">
       {/* Положение */}
       <section className="hud-panel hud-tl">
         <Row
@@ -180,11 +186,6 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
             <Row label="Данные" value={s.dataLevel} prov="data" tip="Уровень данных рельефа под ногами. Где подробного DTM нет, рельеф грубее и детали не выдумываются." />
           </>
         )}
-      </section>
-
-      {/* Компас */}
-      <section className="hud-tc">
-        <Compass headingDeg={s.headingDeg} baseBearingDeg={s.baseBearingDeg} baseDistanceM={s.baseDistanceM} />
       </section>
 
       {/* Время */}
@@ -302,6 +303,7 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
         {full && <RadiationRows state={s} rad={ext.rad} rover={rover} />}
         {full && <SpaceWeatherRow sw={ext.spaceWeather} />}
       </section>
+      </div>
 
       {/* Ближайшая точка трека */}
       {full && (

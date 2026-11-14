@@ -41,6 +41,8 @@
 }
 
 /* Верхняя строка занята кнопками прогулки и панелью времени — угловые панели под ней. */
+.hud-stack { display: contents; }
+
 .walk-hud .hud-tl { top: 60px; left: 12px; }
 .walk-hud .hud-tr { top: 60px; right: 12px; }
 .walk-hud .hud-bl { bottom: 12px; left: 12px; }
@@ -178,16 +180,30 @@
    Снизу: джойстик слева, мини-карта справа. */
 @media (max-width: 760px) {
   .hud.walk-hud { font-size: 11px; }
-  .walk-hud .hud-panel { max-width: calc(50vw - 12px); }
-  .walk-hud .hud-tl { top: calc(104px + env(safe-area-inset-top)); left: 8px; }
-  .walk-hud .hud-tr { top: calc(104px + env(safe-area-inset-top)); right: 8px; }
   .walk-hud .hud-tc {
-    top: calc(176px + env(safe-area-inset-top));
+    top: calc(104px + env(safe-area-inset-top));
     max-width: calc(100vw - 16px);
     overflow: hidden;
   }
-  /* Внизу джойстик и мини-карта, поэтому безопасность — под компасом. */
-  .walk-hud .hud-bl { left: 8px; top: calc(236px + env(safe-area-inset-top)); bottom: auto; max-width: calc(100vw - 16px); }
+  .walk-hud .hud-stack {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: calc(160px + env(safe-area-inset-top));
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: calc(100dvh - 160px - 200px - env(safe-area-inset-top));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    pointer-events: auto;
+    scrollbar-width: none;
+  }
+  .walk-hud .hud-stack .hud-panel {
+    position: static;
+    max-width: none;
+    width: auto;
+  }
   .walk-hud .hud-bc { display: none; }
   .walk-hud .hud-toggle {
     top: calc(56px + env(safe-area-inset-top));
@@ -200,13 +216,29 @@
   }
 }
 
-/* Телефон лёжа: панели по углам ниже кнопок, компас меньше, безопасность между джойстиком и мини-картой. */
+/* Телефон лёжа: панели одной колонкой слева, компас меньше, низ свободен для джойстика и мини-карты. */
 @media (max-height: 500px) and (min-width: 761px) {
   .hud.walk-hud { font-size: 11px; }
-  .walk-hud .hud-tl { top: 52px; left: max(8px, env(safe-area-inset-left)); max-width: 32vw; }
-  .walk-hud .hud-tr { top: 52px; right: max(8px, env(safe-area-inset-right)); max-width: 30vw; }
   .walk-hud .hud-tc { top: 52px; transform: translateX(-50%) scale(0.75); transform-origin: top center; }
-  .walk-hud .hud-bl { left: 156px; bottom: max(8px, env(safe-area-inset-bottom)); max-width: 40vw; }
+  .walk-hud .hud-stack {
+    position: absolute;
+    left: max(8px, env(safe-area-inset-left));
+    top: 52px;
+    width: min(40vw, 320px);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: calc(100dvh - 60px - max(8px, env(safe-area-inset-bottom)));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    pointer-events: auto;
+    scrollbar-width: none;
+  }
+  .walk-hud .hud-stack .hud-panel {
+    position: static;
+    max-width: none;
+    width: auto;
+  }
   .walk-hud .hud-bc { display: none; }
   .walk-hud .hud-toggle {
     left: auto;
