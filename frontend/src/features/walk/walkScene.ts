@@ -4,6 +4,10 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import type { WalkState } from '@/app/modeContract';
+import { icrfToLocalEnu } from '@/features/sky/marsSky';
+import { daysSinceJ2000, solarGeometry, type SolarGeometry } from '@/features/sky/marsTime';
+import { SkyDome, DEFAULT_TAU } from '@/features/sky/skyDome';
+import { dayPhase, daylightWeight, smoothstep, unixMsForLtst, unixMsForSunCrossing, enuToScene, type DayPhase } from '@/features/sky/skyMath';
 import { bearingDeg, gridToLocal, localToLonLat, lonLatToLocal } from './geo';
 import { DEFAULT_MAX_SLOPE, stepBlocked, TerrainSampler, walkSpeed, type BlockReason } from './motion';
 import { dataLevelLabel, type SitePackage } from './sitePackage';
@@ -12,11 +16,24 @@ import { TerrainChunks } from './terrainMesh';
 export const EYE_HEIGHT_M = 1.7;
 export const TIME_SCALES = [1, 10, 60] as const;
 const TRACK_LABEL_RADIUS_M = 50;
-const SUN_ELEVATION_DEG = 35;
-const SUN_AZIMUTH_DEG = 120;
-const SKY_TOP = new THREE.Color('#b98a63');
-const SKY_HORIZON = new THREE.Color('#cfa47e');
-const FOG_COLOR = new THREE.Color('#cfa47e');
+const FOG_DAY = new THREE.Color('#cfa47e');
+const FOG_NIGHT = new THREE.Color('#0b0908');
+const SUN_NOON = new THREE.Color('#fff0d8');
+const SUN_LOW = new THREE.Color('#ff7a4a');
+const HEMI_SKY_DAY = new THREE.Color('#f6d6b4');
+const HEMI_SKY_NIGHT = new THREE.Color('#2a3350');
+const FOG_FAR_DAY_M = 2800;
+
+export interface SolarState {
+  ltstHours: number;
+  msd: number;
+  ls: number;
+  elevationDeg: number;
+  azimuthDeg: number;
+  irradianceWm2: number;
+  phase: DayPhase;
+  tau: number;
+}
 
 export interface WalkExtra {
   fps: number;
@@ -24,6 +41,7 @@ export interface WalkExtra {
   blockedSlopeDeg: number;
   speedMs: number;
   locked: boolean;
+  solar: SolarState;
 }
 
 export interface TeleportTarget {
@@ -72,7 +90,13 @@ export class WalkScene {
   private sampler: TerrainSampler;
   private terrain: TerrainChunks;
   private sun: THREE.DirectionalLight;
-  private sky: THREE.Mesh;
+  private sky: SkyDome;
+  private hemi: THREE.HemisphereLight;
+  private fog: THREE.Fog;
+  private geo: SolarGeometry;
+  private tau = DEFAULT_TAU;
+  private clockRunning = true;
+  private evaMs = 0;
   private orthoTexture: THREE.Texture;
   private refY: number;
   private raf = 0;
@@ -99,7 +123,6 @@ export class WalkScene {
   timeScale = 1;
   maxSlopeDeg = DEFAULT_MAX_SLOPE;
   private simTimeMs = Date.now();
-  private simStartMs = this.simTimeMs;
 
   // Наложения
   private pois: LocalPoi[] = [];
@@ -118,6 +141,15 @@ export class WalkScene {
   private fps = 0;
 
   private tmp = new THREE.Vector3();
+  private sunDir = new THREE.Vector3(0, 1, 0);
+
+  private get latDeg(): number {
+    return this.opts.pkg.manifest.center.lat;
+  }
+
+  private get lonEastDeg(): number {
+    return this.opts.pkg.manifest.center.lon_east;
+  }
 
   constructor(private opts: WalkSceneOptions) {
     const { pkg, container } = opts;
@@ -135,12 +167,15 @@ export class WalkScene {
     this.camera = new THREE.PerspectiveCamera(70, container.clientWidth / Math.max(1, container.clientHeight), 0.1, 6000);
     this.camera.rotation.order = 'YXZ';
 
-    this.scene.fog = new THREE.Fog(FOG_COLOR, 300, 2800);
-    this.scene.background = FOG_COLOR;
-    this.sky = this.makeSky();
-    this.scene.add(this.sky);
+    this.geo = solarGeometry(this.simTimeMs, this.latDeg, this.lonEastDeg);
+    this.fog = new THREE.Fog(FOG_DAY, 300, FOG_FAR_DAY_M);
+    this.scene.fog = this.fog;
+    this.scene.background = FOG_DAY.clone();
+    this.sky = new SkyDome(import.meta.env.BASE_URL);
+    this.scene.add(this.sky.mesh);
 
-    this.scene.add(new THREE.HemisphereLight('#f6d6b4', '#7a4a30', 1.9));
+    this.hemi = new THREE.HemisphereLight('#f6d6b4', '#7a4a30', 1.9);
+    this.scene.add(this.hemi);
     this.sun = new THREE.DirectionalLight('#fff0d8', 2.8);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -161,6 +196,7 @@ export class WalkScene {
     this.terrain.buildAll();
     this.scene.add(this.terrain.group);
 
+    this.applyLighting();
     this.buildTrack();
     this.buildPois();
     this.buildTeleports();
@@ -175,38 +211,6 @@ export class WalkScene {
   }
 
   // ---------- построение сцены ----------
-
-  private makeSky(): THREE.Mesh {
-    const mat = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      uniforms: {
-        top: { value: SKY_TOP.clone() },
-        horizon: { value: SKY_HORIZON.clone() },
-        sunDir: { value: this.sunDirection() },
-      },
-      vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; varying vec3 vDir;
-        void main(){ float h = clamp(vDir.y, 0.0, 1.0);
-          vec3 c = mix(horizon, top, pow(h, 0.6));
-          float s = max(dot(normalize(vDir), sunDir), 0.0);
-          c += vec3(0.55, 0.6, 0.65) * pow(s, 400.0) + vec3(0.25, 0.22, 0.2) * pow(s, 12.0);
-          gl_FragColor = vec4(c, 1.0);
-          #include <colorspace_fragment>
-        }`,
-    });
-    const mesh = new THREE.Mesh(new THREE.SphereGeometry(5000, 32, 16), mat);
-    mesh.frustumCulled = false;
-    mesh.renderOrder = -1;
-    return mesh;
-  }
-
-  /** Единичный вектор на Солнце: x восток, y вверх, z юг. */
-  private sunDirection(): THREE.Vector3 {
-    const el = THREE.MathUtils.degToRad(SUN_ELEVATION_DEG);
-    const az = THREE.MathUtils.degToRad(SUN_AZIMUTH_DEG);
-    return new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
-  }
 
   private makeOrthoTexture(bitmap: ImageBitmap): THREE.Texture {
     const max = this.renderer.capabilities.maxTextureSize;
@@ -545,6 +549,72 @@ export class WalkScene {
     this.emitState(true);
   }
 
+  setSimTime(unixMs: number): void {
+    this.simTimeMs = unixMs;
+    this.applyLighting();
+    this.emitState(true);
+  }
+
+  getSimTime(): number {
+    return this.simTimeMs;
+  }
+
+  setLtst(hours: number): void {
+    this.setSimTime(unixMsForLtst(this.simTimeMs, this.latDeg, this.lonEastDeg, hours));
+  }
+
+  setSunCrossing(rising: boolean): void {
+    this.setSimTime(unixMsForSunCrossing(this.simTimeMs, this.latDeg, this.lonEastDeg, rising));
+  }
+
+  setClockRunning(running: boolean): void {
+    this.clockRunning = running;
+  }
+
+  setTau(tau: number): void {
+    this.tau = tau;
+    this.applyLighting();
+    this.emitState(true);
+  }
+
+  solarState(): SolarState {
+    const g = this.geo;
+    return {
+      ltstHours: g.ltst,
+      msd: g.msd,
+      ls: g.ls,
+      elevationDeg: g.elevationDeg,
+      azimuthDeg: g.azimuthDeg,
+      irradianceWm2: g.irradianceWm2,
+      phase: dayPhase(g.elevationDeg),
+      tau: this.tau,
+    };
+  }
+
+  /** Свет, туман и купол неба по положению Солнца в текущий модельный момент. */
+  private applyLighting(): void {
+    const g = (this.geo = solarGeometry(this.simTimeMs, this.latDeg, this.lonEastDeg));
+    const el = g.elevationDeg;
+    const day = daylightWeight(el);
+    const [sx, sy, sz] = enuToScene(g.enu);
+    this.sunDir.set(sx, sy, sz);
+    this.sun.color.copy(SUN_LOW).lerp(SUN_NOON, smoothstep(0, 25, el));
+    this.sun.intensity = 2.8 * smoothstep(-1, 10, el);
+    this.sun.castShadow = el > 0.5;
+    this.hemi.intensity = THREE.MathUtils.lerp(0.3, 1.9, day);
+    this.hemi.color.copy(HEMI_SKY_NIGHT).lerp(HEMI_SKY_DAY, day);
+    this.fog.color.copy(FOG_NIGHT).lerp(FOG_DAY, day);
+    this.fog.far = THREE.MathUtils.clamp((FOG_FAR_DAY_M * DEFAULT_TAU) / this.tau, 1200, 5000);
+    (this.scene.background as THREE.Color).copy(this.fog.color);
+    this.sky.update({
+      sunEnu: g.enu,
+      sunElevationDeg: el,
+      angularDiameterDeg: g.angularDiameterDeg,
+      icrfToEnuMatrix: icrfToLocalEnu(daysSinceJ2000(this.simTimeMs), this.latDeg, this.lonEastDeg),
+      tau: this.tau,
+    });
+  }
+
   setMaxSlope(deg: number): void {
     this.maxSlopeDeg = deg;
     this.emitState(true);
@@ -575,7 +645,9 @@ export class WalkScene {
     const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
 
-    this.simTimeMs += dt * 1000 * this.timeScale;
+    this.evaMs += dt * 1000 * this.timeScale;
+    if (this.clockRunning) this.simTimeMs += dt * 1000 * this.timeScale;
+    this.applyLighting();
     this.move(dt);
     this.updateCameraHeight();
 
@@ -584,10 +656,9 @@ export class WalkScene {
       this.lodTimer = 0.2;
       this.terrain.update(this.px, this.pz);
     }
-    const sunDir = this.sunDirection();
     this.sun.target.position.set(this.px, this.camera.position.y, this.pz);
-    this.sun.position.copy(this.sun.target.position).addScaledVector(sunDir, 1500);
-    this.sky.position.copy(this.camera.position);
+    this.sun.position.copy(this.sun.target.position).addScaledVector(this.sunDir, 1500);
+    this.sky.mesh.position.copy(this.camera.position);
 
     this.renderer.render(this.scene, this.camera);
     this.updateLabels();
@@ -746,7 +817,7 @@ export class WalkScene {
       dataLevel: dataLevelLabel(pkg.manifest, this.sampler.sourceAt(this.px, this.pz)),
       simTimeMs: this.simTimeMs,
       timeScale: this.timeScale,
-      evaSeconds: (this.simTimeMs - this.simStartMs) / 1000,
+      evaSeconds: this.evaMs / 1000,
       maxSlopeDeg: this.maxSlopeDeg,
     };
     this.opts.onState(state, {
@@ -755,6 +826,7 @@ export class WalkScene {
       blockedSlopeDeg: this.blockedSlopeDeg,
       speedMs: this.speedMs,
       locked: !!this.controls?.isLocked,
+      solar: this.solarState(),
     });
   }
 
@@ -784,6 +856,7 @@ export class WalkScene {
       else if (m) materials.add(m);
     });
     materials.forEach((m) => m.dispose());
+    this.sky.dispose();
     this.orthoTexture.dispose();
     this.sun.shadow.map?.dispose();
     this.renderer.dispose();

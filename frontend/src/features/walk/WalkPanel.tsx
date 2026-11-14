@@ -6,6 +6,7 @@ import { Hud } from '@/features/hud/Hud';
 import { SLOPE_THRESHOLDS } from './motion';
 import { fetchManifest, fetchSiteIndex, loadSitePackage, type SiteIndexEntry, type SitePackage } from './sitePackage';
 import { TIME_SCALES, WalkScene, type TeleportTarget, type WalkExtra } from './walkScene';
+import { TimeControls } from './TimeControls';
 import { Joystick, TouchLook } from './TouchControls';
 import './walk.css';
 
@@ -205,6 +206,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       {touch && <TouchLook onLook={(dx, dy) => sceneRef.current?.lookBy(dx, dy)} />}
       {touch && <Joystick onMove={(x, y) => sceneRef.current?.setJoystick(x, y)} />}
       {state && <Hud state={state} />}
+      <TimeControls scene={sceneRef.current} solar={extra?.solar ?? null} />
 
       <div className="walk-topbar">
         <button type="button" className="walk-btn" onClick={ctx.exit}>На глобус</button>
