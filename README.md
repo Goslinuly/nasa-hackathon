@@ -63,6 +63,14 @@ Official resources from the challenge page.
 | Suit walking speed `V = −0.01·θ + 0.75` m/s and metabolic cost on slopes | Walking speed, route cost in oxygen, time back to base | Apollo EVA traverse data as summarised in [docs/TZ_EVA_Safety.md](docs/TZ_EVA_Safety.md), 9.1; Santee et al. (2001), "A proposed model for load carriage on sloped terrain", Aviat. Space Environ. Med. 72(6): 562–566 |
 | Radiation dose corridor 0.64 ± 0.12 mSv/day | Dose for a planned EVA | MSL RAD surface measurements, see [docs/TZ_EVA_Safety.md](docs/TZ_EVA_Safety.md), 9.4 |
 
+### 3D models and renders
+
+| Asset | Used for | Credit |
+|---|---|---|
+| Mars 2020 Perseverance rover model, [NASA 3D Resources](https://science.nasa.gov/3d-resources/mars-2020-perseverance-rover/) (`frontend/public/models/perseverance.glb`, re-saved in Blender with Draco and WebP compression) | Rover driving the planned route on the globe and in the walk | NASA/JPL-Caltech |
+| Gale and Jezero crater models (`galecode.glb`, `jezerocode.glb`) | Distant crater walls around the HiRISE walk areas | Made by the team in Blender from USGS Astrogeology elevation and image products listed in [docs/RESOURCES.md](docs/RESOURCES.md); aligned to MOLA MEGDR |
+| Night sky panorama (`gale_night_sky.hdr` → `frontend/public/data/sky/milkyway_icrf.webp`) | Sky in the walk, turned to celestial coordinates for any place and time | Rendered by the team |
+
 ### Local 3D terrain: The Martian locations and Gale crater
 
 Used by [`backend/scripts/build_martian_obj.py`](backend/scripts/build_martian_obj.py), [`backend/scripts/build_local_package.py`](backend/scripts/build_local_package.py) and [docs/BLENDER_TERRAIN.md](docs/BLENDER_TERRAIN.md).
