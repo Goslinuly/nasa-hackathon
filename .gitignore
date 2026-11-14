@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Окружение и секреты
+.env
+.env.local
+
+# Научные данные не храним в Git: только ссылки, метаданные и checksums
+data/raw/
+data/processed/
+*.tif
+*.tiff
+*.img
+
+# IDE и ОС
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Контейнеры
+infra/volumes/
+
+# Инкрементальный кэш tsc — артефакт сборки, в репозитории не нужен
+*.tsbuildinfo

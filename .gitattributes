@@ -1,0 +1,7 @@
+# Шелл-скрипты и конфиги, попадающие в Linux-образы, обязаны остаться с LF:
+# при CRLF ядро не находит интерпретатор ("#!/bin/sh\r") и скрипт молча не
+# запускается внутри контейнера.
+*.sh text eol=lf
+*.envsh text eol=lf
+Dockerfile text eol=lf
+*.template text eol=lf
