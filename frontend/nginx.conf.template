@@ -1,0 +1,89 @@
+# Конфиг nginx: SPA, кэш тайлов и прокси /api, /trek, /ctx; значения подставляет envsubst.
+proxy_cache_path /var/cache/nginx/tiles levels=1:2 keys_zone=tiles:16m
+                 max_size=1g inactive=30d use_temp_path=off;
+
+server {
+  listen ${PORT};
+  server_name _;
+
+  resolver ${NGINX_LOCAL_RESOLVERS} valid=10s;
+
+  root /usr/share/nginx/html;
+  index index.html;
+
+  gzip on;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+
+  location / {
+    try_files $uri /index.html;
+  }
+
+  location /assets/ {
+    expires 30d;
+    add_header Cache-Control "public, immutable";
+  }
+
+  location /data/ {
+    add_header Cache-Control "public, max-age=0, must-revalidate";
+  }
+
+  location /api/ {
+    set $api_upstream http://${API_HOST};
+    proxy_pass $api_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    error_page 500 502 504 = @api_unreachable;
+  }
+
+  location = /jmars-ctx {
+    proxy_pass https://ms-lunaserv.mars.asu.edu/wms;
+    proxy_ssl_server_name on;
+    proxy_set_header Host ms-lunaserv.mars.asu.edu;
+    proxy_read_timeout 45s;
+    proxy_cache tiles;
+    proxy_cache_valid 200 1d;
+    proxy_cache_lock on;
+    add_header X-Tile-Cache $upstream_cache_status;
+  }
+
+  location @api_unreachable {
+    default_type application/json;
+    return 503 '{"error":{"code":"api_unreachable","message":"API недоступен. Проверьте переменную API_HOST фронтенд-сервиса (нужен host:port без http://) и состояние backend."}}';
+  }
+
+  location /trek/ {
+    proxy_pass https://trek.nasa.gov/tiles/;
+    proxy_ssl_server_name on;
+    proxy_set_header Host trek.nasa.gov;
+    proxy_buffering on;
+    proxy_cache tiles;
+    proxy_cache_valid 200 30d;
+    proxy_cache_valid 404 1h;
+    proxy_cache_lock on;
+    proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+    proxy_cache_background_update on;
+    add_header X-Tile-Cache $upstream_cache_status;
+    expires 30d;
+    add_header Cache-Control "public, immutable";
+  }
+
+  location /ctx/ {
+    proxy_pass https://murray-lab.caltech.edu/CTX/V01/kml/MurrayLab_GlobalCTXMosaic_V01/;
+    proxy_ssl_server_name on;
+    proxy_set_header Host murray-lab.caltech.edu;
+    proxy_buffering on;
+    proxy_read_timeout 45s;
+    proxy_cache tiles;
+    proxy_cache_valid 200 30d;
+    proxy_cache_valid 404 1h;
+    proxy_cache_lock on;
+    proxy_cache_lock_timeout 45s;
+    proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+    proxy_cache_background_update on;
+    add_header X-Tile-Cache $upstream_cache_status;
+    expires 30d;
+    add_header Cache-Control "public, immutable";
+  }
+}
