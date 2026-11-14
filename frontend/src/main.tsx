@@ -1,15 +1,16 @@
-// Две страницы без роутера: переход — обычная ссылка, WebGL-контекст пересоздаётся.
-import React, { lazy, Suspense } from 'react';
+// Точка входа: один экран с шаром; старые адреса /planner и /atlas ведут на режимы.
+import React from 'react';
 import ReactDOM from 'react-dom/client';
 
+import { legacyRedirect } from '@/app/routes';
+import { Shell } from '@/app/Shell';
 import '@/app/styles.css';
 
-const isPlanner = window.location.pathname.replace(/\/+$/, '') === '/planner';
-const isAtlas = window.location.pathname.replace(/\/+$/, '') === '/atlas';
-const App = lazy(() => import('@/app/App').then(m => ({ default: m.App })));
-const PlannerPage = lazy(() => import('@/features/planner/PlannerPage').then(m => ({ default: m.PlannerPage })));
-const AtlasPage = lazy(() => import('@/features/map/AtlasPage').then(m => ({ default: m.AtlasPage })));
+const redirect = legacyRedirect(window.location.pathname);
+if (redirect) window.history.replaceState(null, '', redirect);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode><Suspense fallback={<p>Загрузка карты…</p>}>{isPlanner ? <PlannerPage /> : isAtlas ? <AtlasPage /> : <App />}</Suspense></React.StrictMode>,
+  <React.StrictMode>
+    <Shell />
+  </React.StrictMode>,
 );

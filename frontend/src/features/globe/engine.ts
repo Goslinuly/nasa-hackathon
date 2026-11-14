@@ -5,6 +5,8 @@ import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
+import type { GlobeLine, GlobeMarker, MarkerKind } from '@/app/modeContract';
+
 import { DTM_FOOTPRINTS, REGION_MARKERS, type RegionMarker } from './coverageData';
 import {
   CTX_OVERLAY,
@@ -24,6 +26,7 @@ import {
   type SpectrumLayer,
   type TrekSource,
 } from './layers';
+import { densifyPath } from './paths';
 import { loadHeightField, type HeightField } from './terrain';
 import {
   MARS_EQUATOR_M,
@@ -42,7 +45,51 @@ const MARS_RADIUS_M = MARS_RADIUS_KM * 1000;
 export const EXAGGERATION_OPTIONS = [1, 3, 5, 10] as const;
 export const DEFAULT_EXAGGERATION = 5;
 
-export type GlobeMode = 'home' | 'planner';
+/** Кадр оболочки: 'landing' — шар вдали и сбоку, 'explore' — шар по центру. */
+export type GlobeFraming = 'landing' | 'explore';
+
+const MARKER_COLORS: Record<MarkerKind, string> = {
+  rover: '#7fd6ff',
+  memorial: '#e8c27a',
+  site: '#8fd0a0',
+  poi: '#aebfdd',
+  walk: '#ff9b7a',
+};
+
+interface FlightState {
+  start: number;
+  duration: number;
+  fromDir: THREE.Vector3;
+  toDir: THREE.Vector3;
+  fromAlt: number;
+  toAlt: number;
+  fromOffset: THREE.Vector2;
+  toOffset: THREE.Vector2;
+  resolve: () => void;
+}
+
+interface LineLayer {
+  lines: GlobeLine[];
+  group: THREE.Group;
+  materials: LineMaterial[];
+}
+
+interface MarkerEntry {
+  lon: number;
+  lat: number;
+  sprite: THREE.Sprite;
+  label: HTMLDivElement | null;
+  onClick: (() => void) | null;
+}
+
+const REGION_LAYER = '__regions';
+
+interface MarkerLayer {
+  entries: MarkerEntry[];
+  textures: THREE.Texture[];
+}
+
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 export interface LonLat {
   lon: number;
@@ -114,6 +161,7 @@ const COVER_INSET = 1 / 128;
 const PLANNER_CLEARANCE = 0.00006;
 const FLAT_SHADE = 0.71;
 const TEXTURE_CACHE_LIMIT = 500;
+const MAX_FETCHES = 5;
 
 interface SkirtEdges {
   north: boolean;
@@ -129,7 +177,40 @@ class TextureStore {
   private pending = new Map<string, { controller: AbortController; waiters: Set<(texture: THREE.Texture | null) => void> }>();
   private failed = new Set<string>();
 
+  private active = 0;
+  private queue: (() => void)[] = [];
+
   constructor(private anisotropy: number) {}
+
+  /**
+   * Не больше MAX_FETCHES загрузок тайлов разом: иначе тайлы занимают все соединения
+   * браузера и код режимов, данные и API ждут в очереди.
+   */
+  private acquire(signal: AbortSignal): Promise<void> {
+    if (this.active < MAX_FETCHES) {
+      this.active++;
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      const start = () => {
+        signal.removeEventListener('abort', onAbort);
+        this.active++;
+        resolve();
+      };
+      const onAbort = () => {
+        const index = this.queue.indexOf(start);
+        if (index >= 0) this.queue.splice(index, 1);
+        reject(signal.reason);
+      };
+      this.queue.push(start);
+      signal.addEventListener('abort', onAbort, { once: true });
+    });
+  }
+
+  private release(): void {
+    this.active--;
+    this.queue.shift()?.();
+  }
 
   private key(url: string, srgb: boolean): string {
     return `${srgb ? 's' : 'l'}|${url}`;
@@ -160,11 +241,15 @@ class TextureStore {
       const created = { controller, waiters: new Set<(texture: THREE.Texture | null) => void>() };
       entry = created;
       this.pending.set(key, created);
-      fetch(url, { signal: controller.signal })
-        .then((response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.blob();
-        })
+      this.acquire(controller.signal)
+        .then(() =>
+          fetch(url, { signal: controller.signal })
+            .then((response) => {
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              return response.blob();
+            })
+            .finally(() => this.release()),
+        )
         .then((blob) => createImageBitmap(blob, { imageOrientation: 'flipY' }))
         .then((bitmap) => {
           const texture = new THREE.Texture(bitmap);
@@ -220,6 +305,7 @@ class TextureStore {
   }
 
   dispose(): void {
+    this.queue = [];
     this.pending.forEach((entry) => entry.controller.abort());
     this.pending.clear();
     this.cache.forEach((texture) => texture.dispose());
@@ -240,25 +326,23 @@ export class MarsGlobeEngine {
   private controls: OrbitControls;
   private raycaster = new THREE.Raycaster();
   private pickSphere: THREE.Mesh;
+  private placeholder: THREE.Mesh;
   private baseGroup = new THREE.Group();
   private detailGroup = new THREE.Group();
   private overlayGroup = new THREE.Group();
   private footprintGroup = new THREE.Group();
   private markerGroup = new THREE.Group();
-  private routeGroup = new THREE.Group();
+  private lineGroup = new THREE.Group();
   private selectionMarker: THREE.Sprite;
-  private endpointMarkers: Record<'a' | 'b', THREE.Sprite>;
   private selection: LonLat | null = null;
-  private endpoints: Record<'a' | 'b', LonLat | null> = { a: null, b: null };
-  private route: LonLat[] | null = null;
-  private routeMaterial: LineMaterial;
   private textures: TextureStore;
-  private labelElements = new Map<string, HTMLDivElement>();
+  private lineLayers = new Map<string, LineLayer>();
+  private markerLayers = new Map<string, MarkerLayer>();
   private spectrum: SpectrumLayer = SPECTRA[DEFAULT_SPECTRUM];
   private overlays = new Map<string, OverlaySource>();
   private overlayMeshes = new Map<string, THREE.Mesh>();
   private terrain: HeightField | null = null;
-  private exaggeration: number;
+  private exaggeration = DEFAULT_EXAGGERATION;
   private terrainAbort = new AbortController();
   private listenersAbort = new AbortController();
   private coverRects = Array.from({ length: MAX_COVER_RECTS }, () => new THREE.Vector4());
@@ -271,6 +355,16 @@ export class MarsGlobeEngine {
   private currentDetailKey = '';
   private overlayLift = 0;
   private frameHandle = 0;
+  private lastFrame = 0;
+  private maxFps = 0;
+  private paused = false;
+  private hidden = typeof document !== 'undefined' && document.hidden;
+  private interactive = true;
+  private flight: FlightState | null = null;
+  private framing: GlobeFraming = 'explore';
+  private viewOffset = new THREE.Vector2(0, 0);
+  private width = 1;
+  private height = 1;
   private detailTimer: number | undefined;
   private pointerDown: { x: number; y: number } | null = null;
   private userMoved = false;
@@ -281,9 +375,7 @@ export class MarsGlobeEngine {
     private canvas: HTMLCanvasElement,
     private labelLayer: HTMLDivElement,
     private events: GlobeEvents,
-    private mode: GlobeMode = 'home',
   ) {
-    this.exaggeration = mode === 'planner' ? 3 : DEFAULT_EXAGGERATION;
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.textures = new TextureStore(Math.min(4, this.renderer.capabilities.getMaxAnisotropy()));
@@ -307,7 +399,7 @@ export class MarsGlobeEngine {
     this.controls.maxDistance = 4.2;
     this.controls.rotateSpeed = 0.45;
     this.controls.zoomSpeed = 0.8;
-    this.controls.autoRotate = mode === 'home';
+    this.controls.autoRotate = true;
     this.controls.autoRotateSpeed = 0.35;
 
     this.pickSphere = new THREE.Mesh(
@@ -315,35 +407,26 @@ export class MarsGlobeEngine {
       new THREE.MeshBasicMaterial({ visible: false }),
     );
     this.scene.add(this.pickSphere);
+    // Тёмная подложка, пока грузятся тайлы: шар не выглядит дырявым.
+    this.placeholder = new THREE.Mesh(
+      new THREE.SphereGeometry(0.985, 48, 24),
+      new THREE.MeshLambertMaterial({ color: 0x4a2a1e }),
+    );
+    this.scene.add(this.placeholder);
     this.scene.add(this.baseGroup);
     this.scene.add(this.detailGroup);
     this.scene.add(this.overlayGroup);
     this.scene.add(this.footprintGroup);
-    this.scene.add(this.routeGroup);
+    this.scene.add(this.lineGroup);
     this.scene.add(this.markerGroup);
-
-    this.routeMaterial = new LineMaterial({
-      color: 0x7fd6ff,
-      linewidth: 3.5,
-      transparent: true,
-      opacity: 0.95,
-    });
 
     this.selectionMarker = this.makeMarker(this.makeDotTexture('#ffffff'), 0.02);
     this.selectionMarker.visible = false;
     this.scene.add(this.selectionMarker);
-    this.endpointMarkers = {
-      a: this.makeMarker(this.makeLetterTexture('A', '#8fd0a0'), 0.032),
-      b: this.makeMarker(this.makeLetterTexture('Б', '#ff9b7a'), 0.032),
-    };
-    this.endpointMarkers.a.visible = false;
-    this.endpointMarkers.b.visible = false;
-    this.scene.add(this.endpointMarkers.a, this.endpointMarkers.b);
 
-    if (mode === 'planner') {
-      this.overlays.set(CTX_OVERLAY.id, CTX_OVERLAY);
-      HIRISE_OVERLAYS.forEach((overlay) => this.overlays.set(overlay.id, overlay));
-    }
+    // Детальные снимки включены сразу: без них приближение упирается в предел подложки.
+    this.overlays.set(CTX_OVERLAY.id, CTX_OVERLAY);
+    HIRISE_OVERLAYS.forEach((overlay) => this.overlays.set(overlay.id, overlay));
 
     this.overlayLift = this.targetLift();
     this.buildBaseLayer();
@@ -360,46 +443,213 @@ export class MarsGlobeEngine {
       this.clampCamera();
       this.scheduleDetailUpdate();
     });
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        this.hidden = document.hidden;
+        if (this.hidden) this.stopLoop();
+        else this.startLoop();
+      },
+      { signal: this.listenersAbort.signal },
+    );
 
-    const loop = () => {
-      if (this.disposed) return;
-      this.frameHandle = requestAnimationFrame(loop);
-      this.adaptToAltitude();
-      this.controls.update();
-      this.updateLabels();
-      this.renderer.render(this.scene, this.camera);
-    };
-    loop();
+    this.startLoop();
     this.scheduleDetailUpdate();
   }
 
-  setSize(width: number, height: number): void {
-    this.renderer.setSize(width, height, false);
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-    this.routeMaterial.resolution.set(width, height);
+  // --- Цикл отрисовки ----------------------------------------------------------------------
 
+  private startLoop(): void {
+    if (this.disposed || this.paused || this.hidden || this.frameHandle) return;
+    this.lastFrame = performance.now();
+    this.frameHandle = requestAnimationFrame(this.frame);
+  }
+
+  private stopLoop(): void {
+    cancelAnimationFrame(this.frameHandle);
+    this.frameHandle = 0;
+  }
+
+  private frame = (now: number): void => {
+    this.frameHandle = 0;
+    if (this.disposed || this.paused || this.hidden) return;
+    this.frameHandle = requestAnimationFrame(this.frame);
+    const elapsed = now - this.lastFrame;
+    if (this.maxFps > 0 && elapsed < 1000 / this.maxFps - 2) return;
+    this.lastFrame = now;
+    if (this.flight) this.stepFlight(now);
+    else this.controls.update(Math.min(elapsed, 100) / 1000);
+    this.adaptToAltitude();
+    this.updateLabels();
+    this.renderer.render(this.scene, this.camera);
+  };
+
+  /** Остановить отрисовку (полноэкранный режим поверх глобуса). */
+  pause(): void {
+    this.paused = true;
+    this.stopLoop();
+  }
+
+  resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    this.startLoop();
+  }
+
+  /** Ограничение частоты кадров; 0 — без ограничения. */
+  setMaxFps(fps: number): void {
+    this.maxFps = fps;
+  }
+
+  /** Вращение мышью и колесом; выключено — страница прокручивается поверх шара. */
+  setInteractive(on: boolean): void {
+    this.interactive = on;
+    this.controls.enabled = on && !this.flight;
+    // На главной метки не нужны: шар только фон.
+    this.markerGroup.visible = on;
+    if (!on) {
+      this.pointerDown = null;
+      this.events.onHover(null);
+    }
+  }
+
+  setIdleSpin(on: boolean): void {
+    this.controls.autoRotate = on;
+  }
+
+  // --- Камера ------------------------------------------------------------------------------
+
+  private fitDistance(): number {
     const verticalHalf = THREE.MathUtils.degToRad(this.camera.fov / 2);
     const horizontalHalf = Math.atan(Math.tan(verticalHalf) * this.camera.aspect);
-    const fitDistance = Math.min(7, Math.max(3.2, 1.25 / Math.sin(Math.min(horizontalHalf, verticalHalf))));
-    this.controls.maxDistance = Math.max(4.2, fitDistance * 1.1);
-    if (!this.userMoved) {
-      this.camera.position.setLength(fitDistance);
+    return Math.min(7, Math.max(3.2, 1.25 / Math.sin(Math.min(horizontalHalf, verticalHalf))));
+  }
+
+  private framingTarget(framing: GlobeFraming): { distance: number; offset: THREE.Vector2 } {
+    const fit = this.fitDistance();
+    if (framing === 'explore') return { distance: fit, offset: new THREE.Vector2(0, 0) };
+    const wide = this.width >= 760 && this.width > this.height;
+    return {
+      distance: fit * 1.35,
+      offset: wide ? new THREE.Vector2(-0.22, 0) : new THREE.Vector2(0, -0.2),
+    };
+  }
+
+  private applyViewOffset(): void {
+    const { x, y } = this.viewOffset;
+    if (x === 0 && y === 0) this.camera.clearViewOffset();
+    else this.camera.setViewOffset(this.width, this.height, x * this.width, y * this.height, this.width, this.height);
+  }
+
+  setSize(width: number, height: number): void {
+    this.width = Math.max(1, width);
+    this.height = Math.max(1, height);
+    this.renderer.setSize(this.width, this.height, false);
+    this.camera.aspect = this.width / this.height;
+    this.camera.updateProjectionMatrix();
+    this.lineLayers.forEach((layer) => layer.materials.forEach((m) => m.resolution.set(this.width, this.height)));
+
+    const target = this.framingTarget(this.framing);
+    this.controls.maxDistance = Math.max(4.2, this.fitDistance() * 1.4);
+    if (!this.flight) {
+      this.viewOffset.copy(target.offset);
+      if (!this.userMoved) this.camera.position.setLength(target.distance);
     }
+    this.applyViewOffset();
 
     this.clampCamera();
+    this.scheduleDetailUpdate();
+  }
+
+  /** Плавно перевести шар в кадр главной страницы или режима исследования. */
+  setFraming(framing: GlobeFraming, durationMs = 1500): Promise<void> {
+    this.framing = framing;
+    const target = this.framingTarget(framing);
+    this.userMoved = false;
+    const direction = this.camera.position.clone().normalize();
+    return this.startFlight(direction, target.distance - 1, target.offset, durationMs);
+  }
+
+  /** Полёт камеры к точке; высота — над поверхностью, радиус Марса = 1. */
+  flyTo(lonDeg: number, latDeg: number, altitudeScene = 0.35, durationMs = 1500): Promise<void> {
+    const direction = lonLatToVec3(lonDeg, latDeg, 1).normalize();
+    this.userMoved = true;
+    this.controls.autoRotate = false;
+    return this.startFlight(direction, altitudeScene, this.viewOffset.clone(), durationMs);
+  }
+
+  private startFlight(toDir: THREE.Vector3, toAlt: number, toOffset: THREE.Vector2, durationMs: number): Promise<void> {
+    this.flight?.resolve();
+    this.flight = null;
+    const fromAlt = Math.max(this.altitudeScene(), 1e-6);
+    const alt = THREE.MathUtils.clamp(toAlt, 1e-5, this.controls.maxDistance - 1);
+    if (durationMs <= 0 || this.disposed) {
+      this.placeCamera(toDir, alt);
+      this.viewOffset.copy(toOffset);
+      this.applyViewOffset();
+      this.finishFlight();
+      return Promise.resolve();
+    }
+    this.controls.enabled = false;
+    return new Promise<void>((resolve) => {
+      this.flight = {
+        start: performance.now(),
+        duration: durationMs,
+        fromDir: this.camera.position.clone().normalize(),
+        toDir: toDir.clone(),
+        fromAlt,
+        toAlt: alt,
+        fromOffset: this.viewOffset.clone(),
+        toOffset: toOffset.clone(),
+        resolve,
+      };
+      // Без отрисовки (пауза, скрытая вкладка) полёт завершается сразу.
+      if (this.paused || this.hidden) this.stepFlight(performance.now() + durationMs);
+    });
+  }
+
+  private placeCamera(direction: THREE.Vector3, altitude: number): void {
+    const below = vec3ToLonLat(direction);
+    this.camera.position.copy(direction).multiplyScalar(1 + this.heightScene(below.lon, below.lat) + altitude);
+    this.camera.lookAt(0, 0, 0);
+  }
+
+  private stepFlight(now: number): void {
+    const flight = this.flight;
+    if (!flight) return;
+    const t = Math.min(1, (now - flight.start) / flight.duration);
+    const e = easeInOutCubic(t);
+    const angle = flight.fromDir.angleTo(flight.toDir);
+    const direction =
+      angle < 1e-4
+        ? flight.toDir.clone()
+        : flight.fromDir
+            .clone()
+            .multiplyScalar(Math.sin((1 - e) * angle) / Math.sin(angle))
+            .add(flight.toDir.clone().multiplyScalar(Math.sin(e * angle) / Math.sin(angle)))
+            .normalize();
+    const bump = angle > 0.05 ? Math.min(angle * 0.3, 0.9) * Math.sin(Math.PI * e) : 0;
+    const altitude = Math.exp(Math.log(flight.fromAlt) * (1 - e) + Math.log(flight.toAlt) * e) + bump;
+    this.placeCamera(direction, altitude);
+    this.viewOffset.lerpVectors(flight.fromOffset, flight.toOffset, e);
+    this.applyViewOffset();
+    this.scheduleDetailUpdate();
+    if (t >= 1) {
+      this.flight = null;
+      flight.resolve();
+      this.finishFlight();
+    }
+  }
+
+  private finishFlight(): void {
+    this.controls.enabled = this.interactive;
+    this.clampCamera();
+    this.controls.update();
     this.scheduleDetailUpdate();
   }
 
   focus(lonDeg: number, latDeg: number, altitudeScene = 0.35): void {
-    const direction = lonLatToVec3(lonDeg, latDeg, 1).normalize();
-    const surface = 1 + this.heightScene(lonDeg, latDeg);
-    this.camera.position.copy(direction.multiplyScalar(surface + altitudeScene));
-    this.controls.autoRotate = false;
-    this.userMoved = true;
-    this.clampCamera();
-    this.controls.update();
-    this.scheduleDetailUpdate();
+    void this.flyTo(lonDeg, latDeg, altitudeScene, 900);
   }
 
   zoomBy(factor: number): void {
@@ -428,16 +678,147 @@ export class MarsGlobeEngine {
     }
   }
 
-  setEndpoint(which: 'a' | 'b', point: LonLat | null): void {
-    this.endpoints[which] = point;
-    const marker = this.endpointMarkers[which];
-    marker.visible = point !== null;
-    if (point) marker.position.copy(this.surfacePoint(point.lon, point.lat, this.overlayLift * 2));
+  // --- Слои режимов: линии и метки ----------------------------------------------------------
+
+  setLines(layerId: string, lines: GlobeLine[] | null): void {
+    const previous = this.lineLayers.get(layerId);
+    if (previous) {
+      this.clearLineLayer(previous);
+      this.lineGroup.remove(previous.group);
+      this.lineLayers.delete(layerId);
+    }
+    if (!lines || lines.length === 0) return;
+    const layer: LineLayer = { lines, group: new THREE.Group(), materials: [] };
+    this.lineLayers.set(layerId, layer);
+    this.lineGroup.add(layer.group);
+    this.buildLineLayer(layer);
   }
 
-  setRoute(points: LonLat[] | null): void {
-    this.route = points;
-    this.buildRoute();
+  private clearLineLayer(layer: LineLayer): void {
+    layer.group.children.forEach((child) => (child as Line2).geometry.dispose());
+    layer.group.clear();
+    layer.materials.forEach((material) => material.dispose());
+    layer.materials = [];
+  }
+
+  private buildLineLayer(layer: LineLayer): void {
+    this.clearLineLayer(layer);
+    for (const line of layer.lines) {
+      const points = densifyPath(line.points, 0.5);
+      if (points.length < 2) continue;
+      const positions: number[] = [];
+      for (const point of points) {
+        const p = this.surfacePoint(point.lon, point.lat, this.overlayLift * 1.5);
+        positions.push(p.x, p.y, p.z);
+      }
+      const geometry = new LineGeometry();
+      geometry.setPositions(positions);
+      const material = new LineMaterial({
+        color: new THREE.Color(line.color).getHex(),
+        linewidth: line.width ?? 3,
+        transparent: true,
+        opacity: 0.95,
+        dashed: line.dashed ?? false,
+      });
+      material.resolution.set(this.width, this.height);
+      const mesh = new Line2(geometry, material);
+      mesh.computeLineDistances();
+      if (line.dashed) {
+        let total = 0;
+        for (let i = 3; i < positions.length; i += 3) {
+          total += Math.hypot(
+            positions[i] - positions[i - 3],
+            positions[i + 1] - positions[i - 2],
+            positions[i + 2] - positions[i - 1],
+          );
+        }
+        material.dashSize = Math.max(total / 60, 1e-6);
+        material.gapSize = material.dashSize * 0.7;
+      }
+      mesh.renderOrder = 20;
+      layer.materials.push(material);
+      layer.group.add(mesh);
+    }
+  }
+
+  private rebuildLines(): void {
+    this.lineLayers.forEach((layer) => this.buildLineLayer(layer));
+  }
+
+  setMarkers(layerId: string, markers: GlobeMarker[] | null, onClick?: (id: string) => void): void {
+    this.removeMarkerLayer(layerId);
+    if (!markers || markers.length === 0) return;
+    const layer: MarkerLayer = { entries: [], textures: [] };
+    const textures = new Map<string, THREE.Texture>();
+    for (const marker of markers) {
+      const color = marker.color ?? MARKER_COLORS[marker.kind ?? 'poi'];
+      let texture = textures.get(color);
+      if (!texture) {
+        texture = this.makeDotTexture(color);
+        textures.set(color, texture);
+        layer.textures.push(texture);
+      }
+      const entry = this.addMarkerEntry(marker.lon, marker.lat, texture, marker.label, onClick ? () => onClick(marker.id) : null);
+      if (entry.label) {
+        entry.label.classList.add(`globe-label-${marker.kind ?? 'poi'}`);
+        entry.label.style.color = color;
+        entry.label.style.borderColor = color;
+      }
+      layer.entries.push(entry);
+    }
+    this.markerLayers.set(layerId, layer);
+  }
+
+  private addMarkerEntry(
+    lon: number,
+    lat: number,
+    texture: THREE.Texture,
+    text: string,
+    onClick: (() => void) | null,
+  ): MarkerEntry {
+    const sprite = this.makeMarker(texture, 0.022);
+    const entry: MarkerEntry = { lon, lat, sprite, label: null, onClick };
+    sprite.userData.entry = entry;
+    sprite.position.copy(this.surfacePoint(lon, lat, this.overlayLift * 3));
+    this.markerGroup.add(sprite);
+    if (text) {
+      const label = document.createElement('div');
+      label.className = 'globe-label';
+      label.textContent = text;
+      label.style.opacity = '0';
+      label.style.pointerEvents = 'none';
+      if (onClick) label.addEventListener('click', onClick);
+      else label.classList.add('globe-label-static');
+      this.labelLayer.appendChild(label);
+      entry.label = label;
+    }
+    return entry;
+  }
+
+  private removeMarkerLayer(layerId: string): void {
+    const layer = this.markerLayers.get(layerId);
+    if (!layer) return;
+    for (const entry of layer.entries) {
+      this.markerGroup.remove(entry.sprite);
+      entry.sprite.material.dispose();
+      entry.label?.remove();
+    }
+    layer.textures.forEach((texture) => texture.dispose());
+    this.markerLayers.delete(layerId);
+  }
+
+  // --- Слои данных -------------------------------------------------------------------------
+
+  getSpectrum(): SpectrumId {
+    return this.spectrum.id;
+  }
+
+  getExaggeration(): number {
+    return this.exaggeration;
+  }
+
+  isOverlayEnabled(id: string): boolean {
+    return this.overlays.has(id);
   }
 
   setSpectrum(id: SpectrumId): void {
@@ -445,6 +826,7 @@ export class MarsGlobeEngine {
     this.spectrum = SPECTRA[id];
     this.buildBaseLayer();
     this.refreshDetail();
+    this.clampCamera();
     this.emitView(true);
   }
 
@@ -454,6 +836,7 @@ export class MarsGlobeEngine {
     if (enabled) this.overlays.set(id, source);
     else this.overlays.delete(id);
     this.updateOverlays();
+    this.clampCamera();
     this.emitView(true);
   }
 
@@ -465,19 +848,28 @@ export class MarsGlobeEngine {
 
   dispose(): void {
     this.disposed = true;
+    this.flight?.resolve();
+    this.flight = null;
     this.terrainAbort.abort();
     this.listenersAbort.abort();
-    cancelAnimationFrame(this.frameHandle);
+    this.stopLoop();
     window.clearTimeout(this.detailTimer);
     this.controls.dispose();
     this.clearGroup(this.baseGroup);
     this.clearDetail();
     this.clearOverlays();
     this.clearGroup(this.footprintGroup);
-    this.clearGroup(this.routeGroup);
+    [...this.lineLayers.keys()].forEach((id) => this.setLines(id, null));
+    [...this.markerLayers.keys()].forEach((id) => this.removeMarkerLayer(id));
+    this.selectionMarker.material.map?.dispose();
+    this.selectionMarker.material.dispose();
+    this.pickSphere.geometry.dispose();
+    this.placeholder.geometry.dispose();
+    (this.placeholder.material as THREE.Material).dispose();
+    (this.pickSphere.material as THREE.Material).dispose();
+    this.whiteTexture.dispose();
     this.textures.dispose();
     this.renderer.dispose();
-    this.labelElements.forEach((el) => el.remove());
   }
 
 
@@ -603,7 +995,7 @@ export class MarsGlobeEngine {
     this.updateOverlays();
     this.overlayLift = this.targetLift();
     this.buildOverlays();
-    this.buildRoute();
+    this.rebuildLines();
     this.clampCamera();
     this.emitView(true);
   }
@@ -619,7 +1011,8 @@ export class MarsGlobeEngine {
 
   private clampCamera(): void {
     let clearance = PLANNER_CLEARANCE;
-    if (this.mode === 'home') {
+    if (this.overlays.size === 0) {
+      // Без детальных снимков не даём приблизиться сильнее, чем позволяет подложка.
       const viewHeightM = this.spectrum.nativeResolutionM * this.canvas.clientHeight;
       const altitudeM = viewHeightM / (2 * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)));
       clearance = Math.max(0.004, (altitudeM * 0.8) / MARS_RADIUS_M);
@@ -641,7 +1034,7 @@ export class MarsGlobeEngine {
     if (lift / this.overlayLift > 2 || lift / this.overlayLift < 0.5) {
       this.overlayLift = lift;
       this.buildOverlays();
-      this.buildRoute();
+      this.rebuildLines();
     }
   }
 
@@ -1069,29 +1462,10 @@ export class MarsGlobeEngine {
       points.push(points[0].clone());
       this.footprintGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), material));
     }
-    for (const sprite of this.markerGroup.children) {
-      const marker = sprite.userData.marker as RegionMarker;
-      sprite.position.copy(this.surfacePoint(marker.lon, marker.lat, lift * 3));
-    }
+    this.markerLayers.forEach((layer) =>
+      layer.entries.forEach((entry) => entry.sprite.position.copy(this.surfacePoint(entry.lon, entry.lat, lift * 3))),
+    );
     if (this.selection) this.setSelection(this.selection.lon, this.selection.lat);
-    this.setEndpoint('a', this.endpoints.a);
-    this.setEndpoint('b', this.endpoints.b);
-  }
-
-  private buildRoute(): void {
-    this.clearGroup(this.routeGroup);
-    if (!this.route || this.route.length < 2) return;
-    const positions: number[] = [];
-    for (const point of this.route) {
-      const p = this.surfacePoint(point.lon, point.lat, this.overlayLift * 1.5);
-      positions.push(p.x, p.y, p.z);
-    }
-    const geometry = new LineGeometry();
-    geometry.setPositions(positions);
-    const line = new Line2(geometry, this.routeMaterial);
-    line.computeLineDistances();
-    line.renderOrder = 20;
-    this.routeGroup.add(line);
   }
 
   private makeDotTexture(color: string): THREE.Texture {
@@ -1114,29 +1488,6 @@ export class MarsGlobeEngine {
     return texture;
   }
 
-  private makeLetterTexture(letter: string, color: string): THREE.Texture {
-    const size = 96;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = 'rgba(5, 5, 7, 0.85)';
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.arc(size / 2, size / 2, 38, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = color;
-    ctx.font = '700 46px Unbounded, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(letter, size / 2, size / 2 + 3);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    return texture;
-  }
-
   private makeMarker(texture: THREE.Texture, size: number): THREE.Sprite {
     const sprite = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: texture, transparent: true, sizeAttenuation: false, depthTest: true }),
@@ -1148,43 +1499,49 @@ export class MarsGlobeEngine {
 
   private buildRegionMarkers(): void {
     const texture = this.makeDotTexture('#aebfdd');
+    const layer: MarkerLayer = { entries: [], textures: [texture] };
     for (const marker of REGION_MARKERS) {
-      const sprite = this.makeMarker(texture, 0.022);
-      sprite.userData.marker = marker;
-      this.markerGroup.add(sprite);
-
-      const label = document.createElement('div');
-      label.className = 'globe-label';
-      label.textContent = marker.name;
-      label.addEventListener('click', () => this.events.onRegionSelect(marker));
-      this.labelLayer.appendChild(label);
-      this.labelElements.set(marker.slug, label);
+      layer.entries.push(
+        this.addMarkerEntry(marker.lon, marker.lat, texture, marker.name, () => this.events.onRegionSelect(marker)),
+      );
     }
+    this.markerLayers.set(REGION_LAYER, layer);
   }
 
+  /** Подписи меток — DOM поверх холста; на обратной стороне шара скрыты. */
   private updateLabels(): void {
     const cameraDirection = this.camera.position.clone().normalize();
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
-    for (const sprite of this.markerGroup.children) {
-      const marker = sprite.userData.marker as RegionMarker;
-      const label = this.labelElements.get(marker.slug);
-      if (!label) continue;
-      const world = sprite.position.clone();
-      const onNearSide = world.clone().normalize().dot(cameraDirection) > 0.12;
-      const projected = world.clone().project(this.camera);
-      const onScreen = Math.abs(projected.x) < 1.1 && Math.abs(projected.y) < 1.1 && projected.z < 1;
-      if (!onNearSide || !onScreen) {
-        label.style.opacity = '0';
-        label.style.pointerEvents = 'none';
-        continue;
+    const world = new THREE.Vector3();
+    for (const layer of this.markerLayers.values()) {
+      for (const entry of layer.entries) {
+        const label = entry.label;
+        if (!label) continue;
+        world.copy(entry.sprite.position);
+        const onNearSide = this.isNearSide(world, cameraDirection);
+        const projected = world.project(this.camera);
+        const onScreen = Math.abs(projected.x) < 1.1 && Math.abs(projected.y) < 1.1 && projected.z < 1;
+        if (!onNearSide || !onScreen) {
+          if (label.style.opacity !== '0') {
+            label.style.opacity = '0';
+            label.style.pointerEvents = 'none';
+          }
+          continue;
+        }
+        label.style.opacity = '1';
+        label.style.pointerEvents = entry.onClick ? 'auto' : 'none';
+        label.style.transform = `translate(${((projected.x + 1) / 2) * width + 10}px, ${((1 - projected.y) / 2) * height - 8}px)`;
       }
-      label.style.opacity = '1';
-      label.style.pointerEvents = 'auto';
-      label.style.transform = `translate(${((projected.x + 1) / 2) * width + 10}px, ${((1 - projected.y) / 2) * height - 8}px)`;
     }
   }
 
+  private isNearSide(position: THREE.Vector3, cameraDirection: THREE.Vector3): boolean {
+    const normal = position.clone().normalize();
+    // Чем ближе камера, тем меньше видимая шапка шара: порог по горизонту.
+    const horizon = 1 / Math.max(1.0001, this.camera.position.length());
+    return normal.dot(cameraDirection) > Math.min(0.12, horizon) + 0.02;
+  }
 
   private disposeMesh(object: THREE.Object3D): void {
     const mesh = object as THREE.Mesh | THREE.Line;
@@ -1196,7 +1553,7 @@ export class MarsGlobeEngine {
       state.cancels.forEach((cancel) => cancel());
       state.views.forEach((texture) => texture.dispose());
     }
-    if (material !== this.routeMaterial) material.dispose();
+    material.dispose();
   }
 
   private clearGroup(group: THREE.Group): void {
@@ -1248,16 +1605,19 @@ export class MarsGlobeEngine {
       if (moved > 6) return;
 
       this.pointerToRay(event);
-      const markerHit = this.raycaster.intersectObjects(this.markerGroup.children, false)[0];
-      if (markerHit && this.mode === 'home') {
-        this.events.onRegionSelect(markerHit.object.userData.marker as RegionMarker);
+      const cameraDirection = this.camera.position.clone().normalize();
+      const markerHit = this.raycaster
+        .intersectObjects(this.markerGroup.children, false)
+        .find((hit) => {
+          const entry = hit.object.userData.entry as MarkerEntry | undefined;
+          return entry?.onClick && this.isNearSide(hit.object.position, cameraDirection);
+        });
+      if (markerHit) {
+        (markerHit.object.userData.entry as MarkerEntry).onClick?.();
         return;
       }
       const point = this.pickSurface();
-      if (point) {
-        if (this.mode === 'home') this.setSelection(point.lon, point.lat);
-        this.events.onSelect(point);
-      }
+      if (point) this.events.onSelect(point);
     }, options);
     this.canvas.addEventListener('pointerleave', () => {
       this.pointerDown = null;
