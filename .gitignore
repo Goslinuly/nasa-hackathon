@@ -18,6 +18,8 @@ frontend/dist/
 data/raw/
 data/processed/
 data/obj/
+data/blender/
+sites/
 *.obj
 *.mtl
 *.tif
