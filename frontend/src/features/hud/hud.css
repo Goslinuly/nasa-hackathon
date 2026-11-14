@@ -1,0 +1,162 @@
+/* HUD прогулки: проекция на стекло шлема. Панели по краям, центр свободен. */
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+  color: #e6f4ff;
+  font: 12px/1.35 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+.hud-visor {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 62%, rgba(10, 24, 36, 0.35) 100%);
+}
+
+.hud-panel {
+  position: absolute;
+  padding: 6px 9px;
+  background: rgba(6, 14, 22, 0.55);
+  border: 1px solid rgba(140, 210, 255, 0.28);
+  border-radius: 8px;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  max-width: min(46vw, 440px);
+}
+
+.hud-tl { top: 12px; left: 12px; }
+.hud-tr { top: 12px; right: 12px; }
+.hud-bl { bottom: 12px; left: 12px; }
+.hud-bc { bottom: 12px; left: 50%; transform: translateX(-50%); }
+.hud-tc { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); }
+
+.hud-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.hud-row + .hud-row { margin-top: 1px; }
+.hud-label { color: #9fc3dc; }
+.hud-value { color: #f4fbff; overflow: hidden; text-overflow: ellipsis; }
+.hud-row--warn .hud-value { color: #ffd166; }
+.hud-row--danger .hud-value { color: #ff6b5a; }
+
+.hud-badge {
+  pointer-events: auto;
+  cursor: help;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 15px;
+  border: 1px solid currentColor;
+  opacity: 0.85;
+  flex: none;
+}
+.hud-badge--data { color: #7fe0a8; }
+.hud-badge--archive { color: #ffcf7a; }
+.hud-badge--model { color: #9bb8ff; }
+.hud-badge--nodata { color: #a9a9a9; }
+
+.hud-tone--ok { color: #7fe0a8; }
+.hud-tone--warn { color: #ffd166; }
+.hud-tone--danger { color: #ff6b5a; font-weight: 700; }
+
+.hud-alert {
+  margin-bottom: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 190, 60, 0.18);
+  color: #ffd166;
+}
+.hud-alert--danger { background: rgba(255, 80, 60, 0.25); color: #ff8a7a; font-weight: 700; }
+
+.hud-note { margin-top: 2px; color: #9fc3dc; font-size: 10px; white-space: normal; }
+
+.hud-scale {
+  padding: 0 4px;
+  border-radius: 3px;
+  background: rgba(155, 184, 255, 0.25);
+  color: #dfe8ff;
+}
+
+.hud-compass-tape {
+  position: relative;
+  height: 30px;
+  overflow: hidden;
+  background: rgba(6, 14, 22, 0.5);
+  border: 1px solid rgba(140, 210, 255, 0.28);
+  border-radius: 6px;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+.hud-tick {
+  position: absolute;
+  bottom: 2px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: #9fc3dc;
+}
+.hud-tick::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  width: 1px;
+  height: 6px;
+  background: currentColor;
+}
+.hud-tick--major { color: #f4fbff; font-size: 12px; font-weight: 700; }
+.hud-base-marker {
+  position: absolute;
+  top: 1px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: #ffcf7a;
+  white-space: nowrap;
+}
+.hud-base-marker--edge { opacity: 0.8; }
+.hud-compass-caret {
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #f4fbff;
+}
+.hud-compass-caption {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 3px;
+  font-size: 11px;
+}
+.hud-compass-caption .hud-badge { margin-left: 4px; }
+
+.hud-toggle {
+  pointer-events: auto;
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 3px 8px;
+  font: inherit;
+  font-size: 11px;
+  color: #cfe6f7;
+  background: rgba(6, 14, 22, 0.55);
+  border: 1px solid rgba(140, 210, 255, 0.28);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .hud { font-size: 11px; }
+  .hud-tc { top: auto; bottom: 120px; }
+  .hud-bc { display: none; }
+}
