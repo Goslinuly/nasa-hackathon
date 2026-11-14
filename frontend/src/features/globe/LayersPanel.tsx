@@ -8,7 +8,19 @@ import { EXAGGERATION_OPTIONS } from './engine';
 import { formatResolution } from './format';
 import { CTX_OVERLAY, HIRISE_OVERLAYS, SPECTRA, type SpectrumId } from './layers';
 
-const SPECTRUM_ORDER: SpectrumId[] = ['natural', 'hypsometry', 'shade', 'themis-day', 'themis-night'];
+const SPECTRUM_ORDER: SpectrumId[] = [
+  'natural',
+  'hypsometry',
+  'shade',
+  'themis-day',
+  'themis-night',
+  'tes-albedo',
+  'tes-dust',
+  'tes-inertia',
+  'tes-pyroxene',
+  'tes-plagioclase',
+  'tes-silicates',
+];
 
 export default function LayersPanel(_: ModeContext) {
   const { engine, terrain: terrainStore } = useGlobeState();
@@ -16,6 +28,7 @@ export default function LayersPanel(_: ModeContext) {
   const [spectrumId, setSpectrumId] = useState<SpectrumId>(() => engine.getSpectrum());
   const [ctxOn, setCtxOn] = useState(() => engine.isOverlayEnabled(CTX_OVERLAY.id));
   const [hiriseOn, setHiriseOn] = useState(() => HIRISE_OVERLAYS.some((o) => engine.isOverlayEnabled(o.id)));
+  const [footprintsOn, setFootprintsOn] = useState(() => engine.getFootprintsVisible());
   const [exaggeration, setExaggeration] = useState(() => engine.getExaggeration());
 
   const spectrum = SPECTRA[spectrumId];
@@ -31,6 +44,10 @@ export default function LayersPanel(_: ModeContext) {
   const toggleHirise = () => {
     HIRISE_OVERLAYS.forEach((overlay) => engine.setOverlayEnabled(overlay.id, !hiriseOn));
     setHiriseOn(!hiriseOn);
+  };
+  const toggleFootprints = () => {
+    engine.setFootprintsVisible(!footprintsOn);
+    setFootprintsOn(!footprintsOn);
   };
   const chooseExaggeration = (value: number) => {
     setExaggeration(value);
@@ -66,7 +83,7 @@ export default function LayersPanel(_: ModeContext) {
         </div>
       )}
       <span className="layer-meta">
-        {formatResolution(spectrum.nativeResolutionM)} · {spectrum.coverage}
+        {spectrum.kind} · {formatResolution(spectrum.nativeResolutionM)} · {spectrum.coverage}
       </span>
 
       <span className="hud-label">Детальные снимки</span>
@@ -87,6 +104,13 @@ export default function LayersPanel(_: ModeContext) {
       {!ctxOn && !hiriseOn && (
         <p className="layer-desc">Без снимков приближение ограничено разрешением подложки.</p>
       )}
+      <label className="check">
+        <input type="checkbox" checked={footprintsOn} onChange={toggleFootprints} />
+        <span>
+          Участки прогулки
+          <small>оранжевые контуры DTM HiRISE для режима «От первого лица»</small>
+        </span>
+      </label>
 
       <span className="hud-label">Рельеф по высоте</span>
       <div className="hud-toggle" role="radiogroup" aria-label="Вертикальное преувеличение">

@@ -19,7 +19,18 @@ export function trekTileUrl(source: TrekSource, z: number, x: number, y: number)
   return `${source.path}/${z}/${y}/${x}.${source.ext}`;
 }
 
-export type SpectrumId = 'natural' | 'hypsometry' | 'shade' | 'themis-day' | 'themis-night';
+export type SpectrumId =
+  | 'natural'
+  | 'hypsometry'
+  | 'shade'
+  | 'themis-day'
+  | 'themis-night'
+  | 'tes-albedo'
+  | 'tes-dust'
+  | 'tes-inertia'
+  | 'tes-pyroxene'
+  | 'tes-plagioclase'
+  | 'tes-silicates';
 
 export interface Legend {
   gradient: string;
@@ -31,6 +42,7 @@ export interface Legend {
 export interface SpectrumLayer {
   id: SpectrumId;
   title: string;
+  kind: string;
   description: string;
   color: TrekSource;
   shade?: TrekSource;
@@ -49,6 +61,7 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
   natural: {
     id: 'natural',
     title: 'Видимый',
+    kind: 'оптический',
     description:
       'Естественный цвет Viking MDIM2.1 (232 м) с отмывкой рельефа HRSC + MOLA (200 м).',
     color: VIKING,
@@ -61,6 +74,7 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
   hypsometry: {
     id: 'hypsometry',
     title: 'Высоты',
+    kind: 'топографический',
     description: 'Гипсометрическая раскраска по высоте HRSC + MOLA (200 м) с отмывкой.',
     color: trek('Mars_MOLA_blend200ppx_HRSC_ClrShade_clon0dd_200mpp_lzw', 'jpg', 8),
     maxNativeZoom: 8,
@@ -77,6 +91,7 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
   shade: {
     id: 'shade',
     title: 'Рельеф',
+    kind: 'топографический',
     description: 'Отмывка рельефа HRSC + MOLA 200 м: свет с северо-запада, без цвета.',
     color: HRSC_SHADE,
     maxNativeZoom: 8,
@@ -87,6 +102,7 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
   'themis-day': {
     id: 'themis-day',
     title: 'ИК день',
+    kind: 'тепловой',
     description:
       'THEMIS дневной ИК (12.6 мкм), 100 м: яркость растёт с температурой поверхности днём. Это яркость снимка, не градусы.',
     color: trek('THEMIS_DayIR_ControlledMosaics_100m_v2_oct2018', 'png', 9),
@@ -105,6 +121,7 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
   'themis-night': {
     id: 'themis-night',
     title: 'ИК ночь',
+    kind: 'тепловой',
     description:
       'THEMIS ночной ИК, 100 м. Ночью тёплыми остаются камни и скальные выходы с высокой тепловой инерцией, а пыль и песок выглядят тёмными.',
     color: trek('THEMIS_NightIR_ControlledMosaics_100m_v2_oct2018', 'png', 9),
@@ -118,6 +135,120 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: 'пыль, песок',
       high: 'камень',
       quantity: 'Относительная яркость ИК ночью, без шкалы °C',
+    },
+  },
+  'tes-albedo': {
+    id: 'tes-albedo',
+    title: 'Альбедо',
+    kind: 'спектральный',
+    description:
+      'Альбедо поверхности по видимому и ближнему ИК каналу (0.3–2.9 мкм) спектрометра TES, MGS. Исходная карта около 7.4 км/пикс, в тайлах Trek доступна грубее. Светлые области — пыль, тёмные — открытая порода и песок.',
+    color: trek('Mars_MGS_TES_Albedo_mosaic_global_7410m', 'png', 1),
+    fallback: 'natural',
+    maxNativeZoom: 1,
+    nativeResolutionM: 20800,
+    coverage: 'вся планета, обзорный масштаб',
+    credit: 'NASA/GSFC — MGS TES, Global Surface Albedo mosaic, Mars Trek',
+    legend: {
+      gradient: 'linear-gradient(90deg, #222, #eee)',
+      low: 'темнее',
+      high: 'светлее',
+      quantity: 'Относительное отражение (альбедо), оттенок серого',
+    },
+  },
+  'tes-dust': {
+    id: 'tes-dust',
+    title: 'Пыль',
+    kind: 'пылевой покров',
+    description:
+      'Индекс пылевого покрова TES (Ruff, Christensen 2002): мера того, насколько пыль скрывает спектр поверхности. Исходный шаг 16 пикс/° (около 3.5 км), тайлы Trek грубее. Это индекс по тепловому ИК, а не толщина слоя пыли и не пыль в воздухе.',
+    color: trek('tes_ruffdust', 'png', 2),
+    fallback: 'natural',
+    maxNativeZoom: 2,
+    nativeResolutionM: 10400,
+    coverage: 'преимущественно низкие и средние широты',
+    credit: 'NASA/GSFC — MGS TES dust cover index (Ruff, Christensen 2002), Mars Trek',
+    legend: {
+      gradient: 'linear-gradient(90deg, #2a4cff, #20c8d0, #5adc50, #f0e040, #f07a20, #e02020)',
+      low: 'меньше пыли',
+      high: 'больше пыли',
+      quantity: 'Индекс пылевого покрова, безразмерный; числовая шкала в тайлах не передана',
+    },
+  },
+  'tes-inertia': {
+    id: 'tes-inertia',
+    title: 'Инерция',
+    kind: 'термофизический',
+    description:
+      'Тепловая инерция поверхности по TES (Putzig и др. 2005), около 3 км исходно, в тайлах Trek грубее. Показывает, как быстро грунт греется и остывает: низкая у пыли, высокая у камня и скал. Выводится из температур поверхности, а не измеряется напрямую.',
+    color: trek('TES_Thermal_Inertia', 'png', 1),
+    fallback: 'natural',
+    maxNativeZoom: 1,
+    nativeResolutionM: 20800,
+    coverage: 'преимущественно низкие и средние широты',
+    credit: 'NASA/GSFC — MGS TES thermal inertia (Putzig и др. 2005), Mars Trek',
+    legend: {
+      gradient: 'linear-gradient(90deg, #6a1ee0, #2a5be0, #20c8d0, #5adc50, #f0e040)',
+      low: 'пыль, песок',
+      high: 'камень, скалы',
+      quantity: 'Тепловая инерция, Дж·м⁻²·К⁻¹·с⁻¹ᐟ²; числовая шкала в тайлах не передана',
+    },
+  },
+  'tes-pyroxene': {
+    id: 'tes-pyroxene',
+    title: 'Пироксен',
+    kind: 'химический (минералы)',
+    description:
+      'Доля высококальциевого пироксена по спектрам TES (Bandfield 2002), 4 пикс/° (около 16 км). Деконволюция спектров даёт долю минерала в поверхности: 0.1–0.2 в тёмных областях низких широт, ниже предела обнаружения на светлых.',
+    color: trek('TES_Clinopyroxene', 'png', 1),
+    fallback: 'natural',
+    maxNativeZoom: 1,
+    nativeResolutionM: 20800,
+    coverage: 'тёмные области низких и средних широт; на светлых ниже порога обнаружения',
+    credit: 'NASA/GSFC — MGS TES mineralogy (Bandfield 2002), Mars Trek',
+    legend: {
+      gradient: 'linear-gradient(90deg, #4b10c8, #2a5be0, #20c8d0, #5adc50, #e02020)',
+      low: '0',
+      high: '≈ 0.2',
+      quantity: 'Доля минерала в поверхностном слое (безразмерная)',
+    },
+  },
+  'tes-plagioclase': {
+    id: 'tes-plagioclase',
+    title: 'Плагиоклаз',
+    kind: 'химический (минералы)',
+    description:
+      'Доля плагиоклаза по спектрам TES (Bandfield 2002), 4 пикс/° (около 16 км). Заметна в тёмных областях, максимум в районе Большого Сырта; на светлых поверхностях ниже порога обнаружения.',
+    color: trek('TES_Plagioclase', 'png', 1),
+    fallback: 'natural',
+    maxNativeZoom: 1,
+    nativeResolutionM: 20800,
+    coverage: 'тёмные области низких и средних широт; на светлых ниже порога обнаружения',
+    credit: 'NASA/GSFC — MGS TES mineralogy (Bandfield 2002), Mars Trek',
+    legend: {
+      gradient: 'linear-gradient(90deg, #4b10c8, #2a5be0, #20c8d0, #5adc50, #f0e040, #e02020)',
+      low: '0',
+      high: '≈ 0.2',
+      quantity: 'Доля минерала в поверхностном слое (безразмерная)',
+    },
+  },
+  'tes-silicates': {
+    id: 'tes-silicates',
+    title: 'Силикаты',
+    kind: 'химический (минералы)',
+    description:
+      'Доля слоистых силикатов и высококремнистого стекла по спектрам TES (Bandfield 2002), 4 пикс/° (около 16 км). Карта шумнее остальных: спектр этих минералов похож на пыль в атмосфере. Это группа минералов, а не измерение элементов.',
+    color: trek('TES_Glass_Clay', 'png', 1),
+    fallback: 'natural',
+    maxNativeZoom: 1,
+    nativeResolutionM: 20800,
+    coverage: 'преимущественно низкие и средние широты; значения шумные',
+    credit: 'NASA/GSFC — MGS TES mineralogy (Bandfield 2002), Mars Trek',
+    legend: {
+      gradient: 'linear-gradient(90deg, #4b10c8, #2a5be0, #20c8d0, #5adc50, #f0e040, #e02020)',
+      low: '0',
+      high: '≈ 0.2',
+      quantity: 'Доля группы минералов в поверхностном слое (безразмерная)',
     },
   },
 };

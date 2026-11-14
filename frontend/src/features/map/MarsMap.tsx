@@ -5,6 +5,7 @@ import type { ResearchRoute } from '@/shared/api/scienceTypes';
 import { GeologyLegend } from './GeologyLegend';
 import { GEOLOGY_DEFAULT_OPACITY, GEOLOGY_IMAGE_URL, geologyBackground, loadGeologyLegend, type GeologyLegend as Legend } from './geology';
 import { loadNomenclature, selectLabels, type Nomenclature } from './nomenclature';
+import { formatResolution } from '@/features/globe/format';
 import { MAP_LAYERS, METERS_PER_DEGREE, mapTileUrl, visibleTiles } from './mapTiles';
 
 function Tile({ src, style, onFail }: { src: string; style: React.CSSProperties; onFail(): void }) {
@@ -21,7 +22,7 @@ export function MarsMap({ selected, onSelect, focus, route }: {
 }) {
   const [center, setCenter] = useState({ lon: 0, lat: 0 });
   const [zoom, setZoom] = useState(1);
-  const [layers, setLayers] = useState(MAP_LAYERS.map(layer => ({ ...layer, visible: true, opacity: 1 })));
+  const [layers, setLayers] = useState(MAP_LAYERS.map(layer => ({ ...layer, opacity: 1 })));
   const [geology, setGeology] = useState({ visible: false, opacity: GEOLOGY_DEFAULT_OPACITY });
   const [legend, setLegend] = useState<Legend | null>(null);
   const [legendError, setLegendError] = useState('');
@@ -74,7 +75,7 @@ export function MarsMap({ selected, onSelect, focus, route }: {
       <div className="pane-title">Слои <span>ПОРЯДОК СВЕРХУ ВНИЗ</span></div>
       {layers.map((layer, i) => <article className="map-layer" key={layer.id}>
         <label><input type="checkbox" checked={layer.visible} onChange={e => updateLayer(layer.id, { visible: e.target.checked })} />{layer.title}</label>
-        <small>{layer.resolution} м/пикс · {layer.id === 'ctx' ? 'архивные снимки, возможны пробелы' : 'обзор поверхности'}</small>
+        <small>{formatResolution(layer.resolution)} · {layer.id === 'ctx' ? 'архивные снимки, возможны пробелы' : 'обзор поверхности'}</small>
         <label className="layer-opacity">Непрозрачность <input aria-label={'Непрозрачность ' + layer.id} type="range" min="0" max="1" step="0.05" value={layer.opacity} onChange={e => updateLayer(layer.id, { opacity: +e.target.value })} /></label>
         <div className="layer-actions"><a href={layer.url} target="_blank" rel="noreferrer">Источник ↗</a><button disabled={i === 0} onClick={() => setLayers(value => { const next = [...value]; [next[i - 1], next[i]] = [next[i], next[i - 1]]; return next; })}>Выше ↑</button></div>
       </article>)}
@@ -138,7 +139,7 @@ export function MarsMap({ selected, onSelect, focus, route }: {
           {selected && <g transform={`translate(${project(selected.longitude_deg, selected.latitude_deg).join(' ')})`}><circle r="8" fill="none" stroke="#fff" strokeWidth="2" /><path d="M-15 0H15M0 -15V15" stroke="#fff" /></g>}
         </svg>
         </div>
-        <div className="map-badge">{active?.title ?? (pending ? pending.title : 'Слои выключены')}<br />{active && unavailable[active.id] ? `Источник не отвечает, показана ${layers.find(l => l.id !== active.id)?.title ?? 'обзорная мозаика'}` : pending && !active ? `Появится с z${pending.minZoom}: источник не отдаёт такую область целиком` : active && zoom > active.nativeZoom ? `Увеличение пикселей: новых деталей нет (${active.resolution} м/пикс)` : 'Архивная карта · покрытие зависит от участка'}{pending && active ? <><br />{`${pending.title}: с z${pending.minZoom}`}</> : null}</div>
+        <div className="map-badge">{active?.title ?? (pending ? pending.title : 'Слои выключены')}<br />{active && unavailable[active.id] ? `Источник не отвечает, показана ${layers.find(l => l.id === 'viking' && l.id !== active.id)?.title ?? 'обзорная мозаика'}` : pending && !active ? `Появится с z${pending.minZoom}: источник не отдаёт такую область целиком` : active && zoom > active.nativeZoom ? `Увеличение пикселей: новых деталей нет (${formatResolution(active.resolution)})` : 'Архивная карта · покрытие зависит от участка'}{pending && active ? <><br />{`${pending.title}: с z${pending.minZoom}`}</> : null}</div>
         <div className="map-scale"><span style={{ width: 120 }} />≈{scale >= 1000 ? `${(scale / 1000).toFixed(1)} км` : `${scale.toFixed(1)} м`} на широте центра</div>
         <div className="map-credit">{[...layers.filter(l => l.visible && l.opacity > 0).map(l => l.credit), ...(names && nomenclature ? ['Названия: ' + nomenclature.credit] : []), ...(geology.visible && geology.opacity > 0 ? ['Геология: ' + (legend?.credit ?? 'USGS SIM 3292, Tanaka et al. (2014)')] : [])].join(' / ')}</div>
       </div>

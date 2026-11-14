@@ -4,10 +4,12 @@ import { describe, expect, it } from 'vitest';
 import {
   CTX_REGION_BOUNDS,
   MERCATOR_MAX_LAT,
+  SPECTRA,
   ctxTileUrl,
   lonLatToMercatorTile,
   mercatorRowLat,
   mercatorTileBounds,
+  trekTileUrl,
 } from './layers';
 
 describe('Web Mercator', () => {
@@ -40,5 +42,34 @@ describe('регионы CTX', () => {
     expect(equator).toHaveLength(18);
     const jezero = CTX_REGION_BOUNDS.find((r) => r.name === 'E060_E076_N08_N20')!;
     expect(jezero.bounds).toEqual({ west: 60, east: 80, south: 8, north: 24 });
+  });
+});
+
+const NEW_SPECTRA = ['tes-albedo', 'tes-dust', 'tes-inertia', 'tes-pyroxene', 'tes-plagioclase', 'tes-silicates'] as const;
+
+describe('спектры TES', () => {
+  it.each(NEW_SPECTRA)('%s: тайл Trek WMTS, кредит и подпись вида данных', (id) => {
+    const layer = SPECTRA[id];
+    expect(trekTileUrl(layer.color, 1, 2, 0)).toMatch(
+      /^\/trek\/Mars\/EQ\/[\w-]+\/1\.0\.0\/default\/default028mm\/1\/0\/2\.png$/,
+    );
+    expect(layer.credit).toMatch(/NASA/);
+    expect(layer.kind.length).toBeGreaterThan(0);
+    expect(layer.fallback).toBe('natural');
+    expect(layer.maxNativeZoom).toBe(layer.color.maxZoom);
+  });
+
+  it.each(NEW_SPECTRA)('%s: легенда с величиной и подписанными концами', (id) => {
+    const legend = SPECTRA[id].legend!;
+    expect(legend.gradient).toMatch(/^linear-gradient\(/);
+    expect(legend.quantity.length).toBeGreaterThan(0);
+    expect(legend.low).not.toBe(legend.high);
+  });
+
+  it('покрывает не менее трёх видов данных вместе с прежними слоями', () => {
+    const kinds = new Set(Object.values(SPECTRA).map((layer) => layer.kind.split(' ')[0]));
+    for (const kind of ['оптический', 'топографический', 'тепловой', 'спектральный', 'термофизический', 'пылевой', 'химический']) {
+      expect(kinds.has(kind)).toBe(true);
+    }
   });
 });

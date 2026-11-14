@@ -1,6 +1,6 @@
 // Тесты источников тайлов плоской карты.
 import { describe, expect, it } from 'vitest';
-import { mapTileUrl, visibleTiles } from './mapTiles';
+import { MAP_LAYERS, mapTileUrl, visibleTiles } from './mapTiles';
 
 describe('planetary WMS tiles', () => {
   it('uses the unrotated JMARS projection and east-longitude bounds', () => {
@@ -18,5 +18,16 @@ describe('planetary WMS tiles', () => {
     expect(tiles.length).toBeGreaterThan(0);
     expect(tiles.length).toBeLessThan(10);
     expect(tiles.every(t => t.z === 13 && t.size === 8192 && t.y >= 0 && t.y < 8192)).toBe(true);
+  });
+});
+
+describe('Trek spectral atlas layers', () => {
+  it('requests wrapped Trek WMTS tiles and starts hidden under the overview mosaic', () => {
+    expect(mapTileUrl('tes-albedo', 1, -1, 0)).toBe(mapTileUrl('tes-albedo', 1, 3, 0));
+    expect(mapTileUrl('tes-inertia', 1, 2, 0)).toBe('/trek/Mars/EQ/TES_Thermal_Inertia/1.0.0/default/default028mm/1/0/2.png');
+    const ids = MAP_LAYERS.map(l => l.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(MAP_LAYERS.filter(l => l.id.startsWith('tes-')).every(l => !l.visible && l.nativeZoom <= 2)).toBe(true);
+    expect(ids.indexOf('tes-dust')).toBeLessThan(ids.indexOf('viking'));
   });
 });

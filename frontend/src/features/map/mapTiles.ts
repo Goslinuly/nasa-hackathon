@@ -2,15 +2,32 @@
 import { SPECTRA, trekTileUrl } from '@/features/globe/layers';
 
 export const METERS_PER_DEGREE = Math.PI * 3389500 / 180;
-export const MAP_LAYERS = [
-  { id: 'ctx', title: 'CTX · снимки поверхности', resolution: 5, nativeZoom: 13, minZoom: 12, credit: 'NASA/JPL/MSSS · Caltech Murray Lab · ASU', url: 'https://jmars.asu.edu/node/2844' },
-  { id: 'viking', title: 'Viking · обзорная мозаика', resolution: 232, nativeZoom: 7, minZoom: 0, credit: 'NASA/JPL/USGS · Mars Trek', url: 'https://trek.nasa.gov/mars/' },
-] as const;
-export type MapLayer = typeof MAP_LAYERS[number];
+export interface MapLayer {
+  id: string;
+  title: string;
+  resolution: number;
+  nativeZoom: number;
+  minZoom: number;
+  credit: string;
+  url: string;
+  visible: boolean;
+}
+const TREK_URL = 'https://trek.nasa.gov/mars/';
+const TREK_SPECTRA = ['tes-albedo', 'tes-dust', 'tes-inertia', 'tes-pyroxene', 'tes-plagioclase', 'tes-silicates'] as const;
+type TrekSpectrumId = typeof TREK_SPECTRA[number];
+const trekAtlasLayers: MapLayer[] = TREK_SPECTRA.map(id => ({ id, title: `${SPECTRA[id].title} · ${SPECTRA[id].kind}`,
+  resolution: SPECTRA[id].nativeResolutionM, nativeZoom: SPECTRA[id].maxNativeZoom, minZoom: 0, credit: SPECTRA[id].credit, url: TREK_URL, visible: false }));
+export const MAP_LAYERS: MapLayer[] = [
+  { id: 'ctx', title: 'CTX · снимки поверхности', resolution: 5, nativeZoom: 13, minZoom: 12, credit: 'NASA/JPL/MSSS · Caltech Murray Lab · ASU', url: 'https://jmars.asu.edu/node/2844', visible: true },
+  ...trekAtlasLayers,
+  { id: 'viking', title: 'Viking · обзорная мозаика', resolution: 232, nativeZoom: 7, minZoom: 0, credit: 'NASA/JPL/USGS · Mars Trek', url: TREK_URL, visible: true },
+];
+const isTrekSpectrum = (id: string): id is TrekSpectrumId => (TREK_SPECTRA as readonly string[]).includes(id);
 export function mapTileUrl(id: string, z: number, x: number, y: number) {
   const cols = 2 ** (z + 1), span = 360 / cols;
   const wrapped = ((x % cols) + cols) % cols;
   if (id === 'viking') return trekTileUrl(SPECTRA.natural.color, z, wrapped, y);
+  if (isTrekSpectrum(id)) return trekTileUrl(SPECTRA[id].color, z, wrapped, y);
   const west = -180 + wrapped * span, north = 90 - y * span;
   return '/jmars-ctx?' + new URLSearchParams({ SERVICE: 'WMS', VERSION: '1.1.1', REQUEST: 'GetMap',
     LAYERS: 'mars_ctx_global_mosaic_v1_m4', STYLES: '', FORMAT: 'image/png',
