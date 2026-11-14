@@ -255,7 +255,13 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
             <>
               <span className={`hud-tone--${hereTone}`}>под ногами {Math.round(Math.abs(s.slopeHereDeg))}°</span>
               {' · '}
-              <span className={`hud-tone--${aheadTone}`}>впереди {Math.round(Math.abs(s.slopeAheadDeg))}°</span>
+              {Number.isFinite(s.slopeAheadDeg) ? (
+                <span className={`hud-tone--${aheadTone}`}>
+                  впереди {s.slopeAheadDeg >= 0 ? '▲' : '▼'} {Math.round(Math.abs(s.slopeAheadDeg))}°
+                </span>
+              ) : (
+                <span>впереди: нет данных</span>
+              )}
             </>
           }
           prov="data"
