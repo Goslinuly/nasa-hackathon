@@ -43,7 +43,10 @@ Official resources from the challenge page.
 | Mars Trek WMTS: Mars 2020 TRN HiRISE ortho mosaic, Jezero, 0.25 m | Detailed imagery in Jezero crater | NASA/JPL/University of Arizona |
 | [Global CTX Mosaic V01](https://murray-lab.caltech.edu/CTX/V01/), served through [JMARS](https://jmars.asu.edu/node/2844) WMS | 5 m imagery on the globe and 2D map | NASA/JPL/MSSS/The Murray Lab (Caltech); ASU JMARS. Citation terms on the source page |
 | [USGS STAC: HiRISE DTMs and orthoimages](https://stac.astrogeology.usgs.gov/docs/data/mars/hirise_dtms/) | Registry of detailed terrain candidates, local terrain | NASA/JPL/University of Arizona; DTMs by USGS Astrogeology. CC0-1.0 per STAC items |
-| MSL RAD dose rate, sol 3290 (87 observations) | Radiation panel | NASA/JPL-Caltech/SwRI. Team-supplied file; the primary PDS product is not yet identified, see `backend/data/science/README.md` |
+| MSL RAD dose rate, sol 3290 (87 observations) | Radiation panel | NASA/JPL-Caltech/SwRI. Extract of PDS PPI [MSL-M-RAD-3-RDR-V1.0](https://pds-ppi.igpp.ucla.edu/data/MSL-M-RAD-3-RDR-V1.0/), product `RAD_RDR_2021_311_00_43_3290_V00`, see `backend/data/science/README.md` |
+| [NASA CCMC DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/), API `https://ccmc.gsfc.nasa.gov/DONKI/WS/get/` | Space weather events in the walk HUD (`/api/v1/space-weather/events`). Conditions near Earth; arrival at Mars is an estimate | NASA CCMC |
+| [JPL Horizons](https://ssd.jpl.nasa.gov/horizons/), API `https://ssd.jpl.nasa.gov/api/horizons.api` | Earth–Mars one-way light time table 2026–2028 | NASA/JPL Solar System Dynamics |
+| [NASA GISS Mars24 algorithm](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) and [technical notes](https://www.giss.nasa.gov/tools/mars24/help/notes.html) | Mars local time, sol numbers, sun position in the HUD | NASA GISS |
 | [Mars24 lander locations](https://www.giss.nasa.gov/tools/mars24/help/landers.html), [List of Mars landers](https://en.wikipedia.org/wiki/List_of_Mars_landers) | Coordinates of landing sites in the research catalogue | NASA GISS; Wikipedia |
 
 ### Local 3D terrain: The Martian locations and Gale crater
@@ -56,16 +59,19 @@ Used by [`backend/scripts/build_martian_obj.py`](backend/scripts/build_martian_o
 | HiRISE DTM `DTEED_042014_1760_042647_1760_A01` and ortho [ESP_042014_1760](https://www.uahirise.org/ESP_042014_1760) | Ares 4 site, Schiaparelli crater | NASA/JPL/University of Arizona; DTM USGS |
 | THEMIS series "The Martian, Part 1–5": [PIA19796](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19796.html), [PIA19797](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19797.html), [PIA19798](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19798.html), [PIA19799](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19799.html), [PIA19800](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19800.html) | Coordinates of Watney's route: Acidalia, Mawrth Vallis, Meridiani, Schiaparelli | NASA/JPL-Caltech/ASU |
 | HiRISE DTM `DTEEC_019698_1750_019988_1750_U01` and ortho `ESP_019698_1750_RED_A_01_ORTHO` ([USGS STAC](https://stac.astrogeology.usgs.gov/docs/data/mars/hirise_dtms/)) | Local package for the EVA demo: Gale crater, boxwork area on Mount Sharp, built by [`backend/scripts/build_local_package.py`](backend/scripts/build_local_package.py) | NASA/JPL/University of Arizona; DTM USGS |
+| Mars 2020 TRN HiRISE DTM and orthomosaic ([USGS, doi:10.5066/P9REJ9JN](https://doi.org/10.5066/P9REJ9JN)) and Mars 2020 TRN CTX DTM 20 m and orthomosaic 6 m ([USGS, doi:10.5066/P906QQT8](https://doi.org/10.5066/P906QQT8)) | Local package for Jezero: Perseverance's recent route. HiRISE covers 26 % of the area, the rest is CTX | NASA/JPL/University of Arizona, NASA/JPL/MSSS; USGS Astrogeology (Fergason et al.) |
 | [HiRISE: The Entrance to Mawrth Vallis](https://www.uahirise.org/anaglyph/ESP_049017_2060_ESP_048595_2060_RED) | Note on how hard the route really is | NASA/JPL/University of Arizona |
 
-### Rover traverses
+### Rover traverses and missions
 
 | Source | Used for | Credit |
 |---|---|---|
-| NASA MMGIS GeoJSON: [Perseverance traverse](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_traverse.json), [current position](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints_current.json), [Ingenuity flights](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/m20_heli_waypoints.json) | Rover routes on the terrain | NASA/JPL-Caltech |
-| NASA MMGIS GeoJSON: [Curiosity traverse](https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_traverse.json), [current position](https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints_current.json) | Rover routes on the terrain | NASA/JPL-Caltech |
+| NASA MMGIS GeoJSON: [Perseverance traverse](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_traverse.json), [waypoints](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints.json), [current position](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_waypoints_current.json), [Ingenuity flights](https://mars.nasa.gov/mmgis-maps/M20/Layers/json/m20_heli_waypoints.json) | Rover routes on the globe and on the terrain | NASA/JPL-Caltech |
+| NASA MMGIS GeoJSON: [Curiosity waypoints](https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints.json), [current position](https://mars.nasa.gov/mmgis-maps/MSL/Layers/json/MSL_waypoints_current.json) | Rover routes on the globe and on the terrain | NASA/JPL-Caltech |
+| [Mars24 lander locations](https://www.giss.nasa.gov/tools/mars24/help/landers.html); NASA NSSDCA pages for [Viking 1](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1975-075C), [Viking 2](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1975-083C), [Mars Pathfinder](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1996-068A); [JPL: Ingenuity mission ends](https://www.jpl.nasa.gov/news/after-three-years-on-mars-nasas-ingenuity-helicopter-mission-ends/); [Wikipedia: Opportunity](https://en.wikipedia.org/wiki/Opportunity_(rover)) | Memorial: coordinates and dates of completed missions; origin of the "battery is low" paraphrase | NASA GISS, NASA NSSDCA, NASA/JPL-Caltech, Wikipedia |
+| Memorial music | Background music in the memorial | Own Web Audio synthesis, no recordings |
 
-Sources for planned features (Mars time, space weather, weather archives) are listed in [docs/TZ_First_Person.md](docs/TZ_First_Person.md) and are added to this list when they are connected. The full research catalogue with checks and limitations is in [docs/RESOURCES.md](docs/RESOURCES.md).
+Sources for features that are not connected yet (for example weather archives) are listed in [docs/TZ_First_Person.md](docs/TZ_First_Person.md) and are added here when they are connected. The full research catalogue with checks and limitations is in [docs/RESOURCES.md](docs/RESOURCES.md).
 
 ## Структура репозитория
 

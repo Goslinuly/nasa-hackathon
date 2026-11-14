@@ -1,7 +1,7 @@
 // Модель движения пешком: скорость в скафандре, уклоны и правило блокировки шага.
 
 import { localToGrid, type LocalFrame } from './geo';
-import { sampleBilinear, type HeightGrid } from './heightGrid';
+import { sampleBilinear, sourceCode, type HeightGrid } from './heightGrid';
 
 const DEG = 180 / Math.PI;
 
@@ -36,6 +36,12 @@ export class TerrainSampler {
   constructor(readonly grid: HeightGrid, readonly frame: LocalFrame) {
     this.dx = frame.pixelM * frame.kx;
     this.dz = frame.pixelM;
+  }
+
+  /** Код источника высоты под точкой (канал B карты высот). */
+  sourceAt(x: number, z: number): number {
+    const g = localToGrid(this.frame, x, z);
+    return sourceCode(this.grid, g.col, g.row);
   }
 
   heightAt(x: number, z: number): number {

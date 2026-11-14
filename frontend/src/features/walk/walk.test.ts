@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { bearingDeg, eqcToLonLat, gridToLocal, localToGrid, localToLonLat, lonLatToEqc, lonLatToLocal, makeFrame, MARS_R } from './geo';
-import { decodeHeights, decodeHeightUnits, sampleBilinear, type HeightGrid } from './heightGrid';
+import { decodeHeights, decodeHeightUnits, sampleBilinear, sourceCode, type HeightGrid } from './heightGrid';
 import { directionalSlopeDeg, slopeFromSamples, stepBlocked, TerrainSampler, walkSpeed } from './motion';
 import { decodePng } from './png';
-import { parseTrack, type SiteManifest } from './sitePackage';
+import { dataLevelLabel, parseTrack, type SiteManifest } from './sitePackage';
 
 const dataDir = (site: string) => fileURLToPath(new URL(`../../../public/data/local/${site}/`, import.meta.url));
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'));
@@ -133,5 +133,31 @@ describe('модель ходьбы', () => {
     // Стоим на 30°, шаг на 24° — выбираемся, на 31° — нет.
     expect(stepBlocked(-3700, 24, 30, 20)).toBeNull();
     expect(stepBlocked(-3700, 31, 30, 20)).toBe('slope');
+  });
+});
+
+describe('источник высот под ногами', () => {
+  it('Езеро: метки канала B совпадают с манифестом, текущая позиция ровера — CTX', async () => {
+    const manifest = JSON.parse(readFileSync(dataDir('jezero') + 'manifest.json', 'utf8')) as SiteManifest;
+    const png = await decodePng(readFileSync(dataDir('jezero') + 'height.png'));
+    const h = manifest.height;
+    const grid = decodeHeights(png.data, png.channels, png.width, png.height, h.base_m, h.step_m);
+    const counts = [0, 0, 0];
+    for (const code of grid.source ?? []) counts[code] = (counts[code] ?? 0) + 1;
+    const total = grid.width * grid.height;
+    expect(counts[0] / total).toBeGreaterThan(0.15);
+    expect(counts[1] / total).toBeGreaterThan(0.5);
+    // Perseverance, sol 2022: 18.4356°N, 77.2332°E — HiRISE там нет.
+    const frame = makeFrame(manifest.bounds_eqc_m, h.pixel_m, grid.width, grid.height);
+    const local = lonLatToLocal(frame, 77.2332, 18.4356);
+    const g = localToGrid(frame, local.x, local.z);
+    expect(sourceCode(grid, g.col, g.row)).toBe(1);
+    expect(dataLevelLabel(manifest, 1)).toContain('CTX');
+    expect(dataLevelLabel(manifest, 0)).toContain('HiRISE');
+  });
+
+  it('пакет без канала источника подписывается как HiRISE', () => {
+    const manifest = JSON.parse(readFileSync(dataDir('ares3') + 'manifest.json', 'utf8')) as SiteManifest;
+    expect(dataLevelLabel(manifest, 0)).toBe('HiRISE DTM, сетка сцены 2 м');
   });
 });

@@ -5,6 +5,8 @@ export interface HeightGrid {
   height: number;
   /** Высоты, м относительно ареоида, построчно с севера; NaN — нет данных. */
   data: Float32Array;
+  /** Код источника высоты из канала B (0 — основной DTM); нет канала — undefined. */
+  source?: Uint8Array;
 }
 
 /** units = (R<<8)|G; height = base + (units-1)*step; units = 0 → NoData. */
@@ -23,10 +25,21 @@ export function decodeHeights(
 ): HeightGrid {
   if (channels < 2) throw new Error('Для высот нужны каналы R и G');
   const data = new Float32Array(width * height);
+  const source = channels >= 3 ? new Uint8Array(width * height) : undefined;
   for (let i = 0; i < width * height; i++) {
     data[i] = decodeHeightUnits(pixels[i * channels], pixels[i * channels + 1], baseM, stepM);
+    if (source) source[i] = pixels[i * channels + 2];
   }
-  return { width, height, data };
+  return { width, height, data, source };
+}
+
+/** Код источника высоты в ближайшем пикселе; вне сетки или без канала — 0. */
+export function sourceCode(grid: HeightGrid, col: number, row: number): number {
+  if (!grid.source) return 0;
+  const c = Math.round(col);
+  const r = Math.round(row);
+  if (c < 0 || r < 0 || c >= grid.width || r >= grid.height) return 0;
+  return grid.source[r * grid.width + c];
 }
 
 export function gridValue(grid: HeightGrid, col: number, row: number): number {

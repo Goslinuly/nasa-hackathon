@@ -6,7 +6,7 @@ import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockCont
 import type { WalkState } from '@/app/modeContract';
 import { bearingDeg, gridToLocal, localToLonLat, lonLatToLocal } from './geo';
 import { DEFAULT_MAX_SLOPE, stepBlocked, TerrainSampler, walkSpeed, type BlockReason } from './motion';
-import type { SitePackage } from './sitePackage';
+import { dataLevelLabel, type SitePackage } from './sitePackage';
 import { TerrainChunks } from './terrainMesh';
 
 export const EYE_HEIGHT_M = 1.7;
@@ -743,7 +743,7 @@ export class WalkScene {
       baseDistanceM: Math.hypot(this.baseX - this.px, this.baseZ - this.pz),
       baseBearingDeg: bearingDeg(this.baseX - this.px, this.baseZ - this.pz),
       nearestTrackPoint: nearest,
-      dataLevel: `HiRISE DTM, сетка ${pkg.manifest.height.pixel_m} м`,
+      dataLevel: dataLevelLabel(pkg.manifest, this.sampler.sourceAt(this.px, this.pz)),
       simTimeMs: this.simTimeMs,
       timeScale: this.timeScale,
       evaSeconds: (this.simTimeMs - this.simStartMs) / 1000,

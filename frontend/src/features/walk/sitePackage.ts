@@ -33,6 +33,8 @@ export interface SiteManifest {
     step_m: number;
     min_m: number;
     max_m: number;
+    /** Если высоты собраны из нескольких моделей: подписи кодов канала B. */
+    source_channel?: { channel: 'B'; values: Record<string, string> };
   };
   ortho: { file: string; width: number; height: number; pixel_m: number };
   sources?: { role: string; product: string; credit?: string }[];
@@ -139,4 +141,11 @@ export async function loadSitePackage(site: string, signal?: AbortSignal): Promi
   const frame = makeFrame(manifest.bounds_eqc_m, h.pixel_m, h.width, h.height);
   const track = trackJson && manifest.track ? parseTrack(trackJson, manifest.track.mission) : null;
   return { manifest, frame, grid, ortho, track };
+}
+
+/** Подпись уровня данных под ногами: по каналу источника, если высоты собраны из разных моделей. */
+export function dataLevelLabel(manifest: SiteManifest, code: number): string {
+  const grid = `сетка сцены ${manifest.height.pixel_m} м`;
+  const label = manifest.height.source_channel?.values[String(code)];
+  return label ? `${label}, ${grid}` : `HiRISE DTM, ${grid}`;
 }
