@@ -13,6 +13,7 @@ import { DEFAULT_MAX_SLOPE, stepBlocked, TerrainSampler, walkSpeed, type BlockRe
 import { BackdropPass } from './backdrop';
 import { dataLevelLabel, siteBaseUrl, type SitePackage } from './sitePackage';
 import { MAST_HEIGHT_M, RoverRig } from './roverRig';
+import { applyGroundDetail, type GroundDetail } from './terrainDetail';
 import { TerrainChunks } from './terrainMesh';
 import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
 
@@ -75,6 +76,8 @@ export interface SolarState {
 
 export interface WalkExtra {
   fps: number;
+  /** Доля разрешения рендера от автокачества: 1 — полное. */
+  renderScale: number;
   blocked: BlockReason;
   blockedSlopeDeg: number;
   speedMs: number;
@@ -152,6 +155,7 @@ export class WalkScene {
   private evaMs = 0;
   private orthoTexture: THREE.Texture;
   private orthoHiTexture: THREE.Texture | null = null;
+  private groundDetail: GroundDetail;
   private refY: number;
   private raf = 0;
   private lastFrame = performance.now();
@@ -266,6 +270,7 @@ export class WalkScene {
         ? { texture: this.orthoHiTexture, placement: orthoHiPlacement(pkg.manifest.bounds_eqc_m, hiMeta.bounds_eqc_m, hiMeta.blend_m) }
         : null,
     );
+    this.groundDetail = applyGroundDetail(material);
     this.terrain = new TerrainChunks(pkg.grid, pkg.frame, this.refY, material);
     this.terrain.buildAll();
     this.scene.add(this.terrain.group);
@@ -755,6 +760,16 @@ export class WalkScene {
     return this.renderer.shadowMap.enabled;
   }
 
+  /** Художественная процедурная фактура грунта у ног (не данные), см. terrainDetail.ts. */
+  setGroundDetail(on: boolean): void {
+    this.groundDetail.setEnabled(on);
+    this.emitState(true);
+  }
+
+  get groundDetailEnabled(): boolean {
+    return this.groundDetail.enabled;
+  }
+
   /**
    * Подъём перед выходом на шар: камера уходит вверх на ASCENT_M и разворачивается взглядом
    * вниз и на север. Шар потом появляется над той же точкой на той же высоте (см. exitOrigin).
@@ -1086,9 +1101,11 @@ export class WalkScene {
       evaSeconds: this.evaMs / 1000,
       maxSlopeDeg: this.maxSlopeDeg,
       vehicle: this.vehicle,
+      groundDetail: this.groundDetail.enabled,
     };
     this.opts.onState(state, {
       fps: this.fps,
+      renderScale: this.renderer.getPixelRatio() / this.pixelRatioCap,
       blocked: this.blocked,
       blockedSlopeDeg: this.blockedSlopeDeg,
       speedMs: this.speedMs,
