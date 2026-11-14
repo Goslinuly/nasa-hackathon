@@ -46,15 +46,16 @@ Official resources from the challenge page.
 | MSL RAD dose rate, sol 3290 (87 observations) | Radiation panel | NASA/JPL-Caltech/SwRI. Team-supplied file; the primary PDS product is not yet identified, see `backend/data/science/README.md` |
 | [Mars24 lander locations](https://www.giss.nasa.gov/tools/mars24/help/landers.html), [List of Mars landers](https://en.wikipedia.org/wiki/List_of_Mars_landers) | Coordinates of landing sites in the research catalogue | NASA GISS; Wikipedia |
 
-### 3D terrain of The Martian locations
+### Local 3D terrain: The Martian locations and Gale crater
 
-Used by [`backend/scripts/build_martian_obj.py`](backend/scripts/build_martian_obj.py) and [docs/BLENDER_TERRAIN.md](docs/BLENDER_TERRAIN.md).
+Used by [`backend/scripts/build_martian_obj.py`](backend/scripts/build_martian_obj.py), [`backend/scripts/build_local_package.py`](backend/scripts/build_local_package.py) and [docs/BLENDER_TERRAIN.md](docs/BLENDER_TERRAIN.md).
 
 | Source | Used for | Credit |
 |---|---|---|
 | HiRISE DTM `DTEEC_041277_2115_040776_2115_A01` and ortho [ESP_040776_2115](https://www.uahirise.org/ESP_040776_2115) | Ares 3 site, Acidalia Planitia. The image was targeted at the coordinates Andy Weir sent to the HiRISE team | NASA/JPL/University of Arizona; DTM USGS |
 | HiRISE DTM `DTEED_042014_1760_042647_1760_A01` and ortho [ESP_042014_1760](https://www.uahirise.org/ESP_042014_1760) | Ares 4 site, Schiaparelli crater | NASA/JPL/University of Arizona; DTM USGS |
 | THEMIS series "The Martian, Part 1–5": [PIA19796](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19796.html), [PIA19797](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19797.html), [PIA19798](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19798.html), [PIA19799](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19799.html), [PIA19800](https://pds-rings.seti.org/press_releases/pages/PIA19xxx/PIA19800.html) | Coordinates of Watney's route: Acidalia, Mawrth Vallis, Meridiani, Schiaparelli | NASA/JPL-Caltech/ASU |
+| HiRISE DTM `DTEEC_019698_1750_019988_1750_U01` and ortho `ESP_019698_1750_RED_A_01_ORTHO` ([USGS STAC](https://stac.astrogeology.usgs.gov/docs/data/mars/hirise_dtms/)) | Local package for the EVA demo: Gale crater, boxwork area on Mount Sharp, built by [`backend/scripts/build_local_package.py`](backend/scripts/build_local_package.py) | NASA/JPL/University of Arizona; DTM USGS |
 | [HiRISE: The Entrance to Mawrth Vallis](https://www.uahirise.org/anaglyph/ESP_049017_2060_ESP_048595_2060_RED) | Note on how hard the route really is | NASA/JPL/University of Arizona |
 
 ### Rover traverses
