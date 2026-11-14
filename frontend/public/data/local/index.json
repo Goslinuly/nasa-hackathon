@@ -1,0 +1,12 @@
+[
+  {
+    "id": "gale-boxwork",
+    "title": "Гейл, район boxwork на склоне горы Шарп",
+    "center": { "lat": -4.80421, "lon_east": 137.382525 }
+  },
+  {
+    "id": "ares3",
+    "title": "Ares 3, Acidalia Planitia («Марсианин»)",
+    "center": { "lat": 31.38, "lon_east": 331.371 }
+  }
+]
