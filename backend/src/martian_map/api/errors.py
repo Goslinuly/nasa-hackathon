@@ -48,7 +48,10 @@ def register_error_handlers(app: FastAPI) -> None:
                 "error": {
                     "code": "validation_error",
                     "message": "Некорректные параметры запроса",
-                    "details": exc.errors(),
+                    "details": [
+                        {key: value for key, value in item.items() if key in ("loc", "msg", "type")}
+                        for item in exc.errors()
+                    ],
                 }
             },
         )
