@@ -42,17 +42,24 @@ const TOP_VIEW: LiftPose = { h: ASCENT_M, pitch: -Math.PI / 2 + 0.001, yaw: 0 };
 export const TIME_SCALES = [1, 10, 60] as const;
 const TRACK_LABEL_RADIUS_M = 50;
 const FOG_DAY = new THREE.Color('#cfa47e');
-const FOG_NIGHT = new THREE.Color('#0b0908');
+const FOG_NIGHT = new THREE.Color('#0d1018');
+const FOG_DUSK = new THREE.Color('#5a3a3c');
 const SUN_NOON = new THREE.Color('#fff0d8');
 const SUN_LOW = new THREE.Color('#ff7a4a');
 const HEMI_SKY_DAY = new THREE.Color('#f6d6b4');
-const HEMI_SKY_NIGHT = new THREE.Color('#2a3350');
+const HEMI_SKY_NIGHT = new THREE.Color('#34457a');
+const HEMI_GROUND_DAY = new THREE.Color('#7a4a30');
+const HEMI_GROUND_NIGHT = new THREE.Color('#1c1a24');
+const TRACK_COLOR_DAY = new THREE.Color('#ff6a2b');
+const TRACK_COLOR_NIGHT = new THREE.Color('#5a2810');
 // Пыльная дымка только на дальнем плане: с 300 м она съедала контраст всего участка.
 const FOG_FAR_DAY_M = 6000;
 const FOG_NEAR_FRACTION = 0.3;
 const SUN_LIGHT_DAY = 2.4;
 const SKY_LIGHT_DAY = 1.2;
-const SKY_LIGHT_NIGHT = 0.3;
+const SKY_LIGHT_NIGHT = 0.55;
+const TRACK_OPACITY_NIGHT = 0.4;
+const POST_EMISSIVE_NIGHT = 0.15;
 const WALK_EXPOSURE = 1.5;
 
 export interface SolarState {
@@ -136,6 +143,8 @@ export class WalkScene {
   private rover = new RoverRig();
   private roverYaw = 0;
   private hemi: THREE.HemisphereLight;
+  private ribbonMaterial: THREE.MeshBasicMaterial | null = null;
+  private postMaterial: THREE.MeshLambertMaterial | null = null;
   private fog: THREE.Fog;
   private geo: SolarGeometry;
   private tau = DEFAULT_TAU;
@@ -349,13 +358,11 @@ export class WalkScene {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setIndex(index);
-    const ribbon = new THREE.Mesh(
-      g,
-      new THREE.MeshBasicMaterial({
-        color: '#ff6a2b', transparent: true, opacity: 0.85, side: THREE.DoubleSide,
-        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8, depthWrite: false,
-      }),
-    );
+    this.ribbonMaterial = new THREE.MeshBasicMaterial({
+      color: '#ff6a2b', transparent: true, opacity: 0.85, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8, depthWrite: false,
+    });
+    const ribbon = new THREE.Mesh(g, this.ribbonMaterial);
     ribbon.renderOrder = 2;
     this.scene.add(ribbon);
 
@@ -367,11 +374,13 @@ export class WalkScene {
     }
     const post = new THREE.CylinderGeometry(0.07, 0.07, 1.2, 6);
     post.translate(0, 0.6, 0);
-    const posts = new THREE.InstancedMesh(post, new THREE.MeshLambertMaterial({ color: '#ffd2a8', emissive: '#7a2c0c' }), this.trackPoints.length);
+    this.postMaterial = new THREE.MeshLambertMaterial({ color: '#ffd2a8', emissive: '#7a2c0c' });
+    const posts = new THREE.InstancedMesh(post, this.postMaterial, this.trackPoints.length);
     const m = new THREE.Matrix4();
     this.trackPoints.forEach((p, i) => posts.setMatrixAt(i, m.makeTranslation(p.x, p.y, p.z)));
     posts.castShadow = true;
     this.scene.add(posts);
+    this.applyTrackGlow(daylightWeight(this.geo.elevationDeg));
 
     for (let i = 0; i < 8; i++) this.trackLabels.push(this.makeLabel('walk-label walk-label-track'));
   }
@@ -694,6 +703,12 @@ export class WalkScene {
     };
   }
 
+  private applyTrackGlow(day: number): void {
+    this.ribbonMaterial?.color.copy(TRACK_COLOR_NIGHT).lerp(TRACK_COLOR_DAY, day);
+    if (this.ribbonMaterial) this.ribbonMaterial.opacity = THREE.MathUtils.lerp(TRACK_OPACITY_NIGHT, 0.85, day);
+    if (this.postMaterial) this.postMaterial.emissiveIntensity = THREE.MathUtils.lerp(POST_EMISSIVE_NIGHT, 1, day);
+  }
+
   /** Свет, туман и купол неба по положению Солнца в текущий модельный момент. */
   private applyLighting(): void {
     const g = (this.geo = solarGeometry(this.simTimeMs, this.latDeg, this.lonEastDeg));
@@ -706,7 +721,10 @@ export class WalkScene {
     this.sun.castShadow = el > 0.5;
     this.hemi.intensity = THREE.MathUtils.lerp(SKY_LIGHT_NIGHT, SKY_LIGHT_DAY, day);
     this.hemi.color.copy(HEMI_SKY_NIGHT).lerp(HEMI_SKY_DAY, day);
+    this.hemi.groundColor.copy(HEMI_GROUND_NIGHT).lerp(HEMI_GROUND_DAY, day);
     this.fog.color.copy(FOG_NIGHT).lerp(FOG_DAY, day);
+    this.fog.color.lerp(FOG_DUSK, Math.sin(Math.PI * day) * 0.35);
+    this.applyTrackGlow(day);
     this.fog.far = THREE.MathUtils.clamp((FOG_FAR_DAY_M * DEFAULT_TAU) / this.tau, 1500, 8000);
     this.fog.near = this.fog.far * FOG_NEAR_FRACTION;
     (this.scene.background as THREE.Color).copy(this.fog.color);

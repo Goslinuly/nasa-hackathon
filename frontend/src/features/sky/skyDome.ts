@@ -41,7 +41,12 @@ void main() {
   vec3 dir = normalize(vDir);
   float h = clamp(dir.y, 0.0, 1.0);
   float tauGain = clamp(0.55 + 0.9 * tau, 0.6, 1.6);
-  vec3 sky = mix(horizon, top, pow(h, 0.6)) * (0.05 + 0.95 * dayWeight) * tauGain;
+  vec3 dusk = mix(vec3(0.020, 0.024, 0.040), vec3(0.060, 0.050, 0.060), pow(1.0 - h, 2.0));
+  vec3 sky = mix(dusk, mix(horizon, top, pow(h, 0.6)) * tauGain, dayWeight);
+  float twilight = smoothstep(-18.0, -2.0, sunElevationDeg) * (1.0 - smoothstep(-2.0, 6.0, sunElevationDeg));
+  float azimuthal = 0.5 + 0.5 * dot(normalize(vec2(dir.x, dir.z) + 1e-5), normalize(vec2(sunDir.x, sunDir.z) + 1e-5));
+  vec3 glowTint = mix(vec3(0.10, 0.12, 0.26), vec3(0.55, 0.28, 0.22), smoothstep(-12.0, -1.0, sunElevationDeg));
+  sky += glowTint * twilight * pow(1.0 - h, 4.0) * (0.25 + 0.75 * pow(azimuthal, 3.0));
   float chord = length(dir - sunDir);
   float sunVisible = smoothstep(-2.0, 1.0, sunElevationDeg);
   float broad = pow(max(1.0 - chord * chord * 0.5, 0.0), 12.0);
