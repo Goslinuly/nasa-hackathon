@@ -33,6 +33,8 @@ export interface SiteManifest {
     step_m: number;
     min_m: number;
     max_m: number;
+    /** Готовая подпись уровня данных, если это не HiRISE DTM (например, процедурная модель). */
+    data_label?: string;
     /** Если высоты собраны из нескольких моделей: подписи кодов канала B. */
     source_channel?: { channel: 'B'; values: Record<string, string> };
   };
@@ -146,6 +148,7 @@ export async function loadSitePackage(site: string, signal?: AbortSignal): Promi
 /** Подпись уровня данных под ногами: по каналу источника, если высоты собраны из разных моделей. */
 export function dataLevelLabel(manifest: SiteManifest, code: number): string {
   const grid = `сетка сцены ${manifest.height.pixel_m} м`;
+  if (manifest.height.data_label) return manifest.height.data_label;
   const label = manifest.height.source_channel?.values[String(code)];
   return label ? `${label}, ${grid}` : `HiRISE DTM, ${grid}`;
 }

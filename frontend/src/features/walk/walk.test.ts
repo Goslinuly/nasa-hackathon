@@ -160,4 +160,11 @@ describe('источник высот под ногами', () => {
     const manifest = JSON.parse(readFileSync(dataDir('ares3') + 'manifest.json', 'utf8')) as SiteManifest;
     expect(dataLevelLabel(manifest, 0)).toBe('HiRISE DTM, сетка сцены 2 м');
   });
+
+  it('procedural-пакет подписывается своим data_label, а не HiRISE', () => {
+    const manifest = JSON.parse(readFileSync(dataDir('gale-procedural') + 'manifest.json', 'utf8')) as SiteManifest;
+    expect(manifest.height.data_label).toBe('процедурная модель, шаг сетки 0.13 м');
+    expect(dataLevelLabel(manifest, 0)).toBe(manifest.height.data_label);
+    expect(dataLevelLabel(manifest, 0)).not.toContain('HiRISE');
+  });
 });

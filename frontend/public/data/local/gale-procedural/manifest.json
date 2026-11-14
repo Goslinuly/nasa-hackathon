@@ -1,0 +1,63 @@
+{
+ "schema_version": 1,
+ "id": "gale-procedural",
+ "title": "Гейл, детальная модель поверхности (процедурная)",
+ "note": "ПРОЦЕДУРНАЯ модель рельефа с шагом 0.13 м, переданная командой проекта; это НЕ измерение и не продукт HiRISE. Она показывает правдоподобный микрорельеф, но не реальную поверхность в этой точке. Опорная высота -3800 м выбрана как правдоподобная для района, не измерена.",
+ "crs": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +R=3396190 +units=m +no_defs=True",
+ "coordinates": "planetocentric latitude, east longitude 0-360",
+ "center": {
+  "lat": -4.8042,
+  "lon_east": 137.42
+ },
+ "bounds_eqc_m": [
+  8145445.99,
+  -284850.45,
+  8145611.88,
+  -284684.56
+ ],
+ "bounds_lonlat": {
+  "west": 137.418601,
+  "south": -4.805599,
+  "east": 137.421399,
+  "north": -4.802801
+ },
+ "size_m": [
+  165.89,
+  165.89
+ ],
+ "height": {
+  "file": "height.png",
+  "width": 1250,
+  "height": 1250,
+  "pixel_m": 0.13270917,
+  "encoding": "units=(R<<8)|G; height_m=base_m+(units-1)*step_m; units=0 is NoData",
+  "base_m": -3800.0,
+  "step_m": 0.001,
+  "min_m": -3800.0,
+  "max_m": -3789.795,
+  "nodata_fraction": 0.0,
+  "vertical_reference": "условная опорная высота (модель, не привязана к areoid)",
+  "data_label": "процедурная модель, шаг сетки 0.13 м",
+  "rows": "first row is north edge, columns go east"
+ },
+ "ortho": {
+  "file": "ortho.webp",
+  "width": 1250,
+  "height": 1250,
+  "pixel_m": 0.13270917,
+  "value_0": "нет данных",
+  "kind": "hillshade",
+  "note": "Отмывка рельефа из той же модели высот; это не снимок поверхности."
+ },
+ "sources": [
+  {
+   "role": "model",
+   "status": "model",
+   "product": "galecode.glb (Blender, материал Mars_Procedural_Code)",
+   "credit": "процедурная модель, предоставлена командой проекта",
+   "note": "Не измерение. Ortho — отмывка из этой же модели высот, не фотография."
+  }
+ ],
+ "track": null,
+ "generated_by": "backend/scripts/build_site_from_glb.py"
+}
