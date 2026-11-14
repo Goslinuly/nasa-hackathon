@@ -1,0 +1,5 @@
+# Шелл-скрипты и шаблоны для Linux-контейнеров должны оставаться с LF, иначе shebang не сработает.
+*.sh text eol=lf
+*.envsh text eol=lf
+Dockerfile text eol=lf
+*.template text eol=lf
