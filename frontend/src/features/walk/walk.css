@@ -27,12 +27,12 @@
 
 .walk-topbar {
   position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; flex-wrap: wrap;
-  justify-content: flex-end; max-width: calc(100% - 24px); z-index: 3;
+  justify-content: flex-end; max-width: calc(100% - 24px); z-index: 11;
 }
 .walk-timescale { display: flex; gap: 2px; }
 .walk-menu {
   position: absolute; top: 56px; right: 12px; width: min(340px, calc(100% - 24px)); max-height: 60vh; overflow: auto;
-  background: rgba(24, 13, 8, 0.9); border: 1px solid rgba(255, 210, 170, 0.3); border-radius: 8px; padding: 10px; z-index: 3;
+  background: rgba(24, 13, 8, 0.9); border: 1px solid rgba(255, 210, 170, 0.3); border-radius: 8px; padding: 10px; z-index: 11;
   display: flex; flex-direction: column; gap: 6px;
 }
 .walk-menu-row { display: flex; align-items: center; gap: 6px; font-size: 13px; }
@@ -79,8 +79,8 @@
 .walk-touchlook { position: absolute; top: 0; bottom: 0; right: 0; width: 55%; z-index: 1; touch-action: none; }
 
 .walk-time {
-  position: absolute; top: 12px; left: 12px; width: min(330px, calc(100% - 24px)); z-index: 3; display: flex; flex-direction: column; gap: 6px;
-  background: rgba(24, 13, 8, 0.82); border: 1px solid rgba(255, 210, 170, 0.3); border-radius: 8px; padding: 8px; color: #f4e6d8;
+  position: absolute; top: 12px; left: 12px; width: min(330px, calc(100% - 24px)); z-index: 11; display: flex; flex-direction: column; gap: 6px;
+  background: rgb(24, 13, 8); border: 1px solid rgba(255, 210, 170, 0.3); border-radius: 8px; padding: 8px; color: #f4e6d8;
 }
 .walk-time:has(> .walk-btn:only-child) { width: auto; padding: 0; background: none; border: 0; }
 .walk-time-head { justify-content: space-between; }

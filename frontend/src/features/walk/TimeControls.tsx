@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function TimeControls({ scene, solar }: Props) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [experiment, setExperiment] = useState(false);
 
   const chooseMode = (exp: boolean) => {
