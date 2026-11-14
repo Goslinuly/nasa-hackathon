@@ -14,6 +14,7 @@ import type {
   RadLiveResponse,
   RadiationResponse,
   RouteDoseResponse,
+  RoverPhotosResponse,
   SlopesResponse,
   SolarEventsResponse,
   SpaceWeatherSummary,
@@ -145,3 +146,6 @@ export const fetchRouteDose = (seconds: number, deltaHM: number | null) =>
     seconds,
     ...(deltaHM != null ? { delta_h_m: deltaHM } : {}),
   });
+
+export const fetchRoverPhotos = (rover: string, sol: number, limit = 6) =>
+  getJson<RoverPhotosResponse>('/rovers/photos', { rover, sol, limit });

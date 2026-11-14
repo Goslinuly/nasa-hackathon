@@ -5,6 +5,9 @@ import { useGlobeState, useValue } from '@/app/globeState';
 import type { LonLat, ModeContext } from '@/app/modeContract';
 import { EvaPanel } from '@/features/eva/EvaPanel';
 import { ResearchAlongRoute } from '@/features/science/ResearchAlongRoute';
+
+import { DEMO_MISSION } from './demoMission';
+import { SurfacePhotos } from './SurfacePhotos';
 import { fetchManifest, fetchSiteIndex, type SiteIndexEntry } from '@/features/walk/sitePackage';
 
 import { ElevationProfile } from './ElevationProfile';
@@ -420,8 +423,32 @@ export default function RoutePanel({ globe }: ModeContext) {
 
   const straight = endpoints.a && endpoints.b ? greatCircleM(endpoints.a, endpoints.b) : null;
 
+  const demoOn =
+    endpoints.a?.lon === DEMO_MISSION.a.lon &&
+    endpoints.b?.lon === DEMO_MISSION.b.lon &&
+    stops.length === DEMO_MISSION.stops.length;
+  const runDemo = () => {
+    fitKeyRef.current = '';
+    setEndpoints({ a: DEMO_MISSION.a, b: DEMO_MISSION.b });
+    setStops(DEMO_MISSION.stops.slice());
+    setCostModel('eva');
+    setSurfaceFromData(true);
+    setLocalWanted(true);
+    setPick(null);
+  };
+
   return (
     <div className="route-panel">
+      <button type="button" className={`demo-mission${demoOn ? ' is-on' : ''}`} onClick={runDemo}>
+        <strong>{DEMO_MISSION.title}</strong>
+        <span>Научная цель, маршрут через неё и бюджет выхода — одним нажатием</span>
+      </button>
+      {demoOn && (
+        <>
+          <p className="planner-note">{DEMO_MISSION.science}</p>
+          <p className="planner-note">{DEMO_MISSION.plan}</p>
+        </>
+      )}
       <p className="planner-hint">
         {pick
           ? pick === 'stop'
@@ -729,6 +756,8 @@ export default function RoutePanel({ globe }: ModeContext) {
           </>
         )}
       </div>
+
+      {route?.status === 'ok' && <SurfacePhotos points={route.points} />}
 
       <ResearchAlongRoute
         endpoints={endpoints}

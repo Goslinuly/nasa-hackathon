@@ -233,3 +233,23 @@ export interface RouteDoseResponse {
   elevation_correction: { delta_h_m: number; delta_ugy_per_sol: number; status: string } | null;
   provenance: Provenance;
 }
+
+export interface RoverPhoto {
+  sol: number;
+  instrument: string;
+  time_utc: string | null;
+  url: string;
+}
+
+export interface RoverPhotosOk {
+  status: 'ok';
+  rover: string;
+  sol: number;
+  count: number;
+  photos: RoverPhoto[];
+  source: string;
+  credit: string;
+  caveat: string;
+}
+
+export type RoverPhotosResponse = RoverPhotosOk | SourceUnavailable;
