@@ -1,5 +1,5 @@
 // Режим «Построить маршрут»: точки A и Б, расчёт по MOLA в воркере, профиль и исследования рядом.
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 
 import { useGlobeState, useValue } from '@/app/globeState';
 import type { LonLat, ModeContext } from '@/app/modeContract';
@@ -7,7 +7,21 @@ import { EvaPanel } from '@/features/eva/EvaPanel';
 import { ResearchAlongRoute } from '@/features/science/ResearchAlongRoute';
 
 import { ElevationProfile } from './ElevationProfile';
-import { DEFAULT_ROUTE_OPTIONS, greatCircleM, type RouteOptions, type RouteResult } from './routing';
+import type { TraverseParams } from '@/shared/eva/traverse';
+
+import {
+  CREW_RANGE_KG,
+  EVA_DEFAULT_TRAVERSE,
+  EVA_PROVENANCE,
+  LOAD_RANGE_KG,
+  buildRouteOptions,
+  clampMass,
+  formatModelTime,
+  formatOxygenCorridor,
+  outsideModelWarning,
+  type CostModel,
+} from './routeOptions';
+import { DEFAULT_ROUTE_OPTIONS, greatCircleM, type RouteResult } from './routing';
 import type { WorkerRequest } from './routing.worker';
 
 type Endpoint = 'a' | 'b';
@@ -44,6 +58,43 @@ function formatDuration(hours: number, unit: DayUnit): string {
   const min = total % 60;
   const share = unit === 'mars' ? ` · ${days.toFixed(2)} сола` : '';
   return (h > 0 ? `${h} ч ${min} мин` : `${min} мин`) + share;
+}
+
+function MassField({
+  label,
+  value,
+  range,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  range: { min: number; max: number };
+  onCommit(kg: number): void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const commit = () => {
+    const next = clampMass(Number(draft.replace(',', '.')), range, value);
+    setDraft(String(next));
+    if (next !== value) onCommit(next);
+  };
+  return (
+    <label className="eva-field">
+      <span>
+        {label}, кг ({range.min}–{range.max})
+      </span>
+      <input
+        type="number"
+        min={range.min}
+        max={range.max}
+        inputMode="decimal"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === 'Enter' && commit()}
+      />
+    </label>
+  );
 }
 
 const lonEast = (lon: number) => ((lon % 360) + 360) % 360;
@@ -113,7 +164,11 @@ export default function RoutePanel({ globe }: ModeContext) {
 
   const [endpoints, setEndpoints] = useState<Record<Endpoint, LonLat | null>>({ a: null, b: null });
   const [pick, setPick] = useState<Endpoint | null>('a');
-  const [options, setOptions] = useState<RouteOptions>(DEFAULT_ROUTE_OPTIONS);
+  const [baseOptions, setBaseOptions] = useState(DEFAULT_ROUTE_OPTIONS);
+  const [costModel, setCostModel] = useState<CostModel>('distance');
+  const [traverse, setTraverse] = useState<TraverseParams>(EVA_DEFAULT_TRAVERSE);
+  const options = useMemo(() => buildRouteOptions(baseOptions, costModel, traverse), [baseOptions, costModel, traverse]);
+  const evaMode = costModel === 'eva';
   const [speedKmh, setSpeedKmh] = useState(4);
   const [route, setRoute] = useState<RouteResult | null>(null);
   const [routeMs, setRouteMs] = useState<number | null>(null);
@@ -273,12 +328,60 @@ export default function RoutePanel({ globe }: ModeContext) {
             min={3}
             max={30}
             value={options.maxSlopeDeg}
-            onChange={(e) => setOptions({ ...options, maxSlopeDeg: Number(e.target.value) })}
+            onChange={(e) => setBaseOptions({ ...baseOptions, maxSlopeDeg: Number(e.target.value) })}
           />
         </label>
+        <div className="day-toggle" role="radiogroup" aria-label="Способ расчёта маршрута">
+          {(['distance', 'eva'] as CostModel[]).map((value) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={costModel === value}
+              className={costModel === value ? 'active' : undefined}
+              onClick={() => setCostModel(value)}
+            >
+              {value === 'distance' ? 'По расстоянию' : 'По расходу выхода'}
+            </button>
+          ))}
+        </div>
+        {evaMode && (
+          <>
+            <p className="planner-note">
+              Скорость берётся из модели (V = −0,01·уклон + 0,75 м/с), ползунок скорости не влияет на модельное время.
+            </p>
+            <div className="day-toggle" role="radiogroup" aria-label="Поверхность">
+              {(['firm', 'sand'] as TraverseParams['surface'][]).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={traverse.surface === value}
+                  className={traverse.surface === value ? 'active' : undefined}
+                  onClick={() => setTraverse({ ...traverse, surface: value })}
+                >
+                  {value === 'firm' ? 'Плотный грунт' : 'Песок'}
+                </button>
+              ))}
+            </div>
+            <MassField
+              label="Масса экипажа"
+              value={traverse.crewKg}
+              range={CREW_RANGE_KG}
+              onCommit={(crewKg) => setTraverse({ ...traverse, crewKg })}
+            />
+            <MassField
+              label="Масса груза"
+              value={traverse.loadKg}
+              range={LOAD_RANGE_KG}
+              onCommit={(loadKg) => setTraverse({ ...traverse, loadKg })}
+            />
+          </>
+        )}
         <label>
           <span>
             Скорость <strong>{speedKmh} км/ч</strong>
+            {evaMode ? ' · только для оценки «при заданной скорости»' : ''}
           </span>
           <input type="range" min={1} max={20} value={speedKmh} onChange={(e) => setSpeedKmh(Number(e.target.value))} />
         </label>
@@ -324,7 +427,7 @@ export default function RoutePanel({ globe }: ModeContext) {
                 <dd>{route.maxSlopeDeg.toFixed(1)}°</dd>
               </div>
               <div className="route-time">
-                <dt>Время в пути</dt>
+                <dt>{evaMode ? `Время при ${speedKmh} км/ч` : 'Время в пути'}</dt>
                 <dd>≈ {formatDuration(route.lengthM / 1000 / speedKmh, dayUnit)}</dd>
                 <div className="day-toggle" role="radiogroup" aria-label="Единица суток">
                   <button
@@ -352,6 +455,21 @@ export default function RoutePanel({ globe }: ModeContext) {
                     : `= ${formatDuration(route.lengthM / 1000 / speedKmh, 'mars')} · 1 сол = 24 ч 39 мин 35 с`}
                 </span>
               </div>
+              {route.eva && (
+                <>
+                  <div>
+                    <dt>Время по модели</dt>
+                    <dd>≈ {formatModelTime(route.eva.seconds)}</dd>
+                    <span className="day-note">
+                      Не то же, что «время при {speedKmh} км/ч»: здесь скорость зависит от уклона каждого участка.
+                    </span>
+                  </div>
+                  <div>
+                    <dt>Кислород</dt>
+                    <dd className="eva-corridor">{formatOxygenCorridor(route.eva.o2LowL, route.eva.o2HighL)}</dd>
+                  </div>
+                </>
+              )}
               <div>
                 <dt>Высоты</dt>
                 <dd>
@@ -367,9 +485,23 @@ export default function RoutePanel({ globe }: ModeContext) {
             <p className="planner-note">
               Обзорная оценка по MOLA ~7.4 км/пикс{routeMs != null ? ` · расчёт ${Math.round(routeMs)} мс` : ''}.
               Участки круче {options.maxSlopeDeg}° исключены, но обрывы, камни и кратеры мельче ~7 км не учтены.
-              Это направление, а не проверенная тропа. Время рассчитано для {speedKmh} км/ч без остановок.
+              Это направление, а не проверенная тропа.{' '}
+              {route.eva
+                ? `«Время при ${speedKmh} км/ч» — простая симуляция без остановок; «Время по модели» считает скорость по уклону (V = −0,01·уклон + 0,75 м/с) и от ползунка не зависит.`
+                : `Время рассчитано для ${speedKmh} км/ч без остановок.`}
             </p>
-            <EvaPanel profile={route.points} />
+            {route.eva && (
+              <>
+                {outsideModelWarning(route.eva.outsideModelSegments) && (
+                  <p className="warn">{outsideModelWarning(route.eva.outsideModelSegments)}</p>
+                )}
+                <p className="planner-note">{EVA_PROVENANCE}</p>
+              </>
+            )}
+            <EvaPanel
+              profile={route.points}
+              {...(route.eva ? { surface: route.eva.surface, crewKg: route.eva.crewKg, loadKg: route.eva.loadKg } : {})}
+            />
           </>
         )}
       </div>

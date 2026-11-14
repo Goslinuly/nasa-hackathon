@@ -33,8 +33,8 @@ import {
   type ProfileSample,
 } from './evaProfile';
 
-const CREW_KG = 80;
-const LOAD_KG = 45;
+const DEFAULT_CREW_KG = 80;
+const DEFAULT_LOAD_KG = 45;
 
 type Load<T> = { state: 'loading' } | { state: 'error'; message: string } | { state: 'ready'; data: T };
 type Kind = 'measurement' | 'model' | 'rule';
@@ -129,10 +129,14 @@ const km = (m: number) => `${(m / 1000).toLocaleString('ru-RU', { maximumFractio
 
 interface Props {
   profile: ProfileSample[];
+  surface?: EvaSurface;
+  crewKg?: number;
+  loadKg?: number;
 }
 
-export function EvaPanel({ profile }: Props) {
-  const [surface, setSurface] = useState<EvaSurface>('firm');
+export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_KG, loadKg = DEFAULT_LOAD_KG }: Props) {
+  const [ownSurface, setSurface] = useState<EvaSurface>('firm');
+  const surface = surfaceProp ?? ownSurface;
   const [o2Input, setO2Input] = useState('');
 
   const points = useMemo(() => buildEvaPoints(profile), [profile]);
@@ -161,8 +165,8 @@ export function EvaPanel({ profile }: Props) {
   const solar = useLoad<SolarEventsResponse>(() => fetchEvaSolarEvents(14), []);
   const radiation = useLoad<RadiationResponse>(() => fetchEvaRadiation(deltaH), [deltaH]);
   const mobility = useLoad<MobilityProfileResponse>(
-    () => fetchMobilityProfile({ points: mobilityPoints, crew_kg: CREW_KG, load_kg: LOAD_KG, surface }),
-    [mobilityPoints, surface],
+    () => fetchMobilityProfile({ points: mobilityPoints, crew_kg: crewKg, load_kg: loadKg, surface }),
+    [mobilityPoints, surface, crewKg, loadKg],
   );
 
   const defaultO2 = mobility.state === 'ready' ? Math.ceil(mobility.data.totals.o2_l.high) : 0;
@@ -199,7 +203,7 @@ export function EvaPanel({ profile }: Props) {
       <h3 className="eva-heading">
         Время и расходники <Badge kind="model" />
       </h3>
-      <div className="day-toggle" role="radiogroup" aria-label="Поверхность">
+      <div className="day-toggle" role="radiogroup" aria-label="Поверхность" hidden={surfaceProp !== undefined}>
         {(['firm', 'sand'] as EvaSurface[]).map((value) => (
           <button
             key={value}
