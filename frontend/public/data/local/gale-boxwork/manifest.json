@@ -99,6 +99,19 @@
  "sha256": {
   "height": "80deea5d104530d7bc94160e39772c0183b766895a2dab8e9e957f93a69671f4",
   "ortho": "b666a1542d0c2ff01bbf5c013724ad4a1c7a6f13684af9a28f4e4266b8cf24eb",
-  "track": "0d0c26d52a0bb1eb3d212f46b0015faa181bdd390202dd0f163da74141052ac9"
+  "track": "0d0c26d52a0bb1eb3d212f46b0015faa181bdd390202dd0f163da74141052ac9",
+  "backdrop": "2dbe987447f5626d08b5ca6a440931e45adeb2f223bd8155f9f747e2f947c2f5"
+ },
+ "backdrop": {
+  "file": "backdrop.glb",
+  "pixel_m": 200,
+  "grid_m": 400,
+  "frame": "те же оси и нулевой уровень, что у участка: x восток, y = высота − base_m, z юг; метры",
+  "vexag": 1,
+  "label": "дальний план: обзорный рельеф кратера Гейла ~200 м/пикс, без снимка",
+  "note": "Кратер Гейла из galecode.glb, привязан по MOLA MEGDR (корреляция 0,993), высоты приведены к ×1. Под участком вырезан, у края на 3 м ниже HiRISE с переходом 4 км.",
+  "credit": "Обзорный рельеф кратера Гейла (~200 м/пикс), подготовлен командой по глобальным данным MOLA/HRSC; масштаб проверен по MOLA MEGDR (NASA/GSFC MOLA Science Team)",
+  "generated_by": "backend/scripts/blender/site_scene.py --backdrop galecode.glb --backdrop-glb-step 2 (калибровка backend/scripts/blender/backdrops/galecode.json)",
+  "sha256": "2dbe987447f5626d08b5ca6a440931e45adeb2f223bd8155f9f747e2f947c2f5"
  }
 }

@@ -18,6 +18,14 @@ export interface ManifestPoi {
   note?: string;
 }
 
+export interface SiteBackdrop {
+  file: string;
+  pixel_m: number;
+  label: string;
+  credit?: string;
+  note?: string;
+}
+
 export interface SiteManifest {
   id: string;
   title: string;
@@ -42,6 +50,8 @@ export interface SiteManifest {
   sources?: { role: string; product: string; credit?: string }[];
   pois?: ManifestPoi[];
   track: null | { mission: string; dtm_minus_rover_m?: { median: number } | null; note?: string };
+  /** Дальний план вокруг участка (обзорный рельеф в тех же осях и нулевом уровне). */
+  backdrop?: SiteBackdrop;
 }
 
 export interface TrackPoint {

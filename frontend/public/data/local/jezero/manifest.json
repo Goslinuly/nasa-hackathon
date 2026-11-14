@@ -140,7 +140,20 @@
  "sha256": {
   "height": "a02f090c1330623d9bd567228cd2e8f6e5b8330625adbb4e7a9ba5ba6b0bd1ae",
   "ortho": "643db123b85fff482e71d3c294ce204d1e88a020d83d0773cd75061295400d06",
-  "track": "4fabe85082d5f3b65c8331181ba53b874e345f379793924bfe3245857aa400a6"
+  "track": "4fabe85082d5f3b65c8331181ba53b874e345f379793924bfe3245857aa400a6",
+  "backdrop": "c5835b92d6956dc5733b6ee714e5d42924e861e6ea065a8f5f028fcbc790e323"
  },
- "quality_note": "HiRISE-часть участка — стереопара CR (Crater Rim), самая западная в мозаике TRN. Паспорт USGS: «several quality issues due to uncompensated y-parallax ... users should be cautious when using this area for analysis». Подписывать как зону пониженного качества. Западнее HiRISE DTM нет ни в TRN, ни в PDS: там высоты CTX 20 м и ортофото CTX 6 м, мелкий рельеф не виден."
+ "quality_note": "HiRISE-часть участка — стереопара CR (Crater Rim), самая западная в мозаике TRN. Паспорт USGS: «several quality issues due to uncompensated y-parallax ... users should be cautious when using this area for analysis». Подписывать как зону пониженного качества. Западнее HiRISE DTM нет ни в TRN, ни в PDS: там высоты CTX 20 м и ортофото CTX 6 м, мелкий рельеф не виден.",
+ "backdrop": {
+  "file": "backdrop.glb",
+  "pixel_m": 200,
+  "grid_m": 400,
+  "frame": "те же оси и нулевой уровень, что у участка: x восток, y = высота − base_m, z юг; метры",
+  "vexag": 1,
+  "label": "дальний план: обзорный рельеф кратера Езеро ~200 м/пикс, без снимка",
+  "note": "Кратер Езеро из jezerocode.glb, привязан по MOLA MEGDR и высотам участка (корреляция 0,988), высоты приведены к ×1. Под участком вырезан, у края на 3 м ниже участка с переходом 4 км.",
+  "credit": "Обзорный рельеф кратера Езеро (~200 м/пикс), подготовлен командой по глобальным данным; масштаб и положение проверены по MOLA MEGDR (NASA/GSFC MOLA Science Team) и HiRISE/CTX DTM Mars 2020 TRN (USGS)",
+  "generated_by": "backend/scripts/blender/site_scene.py --backdrop jezerocode.glb --backdrop-glb-step 2 (калибровка backend/scripts/blender/backdrops/jezerocode.json)",
+  "sha256": "c5835b92d6956dc5733b6ee714e5d42924e861e6ea065a8f5f028fcbc790e323"
+ }
 }

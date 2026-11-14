@@ -265,6 +265,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         <canvas ref={minimapRef} title="Щелчок — перейти в точку" />
         <div className="walk-minimap-credit">
           {credit ? `${credit.product} · ${credit.credit ?? ''}` : ''}
+          {pkg.manifest.backdrop ? ` · ${pkg.manifest.backdrop.label}` : ''}
         </div>
       </div>
 

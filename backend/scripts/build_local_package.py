@@ -549,6 +549,14 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float) -> dict
     }
     if site.quality_note:
         manifest["quality_note"] = site.quality_note
+    # Дальний план (backdrop.glb) собирает Blender-скрипт site_scene.py --backdrop; пересборка
+    # пакета его не трогает, поэтому переносим запись из прежнего манифеста.
+    previous = out / "manifest.json"
+    if previous.exists() and (out / "backdrop.glb").exists():
+        old = json.loads(previous.read_text(encoding="utf-8"))
+        if "backdrop" in old:
+            manifest["backdrop"] = old["backdrop"]
+            manifest["sha256"]["backdrop"] = sha256(out / "backdrop.glb")
     (out / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1))
     sizes = {f: round((out / f).stat().st_size / 1e6, 2) for f in files.values()}
     print(json.dumps({"id": site.id, "mb": sizes, "height": manifest["height"],

@@ -10,7 +10,8 @@ import { SkyDome, DEFAULT_TAU } from '@/features/sky/skyDome';
 import { dayPhase, daylightWeight, smoothstep, unixMsForLtst, unixMsForSunCrossing, enuToScene, type DayPhase } from '@/features/sky/skyMath';
 import { bearingDeg, gridToLocal, localToLonLat, lonLatToLocal } from './geo';
 import { DEFAULT_MAX_SLOPE, stepBlocked, TerrainSampler, walkSpeed, type BlockReason } from './motion';
-import { dataLevelLabel, type SitePackage } from './sitePackage';
+import { BackdropPass } from './backdrop';
+import { dataLevelLabel, siteBaseUrl, type SitePackage } from './sitePackage';
 import { TerrainChunks } from './terrainMesh';
 
 export const EYE_HEIGHT_M = 1.7;
@@ -97,6 +98,8 @@ export class WalkScene {
   private terrain: TerrainChunks;
   private sun: THREE.DirectionalLight;
   private sky: SkyDome;
+  /** Дальний план (стены кратера и т.п.), если он есть в пакете участка. */
+  private backdrop: BackdropPass | null = null;
   private hemi: THREE.HemisphereLight;
   private fog: THREE.Fog;
   private geo: SolarGeometry;
@@ -182,6 +185,11 @@ export class WalkScene {
     this.scene.background = FOG_DAY.clone();
     this.sky = new SkyDome(import.meta.env.BASE_URL);
     this.scene.add(this.sky.mesh);
+    if (pkg.manifest.backdrop) {
+      this.backdrop = new BackdropPass();
+      this.backdrop.adoptSky(this.sky.mesh);
+      void this.backdrop.load(siteBaseUrl(pkg.manifest.id) + pkg.manifest.backdrop.file);
+    }
 
     this.hemi = new THREE.HemisphereLight('#f6d6b4', '#7a4a30', SKY_LIGHT_DAY);
     this.scene.add(this.hemi);
@@ -706,7 +714,14 @@ export class WalkScene {
     this.sun.position.copy(this.sun.target.position).addScaledVector(this.sunDir, 1500);
     this.sky.mesh.position.copy(this.camera.position);
 
-    this.renderer.render(this.scene, this.camera);
+    if (this.backdrop) {
+      this.backdrop.sync(this.camera, {
+        hemi: this.hemi, sun: this.sun, sunDir: this.sunDir, fogColor: this.fog.color, tau: this.tau,
+      });
+      this.backdrop.render(this.renderer, this.scene, this.camera);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
     this.updateLabels();
 
     this.minimapTimer -= dt;
@@ -903,6 +918,7 @@ export class WalkScene {
     });
     materials.forEach((m) => m.dispose());
     this.sky.dispose();
+    this.backdrop?.dispose();
     this.orthoTexture.dispose();
     this.sun.shadow.map?.dispose();
     this.renderer.dispose();

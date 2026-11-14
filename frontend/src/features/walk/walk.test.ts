@@ -161,10 +161,18 @@ describe('источник высот под ногами', () => {
     expect(dataLevelLabel(manifest, 0)).toBe('HiRISE DTM, сетка сцены 2 м');
   });
 
-  it('procedural-пакет подписывается своим data_label, а не HiRISE', () => {
-    const manifest = JSON.parse(readFileSync(dataDir('gale-procedural') + 'manifest.json', 'utf8')) as SiteManifest;
-    expect(manifest.height.data_label).toBe('процедурная модель, шаг сетки 0.13 м');
-    expect(dataLevelLabel(manifest, 0)).toBe(manifest.height.data_label);
+  it('пакет не из HiRISE подписывается своим data_label', () => {
+    const base = JSON.parse(readFileSync(dataDir('ares3') + 'manifest.json', 'utf8')) as SiteManifest;
+    const manifest: SiteManifest = { ...base, height: { ...base.height, data_label: 'модель, шаг сетки 1 м' } };
+    expect(dataLevelLabel(manifest, 0)).toBe('модель, шаг сетки 1 м');
     expect(dataLevelLabel(manifest, 0)).not.toContain('HiRISE');
+  });
+
+  it.each(['gale-boxwork', 'jezero'])('дальний план %s: файл есть и подписан как обзорный рельеф без снимка', (site) => {
+    const manifest = JSON.parse(readFileSync(dataDir(site) + 'manifest.json', 'utf8')) as SiteManifest;
+    expect(manifest.backdrop?.file).toBe('backdrop.glb');
+    expect(manifest.backdrop?.label).toContain('200 м/пикс');
+    expect(manifest.backdrop?.label).toContain('без снимка');
+    expect(readFileSync(dataDir(site) + 'backdrop.glb').subarray(0, 4).toString()).toBe('glTF');
   });
 });
