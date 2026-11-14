@@ -1,8 +1,12 @@
 // Панель времени суток на Марсе: показания Солнца и режимы «реальное время» / «эксперимент».
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatSolClock, seasonLabel } from '@/features/sky/marsTime';
 import type { WalkScene, SolarState } from './walkScene';
+
+/** Местное истинное солнечное время, с которого начинаем, если на месте ночь. */
+const START_LTST_IF_NIGHT = 9;
+const NOTICE_MS = 12_000;
 
 const PHASE_LABEL = { day: 'день', twilight: 'сумерки', night: 'ночь' } as const;
 
@@ -14,9 +18,27 @@ interface Props {
 export function TimeControls({ scene, solar }: Props) {
   const [open, setOpen] = useState(false);
   const [experiment, setExperiment] = useState(false);
+  // Если на месте сейчас ночь, грунт почти не виден. Стартуем утром и прямо говорим об этом.
+  const [nightNotice, setNightNotice] = useState<string | null>(null);
+  const decided = useRef(false);
+  useEffect(() => {
+    if (decided.current || !scene || !solar) return;
+    decided.current = true;
+    if (solar.phase !== 'night') return;
+    setNightNotice(`На месте сейчас ночь (${formatSolClock(solar.ltstHours)} LTST). Показано утро.`);
+    setExperiment(true);
+    scene.setClockRunning(false);
+    scene.setLtst(START_LTST_IF_NIGHT);
+  }, [scene, solar]);
+  useEffect(() => {
+    if (!nightNotice) return;
+    const t = window.setTimeout(() => setNightNotice(null), NOTICE_MS);
+    return () => window.clearTimeout(t);
+  }, [nightNotice]);
 
   const chooseMode = (exp: boolean) => {
     setExperiment(exp);
+    setNightNotice(null);
     scene?.setClockRunning(!exp);
     if (!exp) scene?.setSimTime(Date.now());
   };
@@ -25,8 +47,14 @@ export function TimeControls({ scene, solar }: Props) {
     return (
       <div className="walk-time">
         <button type="button" className="walk-btn" onClick={() => setOpen(true)}>
-          {solar ? `Время ${formatSolClock(solar.ltstHours)} · ${PHASE_LABEL[solar.phase]}` : 'Время'}
+          {solar ? `Время ${formatSolClock(solar.ltstHours)} · ${PHASE_LABEL[solar.phase]}${experiment ? ' · эксперимент' : ''}` : 'Время'}
         </button>
+        {nightNotice && (
+          <p className="walk-time-note">
+            {nightNotice}{' '}
+            <button type="button" className="walk-link" onClick={() => chooseMode(false)}>Показать реальное время</button>
+          </p>
+        )}
       </div>
     );
   }

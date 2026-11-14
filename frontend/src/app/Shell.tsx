@@ -11,6 +11,7 @@ import { makeMarsPoint, type MarsPoint } from '@/shared/coordinates/mars';
 import { createScopedGlobeApi, type PickSlot } from './globeApi';
 import { GlobeStateContext, ValueStore, type GlobeState } from './globeState';
 import { Landing } from './Landing';
+import { isStaleChunkError, reloadForNewBuild } from './staleBuild';
 import type { ExitOrigin, ModeContext, ModeDefinition } from './modeContract';
 import { MODES, VISIBLE_MODES } from './modes';
 import { formatRoute, parentRoute, parseHash, sameRoute, type ShellRoute } from './routes';
@@ -35,6 +36,8 @@ class ModeErrorBoundary extends Component<{ onExit(): void; children: ReactNode 
 
   componentDidCatch(error: unknown) {
     console.error('[режим] ошибка', error);
+    // Вкладка открыта до деплоя: файлов старой сборки уже нет — берём новую.
+    if (isStaleChunkError(error)) reloadForNewBuild();
   }
 
   render() {

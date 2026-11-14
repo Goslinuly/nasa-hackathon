@@ -89,3 +89,9 @@
 .walk-time-grid dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .walk-time-slider { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .walk-time-slider input { width: 100%; }
+
+.walk-time-note {
+  margin: 0; max-width: 300px; padding: 6px 8px; border-radius: 6px; font-size: 12px; line-height: 1.35;
+  background: rgb(24, 13, 8); border: 1px solid rgba(255, 210, 170, 0.3); color: #f4e6d8;
+}
+.walk-link { font: inherit; color: #ffb27a; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
