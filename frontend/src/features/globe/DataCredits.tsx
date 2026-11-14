@@ -28,6 +28,9 @@ export function DataCredits() {
           Производный растр из векторной публикации.
         </li>
         <li>
+          <strong>Модель марсохода Perseverance</strong> — NASA/JPL-Caltech (NASA 3D Resources); размер стилизован, не в масштабе планеты.
+        </li>
+        <li>
           <strong>Тайловые сервисы</strong> — NASA Mars Trek (JPL), Caltech Murray Lab.
         </li>
       </ul>

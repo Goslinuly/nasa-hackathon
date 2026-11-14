@@ -27,6 +27,8 @@ import {
   type TrekSource,
 } from './layers';
 import { densifyPath } from './paths';
+import { buildRouteCurve } from './routeCurve';
+import { RoverTrack } from './rover';
 import { loadHeightField, type HeightField } from './terrain';
 import {
   MARS_EQUATOR_M,
@@ -333,6 +335,7 @@ export class MarsGlobeEngine {
   private footprintGroup = new THREE.Group();
   private markerGroup = new THREE.Group();
   private lineGroup = new THREE.Group();
+  private rover = new RoverTrack();
   private selectionMarker: THREE.Sprite;
   private selection: LonLat | null = null;
   private textures: TextureStore;
@@ -419,6 +422,7 @@ export class MarsGlobeEngine {
     this.scene.add(this.footprintGroup);
     this.scene.add(this.lineGroup);
     this.scene.add(this.markerGroup);
+    this.scene.add(this.rover.group);
 
     this.selectionMarker = this.makeMarker(this.makeDotTexture('#ffffff'), 0.02);
     this.selectionMarker.visible = false;
@@ -481,6 +485,7 @@ export class MarsGlobeEngine {
     else this.controls.update(Math.min(elapsed, 100) / 1000);
     this.adaptToAltitude();
     this.updateLabels();
+    if (this.rover.active) this.rover.update(now);
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -859,6 +864,7 @@ export class MarsGlobeEngine {
     this.clearDetail();
     this.clearOverlays();
     this.clearGroup(this.footprintGroup);
+    this.rover.dispose();
     [...this.lineLayers.keys()].forEach((id) => this.setLines(id, null));
     [...this.markerLayers.keys()].forEach((id) => this.removeMarkerLayer(id));
     this.selectionMarker.material.map?.dispose();
@@ -897,6 +903,26 @@ export class MarsGlobeEngine {
   private heightScene(lonDeg: number, latDeg: number): number {
     if (!this.terrain) return 0;
     return (this.terrain.sample(lonDeg, latDeg) * this.exaggeration) / MARS_RADIUS_M;
+  }
+
+  setRoverRoute(points: LonLat[] | null): LonLat[] | null {
+    if (!points || points.length < 2) {
+      this.rover.setCurve(null, true);
+      return null;
+    }
+    const dense = densifyPath(points, 0.2);
+    const curve = buildRouteCurve(dense.map((p) => this.surfacePoint(p.lon, p.lat, this.overlayLift * 2)));
+    this.rover.setCurve(curve, true);
+    const smooth: LonLat[] = [];
+    const steps = 240;
+    for (let i = 0; i <= steps; i += 1) {
+      const v = curve.getPoint(i / steps);
+      smooth.push({
+        lon: THREE.MathUtils.radToDeg(Math.atan2(-v.z, v.x)),
+        lat: THREE.MathUtils.radToDeg(Math.atan2(v.y, Math.hypot(v.x, v.z))),
+      });
+    }
+    return smooth;
   }
 
   private surfacePoint(lonDeg: number, latDeg: number, lift = 0): THREE.Vector3 {

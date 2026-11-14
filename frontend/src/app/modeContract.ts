@@ -47,6 +47,8 @@ export interface GlobeApi {
   setLines(layerId: string, lines: GlobeLine[] | null): void;
   /** Слой меток режима; клик по метке вызывает onClick(id). null — убрать слой. */
   setMarkers(layerId: string, markers: GlobeMarker[] | null, onClick?: (id: string) => void): void;
+  /** Марсоход на маршруте: гладкая кривая и анимация; возвращает точки кривой для линии. */
+  setRoverRoute?(points: LonLat[] | null): LonLat[] | null;
   /**
    * Клик по поверхности шара передаётся режиму вместо карточки точки; null — вернуть как было.
    * Снимается сам при выходе из режима. Необязательный: оболочка может его не поддерживать.

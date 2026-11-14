@@ -202,9 +202,11 @@ export default function RoutePanel({ globe }: ModeContext) {
   useEffect(() => {
     if (!route || route.status !== 'ok') {
       globe.setLines('route', null);
+      globe.setRoverRoute?.(null);
       return;
     }
-    globe.setLines('route', [{ points: route.points, color: '#7fd6ff', width: 3.5 }]);
+    const smooth = globe.setRoverRoute?.(route.points) ?? route.points;
+    globe.setLines('route', [{ points: smooth, color: '#7fd6ff', width: 3.5 }]);
     const { a, b } = endpoints;
     const key = `${a?.lon},${a?.lat},${b?.lon},${b?.lat}`;
     if (a && b && key !== fitKeyRef.current) {
