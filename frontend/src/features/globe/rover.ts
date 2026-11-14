@@ -90,6 +90,7 @@ export class RoverTrack {
       wrapper.add(gltf.scene);
       wrapper.scale.setScalar(1 / Math.max(dims.x, dims.z, 1e-6));
       gltf.scene.traverse((object) => {
+        object.renderOrder = 26;
         if (!(object instanceof THREE.Mesh)) return;
         for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
           if (!(material instanceof THREE.MeshStandardMaterial)) continue;
@@ -97,6 +98,8 @@ export class RoverTrack {
           material.roughness = Math.max(material.roughness, 0.6);
           material.emissive = new THREE.Color(0x6b6256);
           material.emissiveIntensity = 0.45;
+          material.transparent = true;
+          material.depthWrite = true;
           material.needsUpdate = true;
         }
       });

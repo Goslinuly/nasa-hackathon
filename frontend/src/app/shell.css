@@ -240,11 +240,18 @@ button.region-card:focus-visible {
 }
 
 .mode-bar {
+  position: fixed;
+  top: 58px;
+  right: 14px;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
+  width: 236px;
+  max-height: calc(100vh - 240px);
+  overflow-y: auto;
   margin-left: auto;
-  justify-content: flex-end;
+  scrollbar-width: thin;
+  z-index: 30;
 }
 
 .mode-bar button {
@@ -253,7 +260,6 @@ button.region-card:focus-visible {
   gap: 2px;
   padding: 8px 14px;
   min-width: 0;
-  max-width: 220px;
   background: var(--panel);
   border: 1px solid var(--hairline);
   border-radius: 8px;
@@ -437,10 +443,15 @@ button.region-card:focus-visible {
   }
 
   .mode-bar {
+    position: static;
     order: 3;
     flex: 1 0 100%;
+    flex-direction: row;
     flex-wrap: nowrap;
+    width: auto;
+    max-height: none;
     overflow-x: auto;
+    overflow-y: visible;
     justify-content: flex-start;
     margin-left: 0;
     padding-bottom: 4px;
@@ -484,8 +495,13 @@ button.region-card:focus-visible {
   }
 
   .mode-bar {
+    position: static;
     order: 0;
     flex: 1 1 auto;
+    flex-direction: row;
+    width: auto;
+    max-height: none;
+    overflow-y: visible;
     min-width: 0;
     padding-bottom: 0;
   }

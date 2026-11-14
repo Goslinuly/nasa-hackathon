@@ -42,14 +42,14 @@ const TOP_VIEW: LiftPose = { h: ASCENT_M, pitch: -Math.PI / 2 + 0.001, yaw: 0 };
 export const TIME_SCALES = [1, 10, 60] as const;
 const TRACK_LABEL_RADIUS_M = 50;
 const FOG_DAY = new THREE.Color('#cfa47e');
-const FOG_NIGHT = new THREE.Color('#0d1018');
+const FOG_NIGHT = new THREE.Color('#121626');
 const FOG_DUSK = new THREE.Color('#5a3a3c');
 const SUN_NOON = new THREE.Color('#fff0d8');
 const SUN_LOW = new THREE.Color('#ff7a4a');
 const HEMI_SKY_DAY = new THREE.Color('#f6d6b4');
-const HEMI_SKY_NIGHT = new THREE.Color('#34457a');
+const HEMI_SKY_NIGHT = new THREE.Color('#4d5f9c');
 const HEMI_GROUND_DAY = new THREE.Color('#7a4a30');
-const HEMI_GROUND_NIGHT = new THREE.Color('#1c1a24');
+const HEMI_GROUND_NIGHT = new THREE.Color('#2b2d3e');
 const TRACK_COLOR_DAY = new THREE.Color('#ff6a2b');
 const TRACK_COLOR_NIGHT = new THREE.Color('#5a2810');
 // Пыльная дымка только на дальнем плане: с 300 м она съедала контраст всего участка.
@@ -57,7 +57,7 @@ const FOG_FAR_DAY_M = 6000;
 const FOG_NEAR_FRACTION = 0.3;
 const SUN_LIGHT_DAY = 2.4;
 const SKY_LIGHT_DAY = 1.2;
-const SKY_LIGHT_NIGHT = 0.55;
+const SKY_LIGHT_NIGHT = 1.15;
 const TRACK_OPACITY_NIGHT = 0.4;
 const POST_EMISSIVE_NIGHT = 0.15;
 const WALK_EXPOSURE = 1.5;
@@ -193,6 +193,9 @@ export class WalkScene {
   private fpsFrames = 0;
   private fpsTime = 0;
   private fps = 0;
+  private pixelRatioCap = 1.5;
+  private slowSeconds = 0;
+  private fastSeconds = 0;
 
   private tmp = new THREE.Vector3();
   private sunDir = new THREE.Vector3(0, 1, 0);
@@ -211,7 +214,8 @@ export class WalkScene {
     this.refY = pkg.manifest.height.base_m;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, opts.touch ? 1.25 : 1.5));
+    this.pixelRatioCap = Math.min(window.devicePixelRatio, opts.touch ? 1.25 : 1.5);
+    this.renderer.setPixelRatio(this.pixelRatioCap);
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.shadowMap.enabled = !opts.touch;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -891,6 +895,7 @@ export class WalkScene {
       this.fps = this.fpsFrames / this.fpsTime;
       this.fpsFrames = 0;
       this.fpsTime = 0;
+      this.adaptPixelRatio();
     }
     if (this.blocked && now - this.blockedAt > 1200) this.blocked = null;
     this.stateTimer -= dt;
@@ -1091,6 +1096,21 @@ export class WalkScene {
       lifting: this.liftHold !== null,
       solar: this.solarState(),
     });
+  }
+
+  private adaptPixelRatio(): void {
+    const current = this.renderer.getPixelRatio();
+    this.slowSeconds = this.fps < 24 ? this.slowSeconds + 1 : 0;
+    this.fastSeconds = this.fps > 55 ? this.fastSeconds + 1 : 0;
+    if (this.slowSeconds >= 3 && current > 0.75) {
+      this.renderer.setPixelRatio(Math.max(0.75, current - 0.25));
+      this.resize();
+      this.slowSeconds = 0;
+    } else if (this.fastSeconds >= 10 && current < this.pixelRatioCap) {
+      this.renderer.setPixelRatio(Math.min(this.pixelRatioCap, current + 0.25));
+      this.resize();
+      this.fastSeconds = 0;
+    }
   }
 
   private resize(): void {

@@ -384,7 +384,8 @@ export class MarsGlobeEngine {
   ) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, coarse ? 1.5 : 2));
+    this.pixelRatioCap = Math.min(window.devicePixelRatio, coarse ? 1.5 : 2);
+    this.renderer.setPixelRatio(this.pixelRatioCap);
     this.textures = new TextureStore(Math.min(4, this.renderer.capabilities.getMaxAnisotropy()));
     this.whiteTexture = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
     this.whiteTexture.needsUpdate = true;
@@ -430,7 +431,7 @@ export class MarsGlobeEngine {
     this.rover.surfaceRadius = (at) => {
       const lon = THREE.MathUtils.radToDeg(Math.atan2(-at.z, at.x));
       const lat = THREE.MathUtils.radToDeg(Math.atan2(at.y, Math.hypot(at.x, at.z)));
-      return 1 + this.heightScene(lon, lat) + this.overlayLift;
+      return 1 + this.heightScene(lon, lat) + this.overlayLift * 2.5;
     };
     this.footprintGroup.visible = false;
 
@@ -484,6 +485,28 @@ export class MarsGlobeEngine {
     this.frameHandle = 0;
   }
 
+  private pixelRatioCap = 2;
+  private frameCost = 0;
+  private frameCostCount = 0;
+
+  private adaptPixelRatio(elapsed: number): void {
+    if (elapsed > 250) return;
+    this.frameCost += elapsed;
+    this.frameCostCount++;
+    if (this.frameCostCount < 90) return;
+    const average = this.frameCost / this.frameCostCount;
+    this.frameCost = 0;
+    this.frameCostCount = 0;
+    const current = this.renderer.getPixelRatio();
+    if (average > 42 && current > 1) {
+      this.renderer.setPixelRatio(Math.max(1, current - 0.25));
+      this.renderer.setSize(this.width, this.height);
+    } else if (average < 18 && current < this.pixelRatioCap) {
+      this.renderer.setPixelRatio(Math.min(this.pixelRatioCap, current + 0.25));
+      this.renderer.setSize(this.width, this.height);
+    }
+  }
+
   private frame = (now: number): void => {
     this.frameHandle = 0;
     if (this.disposed || this.paused || this.hidden) return;
@@ -491,6 +514,7 @@ export class MarsGlobeEngine {
     const elapsed = now - this.lastFrame;
     if (this.maxFps > 0 && elapsed < 1000 / this.maxFps - 2) return;
     this.lastFrame = now;
+    this.adaptPixelRatio(elapsed);
     if (this.flight) this.stepFlight(now);
     else {
       this.controls.update(Math.min(elapsed, 100) / 1000);
@@ -755,6 +779,7 @@ export class MarsGlobeEngine {
         transparent: true,
         opacity: 0.95,
         dashed: line.dashed ?? false,
+        depthTest: false,
       });
       material.resolution.set(this.width, this.height);
       const mesh = new Line2(geometry, material);
@@ -771,7 +796,7 @@ export class MarsGlobeEngine {
         material.dashSize = Math.max(total / 60, 1e-6);
         material.gapSize = material.dashSize * 0.7;
       }
-      mesh.renderOrder = 20;
+      mesh.renderOrder = 25;
       layer.materials.push(material);
       layer.group.add(mesh);
     }
@@ -1097,6 +1122,12 @@ export class MarsGlobeEngine {
       this.camera.far = far;
       this.camera.updateProjectionMatrix();
     }
+    const throughHills = this.altitudeScene() < 0.35;
+    this.lineLayers.forEach((layer) =>
+      layer.materials.forEach((material) => {
+        material.depthTest = !throughHills;
+      }),
+    );
     const lift = this.targetLift();
     if (lift / this.overlayLift > 2 || lift / this.overlayLift < 0.5) {
       this.overlayLift = lift;
