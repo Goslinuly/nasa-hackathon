@@ -1,6 +1,6 @@
 // Марсоход Perseverance на глобусе: ленивая загрузка glb и плавный проезд по кривой маршрута с зацикливанием.
 import * as THREE from 'three';
-import { roverBasis, roverCycle, roverSizeForLength } from './routeCurve';
+import { roverBasis, roverCycle, roverSizeForView } from './routeCurve';
 
 const MODEL_URL = '/models/perseverance.glb';
 
@@ -8,7 +8,7 @@ export class RoverTrack {
   readonly group = new THREE.Group();
   private pivot = new THREE.Group();
   private curve: THREE.Curve<THREE.Vector3> | null = null;
-  private size = 0;
+  private routeLength = 0;
   private startedAt = 0;
   private model: THREE.Object3D | null = null;
   private loading = false;
@@ -30,19 +30,20 @@ export class RoverTrack {
       this.group.visible = false;
       return;
     }
-    this.size = roverSizeForLength(curve.getLength());
+    this.routeLength = curve.getLength();
     if (restart) this.startedAt = performance.now();
     void this.ensureModel();
   }
 
-  update(nowMs: number): void {
+  update(nowMs: number, cameraAltitude: number): void {
     if (!this.curve || !this.model) return;
     const { progress, scale } = roverCycle(nowMs - this.startedAt);
     const position = this.curve.getPointAt(progress);
     const tangent = this.curve.getTangentAt(progress);
     this.group.matrix.copy(roverBasis(position, tangent));
     this.group.matrixWorldNeedsUpdate = true;
-    this.pivot.scale.setScalar(this.size * Math.max(scale, 1e-4));
+    const size = roverSizeForView(cameraAltitude, this.routeLength);
+    this.pivot.scale.setScalar(size * Math.max(scale, 1e-4));
     this.group.visible = true;
   }
 
@@ -83,6 +84,17 @@ export class RoverTrack {
       gltf.scene.position.set(-centre.x, -box.min.y, -centre.z);
       wrapper.add(gltf.scene);
       wrapper.scale.setScalar(1 / Math.max(dims.x, dims.z, 1e-6));
+      gltf.scene.traverse((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+          if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+          material.metalness = Math.min(material.metalness, 0.2);
+          material.roughness = Math.max(material.roughness, 0.6);
+          material.emissive = new THREE.Color(0x6b6256);
+          material.emissiveIntensity = 0.45;
+          material.needsUpdate = true;
+        }
+      });
       this.model = wrapper;
       this.pivot.add(wrapper);
     } catch (error) {

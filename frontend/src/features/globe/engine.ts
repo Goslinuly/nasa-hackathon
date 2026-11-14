@@ -485,7 +485,7 @@ export class MarsGlobeEngine {
     else this.controls.update(Math.min(elapsed, 100) / 1000);
     this.adaptToAltitude();
     this.updateLabels();
-    if (this.rover.active) this.rover.update(now);
+    if (this.rover.active) this.rover.update(now, this.altitudeScene());
     this.renderer.render(this.scene, this.camera);
   };
 

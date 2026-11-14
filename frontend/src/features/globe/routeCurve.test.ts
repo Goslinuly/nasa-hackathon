@@ -1,7 +1,7 @@
 // Тесты гладкой кривой маршрута, масштаба и цикла анимации марсохода.
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { APPEAR_MS, buildRouteCurve, decimatePoints, PAUSE_MS, ROVER_MAX_SIZE, ROVER_MIN_SIZE, roverBasis, roverCycle, roverSizeForLength, sampleCurvePoints, TRAVEL_MS } from './routeCurve';
+import { APPEAR_MS, buildRouteCurve, decimatePoints, PAUSE_MS, ROVER_MIN_SIZE, roverBasis, roverCycle, roverSizeForView, sampleCurvePoints, TRAVEL_MS } from './routeCurve';
 
 const arc = (n: number) => Array.from({ length: n }, (_, i) => { const a = i / (n - 1) * 0.5; return new THREE.Vector3(Math.cos(a), Math.sin(a), 0); });
 
@@ -25,9 +25,9 @@ describe('route curve', () => {
 
 describe('rover size and cycle', () => {
   it('scales with route length and clamps', () => {
-    expect(roverSizeForLength(0.0001)).toBe(ROVER_MIN_SIZE);
-    expect(roverSizeForLength(3)).toBe(ROVER_MAX_SIZE);
-    expect(roverSizeForLength(0.006)).toBeCloseTo(0.0005, 6);
+    expect(roverSizeForView(0, 1)).toBe(ROVER_MIN_SIZE);
+    expect(roverSizeForView(10, 0.004)).toBeCloseTo(0.001, 6);
+    expect(roverSizeForView(0.003, 1)).toBeCloseTo(0.00027, 6);
   });
   it('appears smoothly, travels at constant rate, pauses and loops', () => {
     expect(roverCycle(0)).toEqual({ progress: 0, scale: 0 });
