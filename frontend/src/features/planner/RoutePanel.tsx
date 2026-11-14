@@ -1,13 +1,17 @@
-// Режим «Построить маршрут»: точки A и Б, расчёт по MOLA в воркере, профиль и исследования рядом.
+// Режим «Построить маршрут»: точки A и Б, остановки, слои проходимости и детальный рельеф, расчёт в воркере.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 
 import { useGlobeState, useValue } from '@/app/globeState';
 import type { LonLat, ModeContext } from '@/app/modeContract';
 import { EvaPanel } from '@/features/eva/EvaPanel';
 import { ResearchAlongRoute } from '@/features/science/ResearchAlongRoute';
+import { fetchManifest, fetchSiteIndex, type SiteIndexEntry } from '@/features/walk/sitePackage';
 
 import { ElevationProfile } from './ElevationProfile';
 import type { TraverseParams } from '@/shared/eva/traverse';
+
+import { loadHazardGrid } from './hazard';
+import { findCoveringSite, loadLocalGrid, type SiteManifestBounds } from './localGrid';
 
 import {
   CREW_RANGE_KG,
@@ -16,21 +20,31 @@ import {
   LOAD_RANGE_KG,
   buildRouteOptions,
   clampMass,
+  dataLevelNote,
+  formatBlockedCells,
+  formatDataLevel,
+  formatDistanceKm as formatKm,
+  formatSand,
+  formatStopsCount,
+  formatUnknownSurface,
+  moveItem,
   formatModelTime,
   formatOxygenCorridor,
   outsideModelWarning,
   type CostModel,
 } from './routeOptions';
-import { DEFAULT_ROUTE_OPTIONS, greatCircleM, type RouteResult } from './routing';
+import { DEFAULT_ROUTE_OPTIONS, greatCircleM, type HazardGrid, type HeightGrid, type RouteResult } from './routing';
 import type { WorkerRequest } from './routing.worker';
 
 type Endpoint = 'a' | 'b';
+type PickTarget = Endpoint | 'stop';
+
+interface MultiInfo {
+  stopIndices: number[];
+  failedLeg?: number;
+}
 
 const ENDPOINT_COLOR: Record<Endpoint, string> = { a: '#8fd0a0', b: '#ff9b7a' };
-
-function formatKm(m: number): string {
-  return `${(m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: m < 100_000 ? 1 : 0 })} км`;
-}
 
 const SOL_HOURS = 88_775.244 / 3600;
 
@@ -160,14 +174,29 @@ export default function RoutePanel({ globe }: ModeContext) {
   const workerRef = useRef<Worker | null>(null);
   const [workerReady, setWorkerReady] = useState(false);
   const requestRef = useRef(0);
-  const pickRef = useRef<Endpoint | null>('a');
+  const pickRef = useRef<PickTarget | null>('a');
 
   const [endpoints, setEndpoints] = useState<Record<Endpoint, LonLat | null>>({ a: null, b: null });
-  const [pick, setPick] = useState<Endpoint | null>('a');
+  const [pick, setPick] = useState<PickTarget | null>('a');
+  const [stops, setStops] = useState<LonLat[]>([]);
+  const [hazard, setHazard] = useState<HazardGrid | null>(null);
+  const [surfaceFromData, setSurfaceFromData] = useState(true);
+  const [multi, setMulti] = useState<MultiInfo | null>(null);
+  const [failedLeg, setFailedLeg] = useState<number | null>(null);
+  const [initVersion, setInitVersion] = useState(0);
+  const [siteIndex, setSiteIndex] = useState<SiteIndexEntry[]>([]);
+  const [manifests, setManifests] = useState<Map<string, SiteManifestBounds>>(new Map());
+  const [localWanted, setLocalWanted] = useState(false);
+  const [localSite, setLocalSite] = useState<string | null>(null);
+  const [localError, setLocalError] = useState('');
+  const localGrids = useRef(new Map<string, HeightGrid>());
   const [baseOptions, setBaseOptions] = useState(DEFAULT_ROUTE_OPTIONS);
   const [costModel, setCostModel] = useState<CostModel>('distance');
   const [traverse, setTraverse] = useState<TraverseParams>(EVA_DEFAULT_TRAVERSE);
-  const options = useMemo(() => buildRouteOptions(baseOptions, costModel, traverse), [baseOptions, costModel, traverse]);
+  const options = useMemo(
+    () => buildRouteOptions(baseOptions, costModel, traverse, surfaceFromData),
+    [baseOptions, costModel, traverse, surfaceFromData],
+  );
   const evaMode = costModel === 'eva';
   const [speedKmh, setSpeedKmh] = useState(4);
   const [route, setRoute] = useState<RouteResult | null>(null);
@@ -184,22 +213,65 @@ export default function RoutePanel({ globe }: ModeContext) {
     setPick(which === 'a' ? 'b' : null);
   }, []);
 
+  const addStop = useCallback((point: LonLat) => {
+    setStops((current) => [...current, point]);
+    setPick(null);
+  }, []);
+
+  useEffect(() => {
+    const abort = new AbortController();
+    void loadHazardGrid(abort.signal).then((bundle) => {
+      if (bundle && !abort.signal.aborted) setHazard(bundle.grid);
+    });
+    return () => abort.abort();
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const index = await fetchSiteIndex();
+        const loaded = await Promise.all(index.map((entry) => fetchManifest(entry.id).catch(() => null)));
+        if (!alive) return;
+        const map = new Map<string, SiteManifestBounds>();
+        loaded.forEach((manifest) => {
+          if (manifest?.bounds_lonlat) map.set(manifest.id, manifest as SiteManifestBounds);
+        });
+        setSiteIndex(index);
+        setManifests(map);
+      } catch {
+        setSiteIndex([]);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // Клик по шару ставит текущую точку.
   useEffect(() => {
     globe.onPick?.((point) => {
       const target = pickRef.current;
-      if (target) placeEndpoint(target, point);
+      if (target === 'stop') addStop(point);
+      else if (target) placeEndpoint(target, point);
     });
     return () => globe.onPick?.(null);
-  }, [globe, placeEndpoint]);
+  }, [globe, placeEndpoint, addStop]);
 
   useEffect(() => {
     const worker = new Worker(new URL('./routing.worker.ts', import.meta.url), { type: 'module' });
-    worker.onmessage = (event: MessageEvent<{ id: number; result: RouteResult; ms?: number }>) => {
+    worker.onmessage = (event: MessageEvent<{ id: number; result: RouteResult; multi?: MultiInfo; ms?: number }>) => {
       if (event.data.id !== requestRef.current) return;
+      setBusy(false);
+      const leg = event.data.multi?.failedLeg;
+      if (leg !== undefined) {
+        setFailedLeg(leg);
+        return;
+      }
+      setFailedLeg(null);
+      setMulti(event.data.multi ?? null);
       setRoute(event.data.result);
       setRouteMs(event.data.ms ?? null);
-      setBusy(false);
     };
     workerRef.current = worker;
     return () => {
@@ -221,10 +293,53 @@ export default function RoutePanel({ globe }: ModeContext) {
         pixelsPerDegree: field.meta.pixels_per_degree,
         heights,
       },
+      ...(hazard ? { hazard } : {}),
     };
     workerRef.current.postMessage(message, [heights.buffer]);
     setWorkerReady(true);
-  }, [terrain]);
+    setInitVersion((version) => version + 1);
+  }, [terrain, hazard]);
+
+  const covering = useMemo(() => {
+    const { a, b } = endpoints;
+    return a && b ? findCoveringSite(siteIndex, manifests, [a, ...stops, b]) : null;
+  }, [endpoints, stops, siteIndex, manifests]);
+  const coveringId = covering?.id ?? null;
+
+  useEffect(() => {
+    if (!coveringId) setLocalWanted(false);
+  }, [coveringId]);
+
+  useEffect(() => {
+    const wanted = localWanted ? coveringId : null;
+    const worker = workerRef.current;
+    if (!worker || wanted === localSite) return;
+    if (!wanted) {
+      worker.postMessage({ type: 'localGrid', grid: null } satisfies WorkerRequest);
+      setLocalSite(null);
+      return;
+    }
+    let alive = true;
+    setLocalError('');
+    void (async () => {
+      try {
+        const grid = localGrids.current.get(wanted) ?? (await loadLocalGrid(wanted));
+        localGrids.current.set(wanted, grid);
+        if (!alive) return;
+        workerRef.current?.postMessage({ type: 'localGrid', grid } satisfies WorkerRequest);
+        setLocalSite(wanted);
+      } catch (reason) {
+        if (!alive) return;
+        setLocalWanted(false);
+        setLocalError(reason instanceof Error ? reason.message : 'Не удалось загрузить детальный рельеф');
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [localWanted, coveringId, localSite]);
+
+  const useLocal = localSite !== null && localWanted && localSite === coveringId;
 
   useEffect(() => {
     const markers = (['a', 'b'] as Endpoint[])
@@ -241,17 +356,35 @@ export default function RoutePanel({ globe }: ModeContext) {
   }, [globe, endpoints]);
 
   useEffect(() => {
+    globe.setMarkers(
+      'stops',
+      stops.length
+        ? stops.map((stop, index) => ({
+            id: `stop-${index}`,
+            lon: stop.lon,
+            lat: stop.lat,
+            label: `${index + 1}`,
+            kind: 'site' as const,
+            color: '#c9a7ff',
+          }))
+        : null,
+    );
+  }, [globe, stops]);
+
+  useEffect(() => {
     const { a, b } = endpoints;
     if (!a || !b || terrain.status !== 'ready' || !workerReady || !workerRef.current) {
       setRoute(null);
+      setMulti(null);
+      setFailedLeg(null);
       setBusy(false);
       return;
     }
     const id = ++requestRef.current;
     setBusy(true);
-    const message: WorkerRequest = { type: 'route', id, a, b, options };
+    const message: WorkerRequest = { type: 'route', id, stops: [a, ...stops, b], options, useLocal };
     workerRef.current.postMessage(message);
-  }, [endpoints, options, terrain.status, workerReady]);
+  }, [endpoints, stops, options, terrain.status, workerReady, initVersion, useLocal]);
 
   const fitKeyRef = useRef('');
   useEffect(() => {
@@ -274,9 +407,13 @@ export default function RoutePanel({ globe }: ModeContext) {
   // Точка профиля под курсором — отдельная метка движка, без пересоздания слоёв.
   useEffect(() => () => engine.setProbe(null), [engine]);
 
-  const swap = () => setEndpoints(({ a, b }) => ({ a: b, b: a }));
+  const swap = () => {
+    setEndpoints(({ a, b }) => ({ a: b, b: a }));
+    setStops((current) => current.slice().reverse());
+  };
   const clear = () => {
     setEndpoints({ a: null, b: null });
+    setStops([]);
     setPick('a');
     fitKeyRef.current = '';
   };
@@ -287,7 +424,9 @@ export default function RoutePanel({ globe }: ModeContext) {
     <div className="route-panel">
       <p className="planner-hint">
         {pick
-          ? `Кликните по планете, чтобы поставить точку ${pick === 'a' ? 'A' : 'Б'}, или введите координаты.`
+          ? pick === 'stop'
+            ? 'Кликните по планете, чтобы добавить промежуточную остановку.'
+            : `Кликните по планете, чтобы поставить точку ${pick === 'a' ? 'A' : 'Б'}, или введите координаты.`
           : 'Чтобы переставить точку, нажмите «Выбрать» рядом с ней.'}
       </p>
 
@@ -308,6 +447,33 @@ export default function RoutePanel({ globe }: ModeContext) {
           )}
         </div>
       ))}
+
+      <div className="stops-block">
+        <h2 className="planner-subtitle">Остановки</h2>
+        {stops.length === 0 && <p className="planner-note">Между A и Б можно добавить цели: маршрут пройдёт через них по порядку.</p>}
+        <ol className="stops-list">
+          {stops.map((stop, index) => (
+            <li key={`${index}-${stop.lon}-${stop.lat}`}>
+              <span className="stop-number">{index + 1}</span>
+              <span className="mono">
+                {stop.lat.toFixed(3)}°, {lonEast(stop.lon).toFixed(3)}° в. д.
+              </span>
+              <button type="button" className="link-button" aria-label="Выше" disabled={index === 0} onClick={() => setStops(moveItem(stops, index, -1))}>
+                ↑
+              </button>
+              <button type="button" className="link-button" aria-label="Ниже" disabled={index === stops.length - 1} onClick={() => setStops(moveItem(stops, index, 1))}>
+                ↓
+              </button>
+              <button type="button" className="link-button" aria-label="Удалить" onClick={() => setStops(stops.filter((_, i) => i !== index))}>
+                ✕
+              </button>
+            </li>
+          ))}
+        </ol>
+        <button type="button" className="ghost-button" onClick={() => setPick(pick === 'stop' ? null : 'stop')}>
+          {pick === 'stop' ? 'Отмена' : 'Добавить точку'}
+        </button>
+      </div>
 
       <div className="planner-actions">
         <button type="button" className="ghost-button" onClick={swap} disabled={!endpoints.a && !endpoints.b}>
@@ -345,6 +511,25 @@ export default function RoutePanel({ globe }: ModeContext) {
             </button>
           ))}
         </div>
+        {hazard && (
+          <label className="check-row">
+            <input type="checkbox" checked={surfaceFromData} onChange={(e) => setSurfaceFromData(e.target.checked)} />
+            <span>Грунт и изрезанность из данных NASA</span>
+          </label>
+        )}
+        {hazard && !surfaceFromData && (
+          <p className="planner-note">Грунт задаётся переключателем ниже; запрет по изрезанности остаётся: это безопасность.</p>
+        )}
+        {covering && (
+          <label className="check-row">
+            <input type="checkbox" checked={localWanted} onChange={(e) => setLocalWanted(e.target.checked)} />
+            <span>
+              Детальный рельеф: {covering.title}
+              {manifests.get(covering.id) ? ` (шаг ${manifests.get(covering.id)!.height.pixel_m} м)` : ''}
+            </span>
+          </label>
+        )}
+        {localError && <p className="warn">{localError}</p>}
         {evaMode && (
           <>
             <p className="planner-note">
@@ -398,6 +583,12 @@ export default function RoutePanel({ globe }: ModeContext) {
           </p>
         )}
         {busy && <p className="dim">Расчёт маршрута…</p>}
+        {!busy && failedLeg !== null && (
+          <p className="warn">
+            Нога {failedLeg + 1} непроходима: между соседними точками нет пути с такими ограничениями. На экране остаётся
+            предыдущий маршрут; измените остановки или увеличьте допустимый уклон.
+          </p>
+        )}
         {!busy && route?.status === 'unreachable' && (
           <p className="warn">
             Путь с уклоном не круче {options.maxSlopeDeg}° не найден (по прямой {formatKm(route.greatCircleM)}).
@@ -471,20 +662,41 @@ export default function RoutePanel({ globe }: ModeContext) {
                 </>
               )}
               <div>
+                <dt>Данные рельефа</dt>
+                <dd className={`data-level data-level-${formatDataLevel(route.dataLevel).tone}`}>{formatDataLevel(route.dataLevel).label}</dd>
+                {multi && multi.stopIndices.length > 0 && <span className="day-note">{formatStopsCount(multi.stopIndices.length)}</span>}
+              </div>
+              <div>
                 <dt>Высоты</dt>
                 <dd>
                   {Math.round(route.minHeightM).toLocaleString('ru-RU')}…{Math.round(route.maxHeightM).toLocaleString('ru-RU')} м
                 </dd>
               </div>
             </dl>
+            {route.hazard && (
+              <div className="hazard-summary">
+                <p>{formatSand(route.hazard.sandM)}</p>
+                <p className="planner-note">
+                  грунт по тепловой инерции TES — трактовка измерения, не доля камней
+                  {route.eva?.surface === 'per_cell' ? '. Расход уже посчитан по грунту каждой ячейки' : ''}
+                </p>
+                {formatUnknownSurface(route.hazard.unknownSurfaceM) && <p>{formatUnknownSurface(route.hazard.unknownSurfaceM)}</p>}
+                {formatBlockedCells(route.hazard.blockedByRuggedness, route.hazard.maxRuggedSlopeDeg) && (
+                  <>
+                    <p>{formatBlockedCells(route.hazard.blockedByRuggedness, route.hazard.maxRuggedSlopeDeg)}</p>
+                    <p className="planner-note">уклон на масштабе 200 м (MOLA+HRSC), а не под ногами</p>
+                  </>
+                )}
+              </div>
+            )}
             <h2 className="planner-subtitle">Профиль высот</h2>
             <ElevationProfile
               points={route.points}
               onHover={(index) => engine.setProbe(index == null ? null : route.points[index])}
             />
             <p className="planner-note">
-              Обзорная оценка по MOLA ~7.4 км/пикс{routeMs != null ? ` · расчёт ${Math.round(routeMs)} мс` : ''}.
-              Участки круче {options.maxSlopeDeg}° исключены, но обрывы, камни и кратеры мельче ~7 км не учтены.
+              {dataLevelNote(route.dataLevel, localSite ? (manifests.get(localSite)?.height.pixel_m ?? null) : null, options.maxSlopeDeg)}
+              {routeMs != null ? ` Расчёт ${Math.round(routeMs)} мс.` : ''}{' '}
               Это направление, а не проверенная тропа.{' '}
               {route.eva
                 ? `«Время при ${speedKmh} км/ч» — простая симуляция без остановок; «Время по модели» считает скорость по уклону (V = −0,01·уклон + 0,75 м/с) и от ползунка не зависит.`
@@ -500,7 +712,13 @@ export default function RoutePanel({ globe }: ModeContext) {
             )}
             <EvaPanel
               profile={route.points}
-              {...(route.eva ? { surface: route.eva.surface, crewKg: route.eva.crewKg, loadKg: route.eva.loadKg } : {})}
+              {...(route.eva
+                ? {
+                    ...(route.eva.surface !== 'per_cell' ? { surface: route.eva.surface } : {}),
+                    crewKg: route.eva.crewKg,
+                    loadKg: route.eva.loadKg,
+                  }
+                : {})}
             />
           </>
         )}
@@ -509,6 +727,7 @@ export default function RoutePanel({ globe }: ModeContext) {
       <ResearchAlongRoute
         endpoints={endpoints}
         route={route}
+        onAddStop={addStop}
         onFocus={(point) => void globe.flyTo({ lon: point.lon, lat: point.lat, altitude: 0.05 }, 1200)}
       />
     </div>

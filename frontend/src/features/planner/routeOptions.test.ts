@@ -8,6 +8,13 @@ import {
   LOAD_RANGE_KG,
   buildRouteOptions,
   clampMass,
+  dataLevelNote,
+  formatBlockedCells,
+  formatDataLevel,
+  formatSand,
+  formatStopsCount,
+  formatUnknownSurface,
+  moveItem,
   formatModelTime,
   formatOxygenCorridor,
   outsideModelWarning,
@@ -64,5 +71,42 @@ describe('подписи', () => {
     expect(outsideModelWarning(3)).toContain('3 участка');
     expect(outsideModelWarning(7)).toContain('7 участков');
     expect(outsideModelWarning(11)).toContain('11 участков');
+  });
+});
+
+describe('слои проходимости и остановки', () => {
+  it('грунт из данных по умолчанию не пишется, выключение пишет false', () => {
+    expect('surfaceFromData' in buildRouteOptions(DEFAULT_ROUTE_OPTIONS, 'distance', DEFAULT_TRAVERSE, true)).toBe(false);
+    expect(buildRouteOptions(DEFAULT_ROUTE_OPTIONS, 'eva', DEFAULT_TRAVERSE, false).surfaceFromData).toBe(false);
+  });
+
+  it('песок и грунт без данных', () => {
+    expect(formatSand(12_300)).toBe('Песок: 12,3 км');
+    expect(formatUnknownSurface(0)).toBeNull();
+    expect(formatUnknownSurface(2_000)).toBe('Без данных грунта: 2 км');
+  });
+
+  it('обойдённые ячейки со склонением', () => {
+    expect(formatBlockedCells(0, 20)).toBeNull();
+    expect(formatBlockedCells(1, 20)).toBe('Поиск обошёл 1 ячейку с изрезанностью круче 20°');
+    expect(formatBlockedCells(3, 20)).toContain('3 ячейки');
+    expect(formatBlockedCells(12, 20)).toContain('12 ячеек');
+  });
+
+  it('уровень данных и заметка', () => {
+    expect(formatDataLevel('local_dtm')).toEqual({ label: 'детальный DTM участка', tone: 'good' });
+    expect(formatDataLevel('orbital_overview').tone).toBe('warn');
+    expect(dataLevelNote('local_dtm', 1, 15)).toContain('1 м/пикс');
+    expect(dataLevelNote('local_dtm', 1, 15)).toContain('камни мельче шага сетки');
+    expect(dataLevelNote('orbital_overview', null, 15)).toContain('MOLA ~7.4 км/пикс');
+  });
+
+  it('подпись остановок и перестановка', () => {
+    expect(formatStopsCount(0)).toBeNull();
+    expect(formatStopsCount(1)).toBe('через 1 остановку');
+    expect(formatStopsCount(2)).toBe('через 2 остановки');
+    expect(formatStopsCount(5)).toBe('через 5 остановок');
+    expect(moveItem([1, 2, 3], 0, 1)).toEqual([2, 1, 3]);
+    expect(moveItem([1, 2, 3], 0, -1)).toEqual([1, 2, 3]);
   });
 });

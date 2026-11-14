@@ -20,6 +20,7 @@ interface Props {
   endpoints: { a: LonLat | null; b: LonLat | null };
   route: RouteResult | null;
   onFocus(point: LonLat): void;
+  onAddStop?(point: LonLat): void;
 }
 
 const SIDE_LABEL: Record<RouteSide, string> = {
@@ -35,7 +36,7 @@ export function formatOffset(study: PlacedStudy): string {
   return `${distance} ${SIDE_LABEL[study.side]}`;
 }
 
-export function ResearchAlongRoute({ endpoints, route, onFocus }: Props) {
+export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Props) {
   const [corridorKm, setCorridorKm] = useState('5');
   const [result, setResult] = useState<ResearchRoute | null>(null);
   const [error, setError] = useState('');
@@ -184,6 +185,15 @@ export function ResearchAlongRoute({ endpoints, route, onFocus }: Props) {
                   >
                     Показать на планете
                   </button>
+                  {onAddStop && (
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => onAddStop({ lon: study.longitude_deg!, lat: study.latitude_deg! })}
+                    >
+                      В маршрут
+                    </button>
+                  )}
                   {study.source_url && (
                     <a href={study.source_url} target="_blank" rel="noreferrer">
                       Источник ↗

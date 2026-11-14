@@ -33,6 +33,8 @@ export interface SiteManifest {
   note?: string;
   center: { lat: number; lon_east: number };
   bounds_eqc_m: [number, number, number, number];
+  /** Географические границы участка; долготы восточные. */
+  bounds_lonlat?: { west: number; south: number; east: number; north: number };
   height: {
     file: string;
     width: number;
