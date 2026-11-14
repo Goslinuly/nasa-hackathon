@@ -7,7 +7,9 @@ import {
   fetchEvaRadiation,
   fetchEvaSlopes,
   fetchEvaSolarEvents,
+  fetchEvaSpaceWeather,
   fetchMobilityProfile,
+  fetchRouteDose,
   fetchWalkback,
 } from '@/shared/api/client';
 import type {
@@ -17,8 +19,10 @@ import type {
   Provenance,
   RadLiveResponse,
   RadiationResponse,
+  RouteDoseResponse,
   SlopesResponse,
   SolarEventsResponse,
+  SpaceWeatherSummary,
   WalkbackResponse,
 } from '@/shared/api/evaTypes';
 
@@ -164,6 +168,7 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
   const radLive = useLoad<RadLiveResponse>(() => fetchEvaRadLive(30), []);
   const solar = useLoad<SolarEventsResponse>(() => fetchEvaSolarEvents(14), []);
   const radiation = useLoad<RadiationResponse>(() => fetchEvaRadiation(deltaH), [deltaH]);
+  const spaceWeather = useLoad<SpaceWeatherSummary>(fetchEvaSpaceWeather, []);
   const mobility = useLoad<MobilityProfileResponse>(
     () => fetchMobilityProfile({ points: mobilityPoints, crew_kg: crewKg, load_kg: loadKg, surface }),
     [mobilityPoints, surface, crewKg, loadKg],
@@ -172,6 +177,13 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
   const defaultO2 = mobility.state === 'ready' ? Math.ceil(mobility.data.totals.o2_l.high) : 0;
   const o2Remaining = o2Input === '' ? defaultO2 : Number(o2Input.replace(',', '.'));
   const o2Valid = Number.isFinite(o2Remaining) && o2Remaining > 0 && o2Remaining <= 100_000;
+
+  const routeSeconds =
+    mobility.state === 'ready' ? Math.min(mobility.data.totals.time_s, 2 * 88775) : 0;
+  const routeDose = useLoad<RouteDoseResponse | null>(
+    () => (routeSeconds > 0 ? fetchRouteDose(routeSeconds, deltaH) : Promise.resolve(null)),
+    [routeSeconds, deltaH],
+  );
 
   const walkback = useLoad<WalkbackResponse | null>(
     () =>
@@ -334,6 +346,77 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
           </>
         )}
       </Status>
+      <h4 className="eva-sub">
+        Доза за этот выход <Badge kind="model" />
+      </h4>
+      <Status load={routeDose}>
+        {(data) =>
+          data == null ? (
+            <p className="dim">Появится после расчёта времени выхода.</p>
+          ) : (
+            <>
+              <p className="eva-corridor">
+                {data.dose_msv.low.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}–
+                {data.dose_msv.high.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} мЗв
+              </p>
+              <p className="planner-note">
+                Средняя {data.dose_msv.mid.toLocaleString('ru-RU', { maximumFractionDigits: 3 })} мЗв за{' '}
+                {(data.fraction_of_sol * 100).toLocaleString('ru-RU', { maximumFractionDigits: 0 })}% сола в пути
+                {data.elevation_correction
+                  ? `; учтён перепад высоты ${Math.round(data.elevation_correction.delta_h_m).toLocaleString('ru-RU')} м`
+                  : ''}
+                .
+              </p>
+              <ProvenanceNote provenance={data.provenance} />
+            </>
+          )
+        }
+      </Status>
+
+      <h4 className="eva-sub">
+        Космическая погода сейчас <Badge kind="measurement" />
+      </h4>
+      <Status load={spaceWeather}>
+        {(data) => {
+          const level = data.advisory.level;
+          const levelClass = { calm: 'eva-ok', elevated: 'eva-limit', event_at_earth: 'eva-warn' }[level];
+          const levelLabel = { calm: 'спокойно', elevated: 'фон повышен', event_at_earth: 'событие у Земли' }[level];
+          const mars = data.mars_measured;
+          const earth = data.earth_measured;
+          return (
+            <>
+              <p>
+                <span className={`eva-badge ${levelClass}`}>{levelLabel}</span>
+              </p>
+              <Notes lines={data.advisory.reasons} />
+              {mars.status === 'ok' ? (
+                <p className="planner-note">
+                  RAD на Марсе: {mars.latest_ugy_per_sol.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} мкГр/сол,{' '}
+                  {mars.ratio_to_median.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}× медианы 30 солов ·{' '}
+                  {mars.latest_time}
+                </p>
+              ) : (
+                <Unavailable detail={mars.detail} />
+              )}
+              {earth.status === 'ok' ? (
+                <>
+                  <p className="planner-note">
+                    У Земли (GOES): протоны ≥10 МэВ{' '}
+                    {earth.proton_flux_10mev_pfu.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} pfu — S
+                    {earth.s_scale_now} (за сутки до S{earth.s_scale_max24h}), рентген {earth.xray_class}, шкалы NOAA R
+                    {earth.noaa_scales_now.R ?? '—'}/S{earth.noaa_scales_now.S ?? '—'}/G{earth.noaa_scales_now.G ?? '—'}
+                  </p>
+                  <Notes lines={[earth.caveat]} />
+                </>
+              ) : (
+                <Unavailable detail={earth.detail} />
+              )}
+              <ProvenanceNote provenance={data.advisory.provenance} />
+            </>
+          );
+        }}
+      </Status>
+
       <h4 className="eva-sub">
         Фон RAD, 30 дней <Badge kind="measurement" />
       </h4>

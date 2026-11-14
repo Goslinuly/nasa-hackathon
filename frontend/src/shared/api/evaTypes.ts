@@ -187,3 +187,49 @@ export interface SolarEventsOk {
 export type GaleConditions = GaleConditionsOk | SourceUnavailable;
 export type RadLiveResponse = RadLiveOk | SourceUnavailable;
 export type SolarEventsResponse = SolarEventsOk | SourceUnavailable;
+
+export interface SpaceWeatherMarsOk {
+  status: 'ok';
+  latest_ugy_per_sol: number;
+  latest_time: string;
+  median_30d_ugy_per_sol: number;
+  ratio_to_median: number;
+  source?: string;
+  note: string;
+}
+
+export interface SpaceWeatherEarthOk {
+  status: 'ok';
+  source: string;
+  caveat: string;
+  proton_flux_10mev_pfu: number;
+  proton_flux_10mev_max24h_pfu: number;
+  proton_time_utc: string;
+  s_scale_now: number;
+  s_scale_max24h: number;
+  xray_flux_wm2: number;
+  xray_class: string;
+  xray_time_utc: string;
+  noaa_scales_now: { R: string | null; S: string | null; G: string | null };
+}
+
+export interface SpaceWeatherSummary {
+  mars_measured: SpaceWeatherMarsOk | SourceUnavailable;
+  earth_measured: SpaceWeatherEarthOk | SourceUnavailable;
+  events:
+    | { status: 'ok'; events: { type: string; start_utc: string; summary: string; link: string }[] }
+    | SourceUnavailable;
+  advisory: {
+    level: 'calm' | 'elevated' | 'event_at_earth';
+    reasons: string[];
+    provenance: Provenance;
+  };
+}
+
+export interface RouteDoseResponse {
+  dose_msv: { low: number; mid: number; high: number; units: string };
+  fraction_of_sol: number;
+  rate_corridor: { low: number; mid: number; high: number };
+  elevation_correction: { delta_h_m: number; delta_ugy_per_sol: number; status: string } | null;
+  provenance: Provenance;
+}

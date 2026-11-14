@@ -13,8 +13,10 @@ import type {
   MobilityProfileResponse,
   RadLiveResponse,
   RadiationResponse,
+  RouteDoseResponse,
   SlopesResponse,
   SolarEventsResponse,
+  SpaceWeatherSummary,
   WalkbackRequest,
   WalkbackResponse,
 } from './evaTypes';
@@ -135,3 +137,11 @@ export const fetchEvaConditions = () => getJson<GaleConditions>('/eva/conditions
 export const fetchEvaRadLive = (days = 30) => getJson<RadLiveResponse>('/eva/rad-live', { days });
 
 export const fetchEvaSolarEvents = (days = 14) => getJson<SolarEventsResponse>('/eva/solar-events', { days });
+
+export const fetchEvaSpaceWeather = () => getJson<SpaceWeatherSummary>('/eva/space-weather');
+
+export const fetchRouteDose = (seconds: number, deltaHM: number | null) =>
+  postJson<RouteDoseResponse>('/eva/route-dose', {
+    seconds,
+    ...(deltaHM != null ? { delta_h_m: deltaHM } : {}),
+  });

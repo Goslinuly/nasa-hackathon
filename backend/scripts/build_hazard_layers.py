@@ -1,4 +1,4 @@
-"""Сборка слоёв проходимости: уклон MOLA+HRSC 200 м/пикс и тепловая инерция TES как признак грунта."""
+"""Слои проходимости: уклон MOLA+HRSC 200 м/пикс и тепловая инерция TES как признак грунта."""
 
 import json
 import re
@@ -39,7 +39,7 @@ def fetch_strip(layer: str, lat_south: float, lat_north: float, rows: int) -> np
     head = data[:label_size].decode("ascii", "replace")
 
     def field(key: str) -> str:
-        found = re.search(key + r"=('?)([^' ]+)", head)
+        found = re.search(key + r"=('?)([^' ]+)\1", head)
         if found is None:
             raise ValueError(f"в заголовке VICAR нет {key}")
         return found.group(2)
@@ -110,7 +110,8 @@ def main() -> int:
         "thermal_inertia": {
             **inertia_meta,
             "units": "Дж м^-2 К^-1 с^-1/2",
-            "source": "MGS TES, дневная тепловая инерция, Putzig et al. (2005), сетка 20 пикс/градус",
+            "source": "MGS TES, дневная тепловая инерция, Putzig et al. (2005),"
+            " сетка 20 пикс/градус",
             "status": "measurement",
             "note": "0 — нет данных; значения выше 1200 обычно лёд и артефакты полярных шапок",
             "median": float(np.median(valid_ti)),
@@ -128,10 +129,12 @@ def main() -> int:
         "service": WMS,
         "credit": "NASA/JPL/GSFC/ASU; Putzig et al. (2005); ESA/DLR/FU Berlin для HRSC",
     }
-    (OUT / "hazard.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+    text = json.dumps(manifest, ensure_ascii=False, indent=1)
+    (OUT / "hazard.json").write_text(text, encoding="utf-8")
     print(
         f"уклон: медиана {manifest['slope']['median_deg']:.2f}°, максимум "
-        f"{manifest['slope']['observed_max_deg']:.1f}°; инерция: медиана {manifest['thermal_inertia']['median']:.0f}"
+        f"{manifest['slope']['observed_max_deg']:.1f}°; "
+        f"инерция: медиана {manifest['thermal_inertia']['median']:.0f}"
     )
     return 0
 

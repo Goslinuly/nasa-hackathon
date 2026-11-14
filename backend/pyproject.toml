@@ -53,4 +53,9 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+# B008: Depends()/Query() в аргументах по умолчанию — идиома FastAPI
 ignore = ["B008"]
+
+[tool.ruff.lint.per-file-ignores]
+# Скрипты Blender выполняются внутри Blender и держат параметры сцен длинными строками.
+"scripts/blender/*" = ["E501"]

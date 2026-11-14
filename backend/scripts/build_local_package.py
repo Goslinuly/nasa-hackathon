@@ -19,7 +19,7 @@
 целиком не скачиваются.
 
 Запуск из backend (`pip install -e ".[terrain]"`):
-    python scripts/build_local_package.py --site all            # высоты 1 м, снимок 0,5 м + окно 0,25 м
+    python scripts/build_local_package.py --site all   # высоты 1 м, снимок 0,5 м + окно 0,25 м
     python scripts/build_local_package.py --site gale-boxwork --height-px 2 --no-hi
     python scripts/build_local_package.py --site jezero --hi-center 18.4380,77.2450
 
