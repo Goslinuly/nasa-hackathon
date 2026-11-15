@@ -21,7 +21,11 @@ import { buildTrackPath, headingAlong, nearestOnPath, pointAt, TRACK_CORRIDOR_M,
 import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
 import { takePlannedWalkRoute, type PlannedWalkRoute } from '@/shared/walkRoute';
 import { findPath, nearestPassable, passableMask, routeWalkTime, simplifyPath, type RouteGrid } from './gridRoute';
+import { G_MARS, jump as jumpModel } from '@/shared/eva/crew';
+import { getCrewProfile, subscribeCrewProfile } from '@/shared/eva/crewProfile';
+import { eyeHeightM, stepJump, type Airborne } from './jump';
 
+/** Прежняя фиксированная высота глаз; теперь она считается по росту из профиля (jump.ts). */
 export const EYE_HEIGHT_M = 1.7;
 /** Высота, на которую камера поднимается перед переходом на шар. */
 export const ASCENT_M = 2500;
@@ -103,6 +107,10 @@ export interface WalkExtra {
   routeMode: boolean;
   /** Последняя попытка проложить маршрут не удалась (показываем ~4 с). */
   routeFailed: boolean;
+  /** Последний прыжок по модели (показываем ~2,5 с). */
+  jump: { heightM: number; flightS: number } | null;
+  /** Сейчас в полёте. */
+  airborne: boolean;
 }
 
 /**
@@ -225,6 +233,11 @@ export class WalkScene {
   private blockedSlopeDeg = NaN;
   private blockedAt = 0;
   private lastUnlockAt = 0;
+  /** Полёт в прыжке (null — стоим на земле). */
+  private air: Airborne | null = null;
+  /** Высота глаз по росту из профиля, м (модель). */
+  private eyeM = eyeHeightM(getCrewProfile().heightCm);
+  private lastJump: { heightM: number; flightS: number; at: number } | null = null;
 
   // Настройки
   timeScale = 1;
@@ -719,6 +732,11 @@ export class WalkScene {
         this.setTimeScale(TIME_SCALES[Number(e.code.slice(5)) - 1]);
         return;
       }
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!e.repeat) this.jump();
+        return;
+      }
       if (MOVE_KEYS.has(e.code)) {
         this.keys.add(e.code);
         e.preventDefault();
@@ -729,6 +747,9 @@ export class WalkScene {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
+    this.disposers.push(subscribeCrewProfile(() => {
+      this.eyeM = eyeHeightM(getCrewProfile().heightCm);
+    }));
     this.disposers.push(() => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
@@ -894,7 +915,7 @@ export class WalkScene {
   /** Точка игрока и высота камеры над рельефом — для перехода на шар. */
   exitOrigin(): { lon: number; lat: number; altitudeKm: number } {
     const ll = localToLonLat(this.opts.pkg.frame, this.px, this.pz);
-    const eye = this.vehicle === 'rover' ? MAST_HEIGHT_M : EYE_HEIGHT_M;
+    const eye = this.vehicle === 'rover' ? MAST_HEIGHT_M : this.eyeM;
     return { lon: ll.lonEast, lat: ll.lat, altitudeKm: (eye + (this.liftHold?.h ?? 0)) / 1000 };
   }
 
@@ -954,6 +975,7 @@ export class WalkScene {
 
   teleport(x: number, z: number): void {
     this.autoDrive = false;
+    this.air = null;
     const p = this.nearestValid(x, z);
     this.px = p.x;
     this.pz = p.z;
@@ -974,6 +996,8 @@ export class WalkScene {
     if (this.clockRunning) this.simTimeMs += dt * 1000 * this.timeScale;
     this.applyLighting();
     this.move(dt);
+    // Прыжок идёт в реальном времени, без ускорения: иначе полёт выглядел бы неестественно.
+    this.stepAir(dt);
     this.updateCameraHeight();
     this.stepLift(now);
 
@@ -1014,6 +1038,34 @@ export class WalkScene {
     this.stateTimer -= dt;
     if (this.stateTimer <= 0) this.emitState(true);
   };
+
+  /** Прыжок: только пешком и с земли, скорость отрыва по модели crew.ts и профилю. */
+  jump(): { heightM: number; flightS: number } | null {
+    if (this.vehicle !== 'walk' || this.air || this.liftHold) return null;
+    const g = this.groundAt(this.px, this.pz);
+    if (!Number.isFinite(g)) return null;
+    const p = getCrewProfile();
+    const r = jumpModel({ bodyKg: p.bodyKg, loadKg: p.loadKg, earthJumpM: p.earthJumpM });
+    if (!(r.takeoffMs > 0)) return null;
+    this.air = { y: g, vy: r.takeoffMs };
+    this.lastJump = { heightM: r.heightM, flightS: r.flightS, at: performance.now() };
+    this.emitState(true);
+    return r;
+  }
+
+  get airborne(): boolean {
+    return this.air !== null;
+  }
+
+  private stepAir(dt: number): void {
+    if (!this.air) return;
+    if (this.vehicle !== 'walk' || this.liftHold) {
+      this.air = null;
+      return;
+    }
+    this.air = stepJump(this.air, dt, G_MARS, this.groundAt(this.px, this.pz));
+    if (!this.air) this.emitState(true);
+  }
 
   private move(dt: number): void {
     if (this.liftHold) return;
@@ -1359,9 +1411,12 @@ export class WalkScene {
       if (Number.isFinite(g)) this.camera.position.set(this.px, g + MAST_HEIGHT_M, this.pz);
       return;
     }
-    const h = this.sampler.heightAt(this.px, this.pz);
+    const g = this.groundAt(this.px, this.pz);
+    // В прыжке ступни над рельефом, но не ниже него.
+    let feet = g;
+    if (this.air) feet = Number.isFinite(g) ? Math.max(this.air.y, g) : this.air.y;
     // Стоим только на данных; если вдруг NaN — оставляем прежнюю высоту.
-    const y = Number.isFinite(h) ? h - this.refY + EYE_HEIGHT_M : this.camera.position.y;
+    const y = Number.isFinite(feet) ? feet + this.eyeM : this.camera.position.y;
     this.camera.position.set(this.px, y, this.pz);
   }
 
@@ -1467,6 +1522,10 @@ export class WalkScene {
         : null,
       routeMode: this.routeMode,
       routeFailed: performance.now() - this.routeFailedAt < 4000,
+      jump: this.lastJump && performance.now() - this.lastJump.at < 2500
+        ? { heightM: this.lastJump.heightM, flightS: this.lastJump.flightS }
+        : null,
+      airborne: this.air !== null,
       steepOnTrackDeg: performance.now() - this.steepAt < 1500 ? this.steepOnTrackDeg : NaN,
     });
   }

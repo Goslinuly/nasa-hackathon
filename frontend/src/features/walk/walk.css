@@ -171,3 +171,32 @@
   max-width: min(520px, calc(100% - 32px)); padding: 6px 12px; border-radius: 6px; text-align: center;
   background: rgba(110, 60, 10, 0.85); border: 1px solid rgba(255, 200, 120, 0.6); color: #fff2dc; font-size: 13px;
 }
+
+/* Прыжок: справа внизу над мини-картой, над безопасной зоной. */
+.walk-jump {
+  position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: 250px; z-index: 3;
+  min-width: 64px; min-height: 40px; font-weight: 600; touch-action: none;
+}
+.walk-jump--touch { width: 72px; height: 72px; border-radius: 50%; padding: 0; font-size: 14px; }
+.walk-note--jump { top: 30%; background: rgba(40, 30, 70, 0.8); }
+
+/* Блок «Астронавт» в настройках. */
+.walk-astro { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 210, 170, 0.2); }
+.walk-astro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.walk-astro-field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #c9b3a2; }
+.walk-astro-field input {
+  font: inherit; font-size: 14px; color: #f4e6d8; background: rgba(0, 0, 0, 0.35); min-height: 32px;
+  border: 1px solid rgba(255, 210, 170, 0.35); border-radius: 4px; padding: 4px 6px; width: 100%; box-sizing: border-box;
+}
+.walk-astro-warn { margin: 0; font-size: 12px; padding: 6px 8px; border-left: 3px solid #ff9a62; background: rgba(150, 60, 20, 0.35); }
+
+/* Просьба повернуть телефон. */
+.walk-rotate {
+  position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center; background: rgba(20, 10, 6, 0.94); font-size: 18px;
+}
+.walk-rotate p { margin: 0; max-width: 280px; }
+.walk-rotate .walk-link { min-height: 40px; font-size: 14px; }
+.walk-rotate-icon { color: #ff9a62; animation: walk-rotate-turn 2.4s ease-in-out infinite; }
+@keyframes walk-rotate-turn { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+@media (prefers-reduced-motion: reduce) { .walk-rotate-icon { animation: none; transform: rotate(-90deg); } }

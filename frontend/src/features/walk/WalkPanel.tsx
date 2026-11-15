@@ -16,6 +16,9 @@ const ASCENT_MS = 1400;
 import { TimeControls } from './TimeControls';
 import { Joystick, TouchLook } from './TouchControls';
 import './walk.css';
+import { AstronautSettings, jumpNotice } from './AstronautSettings';
+import { LandscapeGate } from './LandscapeGate';
+import { enterLandscape, exitLandscape } from './landscape';
 import { buildOverviewPackage, OVERVIEW_SITE_ID } from './overviewPackage';
 import { setPlannedWalkRoute, takePlannedWalkRoute, type PlannedWalkRoute } from '@/shared/walkRoute';
 
@@ -109,6 +112,8 @@ function SiteChooser({ ctx, notice }: { ctx: ModeContext; notice?: string }) {
 
   const descend = async (s: ChooserSite) => {
     if (descending) return;
+    // Телефон: полный экран и горизонтальная ориентация — только внутри нажатия.
+    enterLandscape();
     setDescending(true);
     if (!preloads.has(s.id)) preloads.set(s.id, loadSitePackage(s.id));
     // Дальний план и модель ровера — тоже заранее, чтобы при посадке они уже были в кэше браузера.
@@ -340,6 +345,17 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   const exitRef = useRef(leave);
   exitRef.current = leave;
 
+  // Сцена открылась без нажатия (ссылка, перезагрузка): просим горизонталь при первом касании.
+  useEffect(() => {
+    if (!touch) return;
+    const once = () => enterLandscape();
+    window.addEventListener('pointerdown', once, { once: true, capture: true });
+    return () => {
+      window.removeEventListener('pointerdown', once, { capture: true });
+      exitLandscape();
+    };
+  }, [touch]);
+
   useEffect(() => {
     const host = hostRef.current;
     const labels = labelsRef.current;
@@ -393,6 +409,21 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       {touch && <TouchLook onLook={(dx, dy) => sceneRef.current?.lookBy(dx, dy)} />}
       {touch && <Joystick onMove={(x, y) => sceneRef.current?.setJoystick(x, y)} />}
       {state && <Hud state={state} />}
+      {state?.vehicle === 'walk' && (
+        <button
+          type="button"
+          className={`walk-btn walk-jump${touch ? ' walk-jump--touch' : ''}${extra?.airborne ? ' is-on' : ''}`}
+          title={t('Пробел', 'Space')}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            sceneRef.current?.jump();
+          }}
+        >
+          {t('Прыжок', 'Jump')}
+        </button>
+      )}
+      {extra?.jump && <div className="walk-note walk-note--jump">{jumpNotice(extra.jump, t)}</div>}
       <TimeControls scene={sceneRef.current} solar={extra?.solar ?? null} />
 
       <div className="walk-topbar">
@@ -435,6 +466,8 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         <LangSwitch className="walk-lang" />
       </div>
 
+      {touch && <LandscapeGate />}
+
       {menu === 'teleport' && (
         <div className="walk-menu">
           {teleports.map((p) => (
@@ -448,6 +481,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
 
       {menu === 'settings' && (
         <div className="walk-menu">
+          <AstronautSettings />
           <div className="walk-menu-row">
             <span>{t('Порог уклона', 'Slope limit')}</span>
             {SLOPE_THRESHOLDS.map((d) => (
