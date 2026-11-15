@@ -1,8 +1,9 @@
 // Режим «Построить маршрут»: точки A и Б, остановки, слои проходимости и детальный рельеф, расчёт в воркере.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useGlobeState, useValue } from '@/app/globeState';
-import type { LonLat, ModeContext } from '@/app/modeContract';
+import type { GlobeApi, LonLat, ModeContext } from '@/app/modeContract';
 import { EvaPanel } from '@/features/eva/EvaPanel';
 import { ResearchAlongRoute } from '@/features/science/ResearchAlongRoute';
 
@@ -36,6 +37,8 @@ import {
   outsideModelWarning,
   type CostModel,
 } from './routeOptions';
+import { buildRoverTable, roverCardText, roverStatsAt, type ProfilePoint, type RoverCardText, type RoverModel } from './roverStats';
+import './roverCard.css';
 import { DEFAULT_ROUTE_OPTIONS, greatCircleM, type HazardGrid, type HeightGrid, type RouteResult } from './routing';
 import type { WorkerRequest } from './routing.worker';
 
@@ -169,6 +172,76 @@ function midpoint(a: LonLat, b: LonLat): LonLat {
     lat: (Math.atan2(my, Math.hypot(mx, mz)) * 180) / Math.PI,
     lon: lonEast((Math.atan2(mz, mx) * 180) / Math.PI),
   };
+}
+
+const sameText = (a: RoverCardText | null, b: RoverCardText | null) =>
+  a === b || (a !== null && b !== null && (Object.keys(a) as (keyof RoverCardText)[]).every((key) => a[key] === b[key]));
+
+/** Карточка у марсохода: показания модели выхода в точке, куда доехала ускоренная анимация. */
+function RoverCard({ globe, points, model }: { globe: GlobeApi; points: ProfilePoint[]; model: RoverModel }) {
+  const table = useMemo(() => buildRoverTable(points, model), [points, model]);
+  const [host] = useState(() => {
+    const element = document.createElement('div');
+    element.className = 'rover-card';
+    element.setAttribute('aria-hidden', 'true');
+    return element;
+  });
+  const [text, setText] = useState<RoverCardText | null>(null);
+
+  useEffect(() => {
+    globe.setRoverTag?.(host);
+    return () => globe.setRoverTag?.(null);
+  }, [globe, host]);
+
+  useEffect(() => {
+    const tick = () => {
+      const progress = globe.roverProgress?.() ?? null;
+      const stats = progress === null ? null : roverStatsAt(table, progress);
+      const next = stats ? roverCardText(stats) : null;
+      setText((current) => (sameText(current, next) ? current : next));
+    };
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [globe, table]);
+
+  if (!text) return null;
+  return createPortal(
+    <div className="rover-card-body">
+      <div className="rover-card-title">Модель выхода · показ ускорен</div>
+      <dl className="rover-card-full">
+        <div>
+          <dt>Скорость</dt>
+          <dd>{text.speed}</dd>
+        </div>
+        <div>
+          <dt>Расход O₂</dt>
+          <dd>{text.rate}</dd>
+        </div>
+        <div>
+          <dt>Израсходовано</dt>
+          <dd>{text.oxygen}</dd>
+        </div>
+        <div>
+          <dt>В пути</dt>
+          <dd>{text.time}</dd>
+        </div>
+        <div>
+          <dt>Пройдено</dt>
+          <dd>{text.distance}</dd>
+        </div>
+      </dl>
+      <div className="rover-card-compact">
+        <span>
+          {text.distance} · {text.time}
+        </span>
+        <span>
+          {text.speed} · O₂ {text.oxygen}
+        </span>
+      </div>
+    </div>,
+    host,
+  );
 }
 
 export default function RoutePanel({ globe }: ModeContext) {
@@ -422,6 +495,20 @@ export default function RoutePanel({ globe }: ModeContext) {
   };
 
   const straight = endpoints.a && endpoints.b ? greatCircleM(endpoints.a, endpoints.b) : null;
+
+  const roverModel = useMemo<RoverModel | null>(() => {
+    if (!route || route.status !== 'ok') return null;
+    if (route.eva) {
+      const perCell = route.eva.surface === 'per_cell';
+      return {
+        crewKg: route.eva.crewKg,
+        loadKg: route.eva.loadKg,
+        surface: perCell ? 'firm' : (route.eva.surface as TraverseParams['surface']),
+        perCell,
+      };
+    }
+    return { ...traverse, perCell: false };
+  }, [route, traverse]);
 
   const demoOn =
     endpoints.a?.lon === DEMO_MISSION.a.lon &&
@@ -757,6 +844,9 @@ export default function RoutePanel({ globe }: ModeContext) {
         )}
       </div>
 
+      {route?.status === 'ok' && roverModel && globe.setRoverTag && (
+        <RoverCard globe={globe} points={route.points} model={roverModel} />
+      )}
       {route?.status === 'ok' && <SurfacePhotos points={route.points} />}
 
       <ResearchAlongRoute

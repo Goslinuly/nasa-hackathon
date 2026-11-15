@@ -49,6 +49,10 @@ export interface GlobeApi {
   setMarkers(layerId: string, markers: GlobeMarker[] | null, onClick?: (id: string) => void): void;
   /** Марсоход на маршруте: гладкая кривая и анимация; возвращает точки кривой для линии. */
   setRoverRoute?(points: LonLat[] | null): LonLat[] | null;
+  /** Доля пройденного марсоходом пути в анимации, 0..1; null — марсохода сейчас нет. */
+  roverProgress?(): number | null;
+  /** Карточка, которая следует за марсоходом по экрану; null — убрать. Снимается при выходе из режима. */
+  setRoverTag?(element: HTMLElement | null): void;
   /**
    * Клик по поверхности шара передаётся режиму вместо карточки точки; null — вернуть как было.
    * Снимается сам при выходе из режима. Необязательный: оболочка может его не поддерживать.

@@ -321,6 +321,17 @@ interface TileMaterialState {
   cancels: (() => void)[];
 }
 
+/** Места карточки у марсохода: сдвиг по горизонтали в долях ширины и «под марсоходом». */
+const ROVER_TAG_SLOTS: [number, boolean][] = [
+  [0, false],
+  [0.5, false],
+  [-0.5, false],
+  [0, true],
+  [0.5, true],
+  [-0.5, true],
+];
+const ROVER_TAG_GAP = 26;
+
 export class MarsGlobeEngine {
   private renderer: THREE.WebGLRenderer;
   private scene = new THREE.Scene();
@@ -523,6 +534,7 @@ export class MarsGlobeEngine {
     this.adaptToAltitude();
     this.updateLabels();
     if (this.rover.active) this.rover.update(now, this.altitudeScene());
+    this.updateRoverTag();
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -967,6 +979,93 @@ export class MarsGlobeEngine {
   private heightScene(lonDeg: number, latDeg: number): number {
     if (!this.terrain) return 0;
     return (this.terrain.sample(lonDeg, latDeg) * this.exaggeration) / MARS_RADIUS_M;
+  }
+
+  // --- Карточка у марсохода -------------------------------------------------------------
+  private roverTag: HTMLElement | null = null;
+
+  /** DOM-карточка, которая каждый кадр ставится в точку марсохода на экране; null — убрать. */
+  setRoverTag(element: HTMLElement | null): void {
+    if (this.roverTag && this.roverTag !== element) this.roverTag.remove();
+    this.roverTag = element;
+    if (!element) return;
+    element.style.position = 'absolute';
+    element.style.left = '0';
+    element.style.top = '0';
+    element.style.visibility = 'hidden';
+    this.labelLayer.appendChild(element);
+  }
+
+  /** Доля пройденного марсоходом пути в анимации, 0..1; null — марсохода нет. */
+  roverProgress(): number | null {
+    return this.rover.active ? this.rover.progress : null;
+  }
+
+  private updateRoverTag(): void {
+    const tag = this.roverTag;
+    if (!tag) return;
+    const hide = () => {
+      if (tag.style.visibility !== 'hidden') tag.style.visibility = 'hidden';
+    };
+    if (!this.rover.active || !this.rover.group.visible) return hide();
+    const world = this.rover.position.clone();
+    if (!this.isNearSide(world, this.camera.position.clone().normalize())) return hide();
+    const projected = world.project(this.camera);
+    if (Math.abs(projected.x) > 1 || Math.abs(projected.y) > 1 || projected.z >= 1) return hide();
+    const width = this.canvas.clientWidth;
+    const height = this.canvas.clientHeight;
+    const x = ((projected.x + 1) / 2) * width;
+    const y = ((1 - projected.y) / 2) * height;
+    // Карточка над или под марсоходом, сдвиг вбок — так, чтобы меньше закрывать подписи меток (A, Б).
+    const w = tag.offsetWidth;
+    const h = tag.offsetHeight;
+    if (this.roverTagFrame++ % 6 === 0) this.roverTagSlot = this.pickRoverTagSlot(x, y, w, h, width, height);
+    const [shift, below] = ROVER_TAG_SLOTS[this.roverTagSlot];
+    const left = Math.min(Math.max(x + shift * w - w / 2, 6), Math.max(6, width - w - 6));
+    const top = below ? y + ROVER_TAG_GAP : y - ROVER_TAG_GAP - h;
+    tag.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+    tag.style.setProperty('--rover-x', `${Math.round(x - left)}px`);
+    tag.classList.toggle('is-below', below);
+    if (tag.style.visibility !== 'visible') tag.style.visibility = 'visible';
+  }
+
+  private roverTagFrame = 0;
+  private roverTagSlot = 0;
+
+  private pickRoverTagSlot(x: number, y: number, w: number, h: number, width: number, height: number): number {
+    const boxes: [number, number, number, number][] = [];
+    for (const layer of this.markerLayers.values()) {
+      for (const entry of layer.entries) {
+        const label = entry.label;
+        if (!label || label.style.opacity === '0') continue;
+        const match = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(label.style.transform);
+        if (!match) continue;
+        const lx = Number(match[1]);
+        const ly = Number(match[2]);
+        // Подпись и сама точка метки слева от неё.
+        boxes.push([lx - 18, ly, lx + label.offsetWidth, ly + label.offsetHeight]);
+      }
+    }
+    const score = (slot: number) => {
+      const [shift, below] = ROVER_TAG_SLOTS[slot];
+      const left = Math.min(Math.max(x + shift * w - w / 2, 6), Math.max(6, width - w - 6));
+      const top = below ? y + ROVER_TAG_GAP : y - ROVER_TAG_GAP - h;
+      let cost = top < 6 || top + h > height - 6 ? 1e7 : 0;
+      for (const [x0, y0, x1, y1] of boxes) {
+        cost += Math.max(0, Math.min(x1, left + w) - Math.max(x0, left)) * Math.max(0, Math.min(y1, top + h) - Math.max(y0, top));
+      }
+      return cost + slot;
+    };
+    let best = this.roverTagSlot;
+    let bestScore = score(best) - 200;
+    for (let slot = 0; slot < ROVER_TAG_SLOTS.length; slot++) {
+      const value = score(slot);
+      if (value < bestScore) {
+        best = slot;
+        bestScore = value;
+      }
+    }
+    return best;
   }
 
   setRoverRoute(points: LonLat[] | null): LonLat[] | null {
