@@ -15,7 +15,6 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-
 from rover_layers_en import (
     TRAVERSE_NOTE_EN,
     with_current_en,
