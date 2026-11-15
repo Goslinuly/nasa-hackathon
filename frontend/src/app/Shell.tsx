@@ -406,6 +406,12 @@ export function Shell() {
                 className={`mode-panel${collapsed ? ' collapsed' : ''}`}
                 aria-label={pickLang(activeMode.title, activeMode.titleEn)}
               >
+                <button
+                  type="button"
+                  className="sheet-grip"
+                  aria-label={collapsed ? t('Развернуть панель', 'Expand panel') : t('Свернуть панель', 'Collapse panel')}
+                  onClick={() => setCollapsed((v) => !v)}
+                />
                 <div className="mode-panel-head">
                   <h1 className="planner-title">{pickLang(activeMode.title, activeMode.titleEn)}</h1>
                   <button

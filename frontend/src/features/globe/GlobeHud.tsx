@@ -30,7 +30,30 @@ function useRegion(point: { lon: number; lat: number } | null): RegionInfo | nul
   return info;
 }
 
+const HUD_KEY = 'martian-map-globe-hud';
+
+/** Свёрнут ли блок данных: выбор пользователя, иначе на телефоне свёрнут, на компьютере открыт. */
+function initialCollapsed(): boolean {
+  try {
+    const saved = localStorage.getItem(HUD_KEY);
+    if (saved === 'open') return false;
+    if (saved === 'closed') return true;
+  } catch {
+    // Хранилище недоступно — решаем по ширине экрана.
+  }
+  return typeof window !== 'undefined' && window.matchMedia?.('(max-width: 760px), (max-height: 500px)').matches;
+}
+
 export function GlobeHud() {
+  const [collapsed, setCollapsedState] = useState(initialCollapsed);
+  const setCollapsed = (value: boolean) => {
+    setCollapsedState(value);
+    try {
+      localStorage.setItem(HUD_KEY, value ? 'closed' : 'open');
+    } catch {
+      // Не сохранилось — выбор действует до перезагрузки.
+    }
+  };
   const { hover, view } = useGlobeState();
   const point = useValue(hover);
   const state = useValue(view);
@@ -38,8 +61,29 @@ export function GlobeHud() {
   const t = useT();
   const lang = useLang();
 
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        className="shell-hud-chip"
+        aria-label={t('Показать данные шара', 'Show globe data')}
+        onClick={() => setCollapsed(false)}
+      >
+        i
+      </button>
+    );
+  }
+
   return (
     <div className="hud shell-hud" aria-live="off">
+      <button
+        type="button"
+        className="shell-hud-close"
+        aria-label={t('Скрыть данные шара', 'Hide globe data')}
+        onClick={() => setCollapsed(true)}
+      >
+        ×
+      </button>
       <div>
         <span className="hud-label">{t('Курсор', 'Cursor')}</span>
         <span className="hud-value">
