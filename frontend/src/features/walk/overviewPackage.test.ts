@@ -30,7 +30,7 @@ describe('обзорный пакет', () => {
     const big = gridSize(800_000, 300_000);
     expect(big.cols).toBeLessThanOrEqual(OVERVIEW_MAX_CELLS);
     expect(big.rows).toBeLessThanOrEqual(OVERVIEW_MAX_CELLS);
-    expect(big.cell).toBeCloseTo(800_000 / 1024, 6);
+    expect(big.cell).toBe(Math.ceil(800_000 / 1024));
     const small = gridSize(5000, 4000);
     expect(small.cell).toBe(OVERVIEW_MIN_CELL_M);
     expect(small.cols).toBe(167);

@@ -590,8 +590,8 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
               <strong>{t('Щёлкните, чтобы идти', 'Click to walk')}</strong>
               <span>
                 {t(
-                  'WASD или стрелки — шаг, мышь — взгляд, 1/2/3 — время ×1/×10/×60, Esc — отпустить мышь, Esc ещё раз — на глобус',
-                  'WASD or arrows to step, mouse to look, 1/2/3 for time ×1/×10/×60, Esc to release the mouse, Esc again to return to the globe',
+                  'WASD или стрелки — шаг, мышь — взгляд, 1/2/3/4 — время ×1/×10/×60/×600, Esc — отпустить мышь, Esc ещё раз — на глобус',
+                  'WASD or arrows to step, mouse to look, 1/2/3/4 for time ×1/×10/×60/×600, Esc to release the mouse, Esc again to return to the globe',
                 )}
               </span>
             </>
@@ -600,8 +600,8 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
               <strong>{t('Щёлкните, чтобы ехать', 'Click to drive')}</strong>
               <span>
                 {t(
-                  'W/S — вперёд и назад, A/D — поворот, мышь — взгляд с мачты, 1/2/3 — время ×1/×10/×60, Esc — отпустить мышь, Esc ещё раз — на глобус',
-                  'W/S forward and back, A/D to turn, mouse to look from the mast, 1/2/3 for time ×1/×10/×60, Esc to release the mouse, Esc again to return to the globe',
+                  'W/S — вперёд и назад, A/D — поворот, мышь — взгляд с мачты, 1/2/3/4 — время ×1/×10/×60/×600, Esc — отпустить мышь, Esc ещё раз — на глобус',
+                  'W/S forward and back, A/D to turn, mouse to look from the mast, 1/2/3/4 for time ×1/×10/×60/×600, Esc to release the mouse, Esc again to return to the globe',
                 )}
               </span>
             </>

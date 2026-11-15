@@ -13,7 +13,8 @@ export const OVERVIEW_SITE_ID = 'overview';
 export const OVERVIEW_MAX_CELLS = 1024;
 /** Мельче этого шаг не делаем: исходная сетка MOLA ~7 км, мельче — пустая интерполяция. */
 export const OVERVIEW_MIN_CELL_M = 30;
-const ORTHO_MAX_PX = 2048;
+const ORTHO_MAX_PX = 1024;
+const ORTHO_TILES = 2;
 const ORTHO_TIMEOUT_MS = 10_000;
 const DEG = Math.PI / 180;
 
@@ -49,7 +50,8 @@ export function routeBox(points: WalkRoutePoint[], marginM = 2000): LonLatBox {
 
 /** Размер сетки: шаг = рамка / ячейки, не больше OVERVIEW_MAX_CELLS по стороне и не мельче 30 м. */
 export function gridSize(widthM: number, heightM: number): { cell: number; cols: number; rows: number } {
-  const cell = Math.max(OVERVIEW_MIN_CELL_M, Math.max(widthM, heightM) / OVERVIEW_MAX_CELLS);
+  // Целые метры: шаг виден в подписи данных.
+  const cell = Math.max(OVERVIEW_MIN_CELL_M, Math.ceil(Math.max(widthM, heightM) / OVERVIEW_MAX_CELLS));
   return {
     cell,
     cols: Math.max(2, Math.min(OVERVIEW_MAX_CELLS, Math.ceil(widthM / cell))),
@@ -133,6 +135,10 @@ async function flatOrtho(): Promise<ImageBitmap> {
   return createImageBitmap(c);
 }
 
+/**
+ * Снимок CTX: рамка делится на ORTHO_TILES × ORTHO_TILES запросов, они идут параллельно
+ * (один большой запрос к WMS отвечает дольше 10 с). Не пришедший кусок остаётся ровным тоном.
+ */
 async function loadCtxOrtho(box: LonLatBox, aspect: number, signal?: AbortSignal): Promise<ImageBitmap> {
   const w = aspect >= 1 ? ORTHO_MAX_PX : Math.max(16, Math.round(ORTHO_MAX_PX * aspect));
   const h = aspect >= 1 ? Math.max(16, Math.round(ORTHO_MAX_PX / aspect)) : ORTHO_MAX_PX;
@@ -140,18 +146,43 @@ async function loadCtxOrtho(box: LonLatBox, aspect: number, signal?: AbortSignal
   const timer = setTimeout(() => ac.abort(), ORTHO_TIMEOUT_MS);
   const onAbort = () => ac.abort();
   signal?.addEventListener('abort', onAbort);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = '#9a7356';
+  g.fillRect(0, 0, w, h);
+  const n = ORTHO_TILES;
+  const xs = Array.from({ length: n + 1 }, (_, i) => Math.round((w * i) / n));
+  const ys = Array.from({ length: n + 1 }, (_, i) => Math.round((h * i) / n));
+  const lonAt = (px: number) => box.west + ((box.east - box.west) * px) / w;
+  const latAt = (py: number) => box.north - ((box.north - box.south) * py) / h;
+  let ok = 0;
   try {
-    const r = await fetch(ctxWmsUrl(box, w, h), { signal: ac.signal });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await createImageBitmap(await r.blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
-  } catch (e) {
-    if (signal?.aborted) throw e;
-    console.warn(`Снимок CTX не загружен: ${(e as Error).message}`);
-    return flatOrtho();
+    await Promise.all(
+      Array.from({ length: n * n }, async (_, k) => {
+        const i = k % n;
+        const j = Math.floor(k / n);
+        const tile: LonLatBox = { west: lonAt(xs[i]), east: lonAt(xs[i + 1]), north: latAt(ys[j]), south: latAt(ys[j + 1]) };
+        try {
+          const r = await fetch(ctxWmsUrl(tile, xs[i + 1] - xs[i], ys[j + 1] - ys[j]), { signal: ac.signal });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const bmp = await createImageBitmap(await r.blob());
+          g.drawImage(bmp, xs[i], ys[j], xs[i + 1] - xs[i], ys[j + 1] - ys[j]);
+          bmp.close();
+          ok++;
+        } catch (e) {
+          if (signal?.aborted) throw e;
+        }
+      }),
+    );
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', onAbort);
   }
+  if (ok < n * n) console.warn(`Снимок CTX: загружено ${ok} из ${n * n} частей`);
+  if (ok === 0) return flatOrtho();
+  return createImageBitmap(canvas);
 }
 
 export async function buildOverviewPackage(route: PlannedWalkRoute, signal?: AbortSignal): Promise<SitePackage> {
