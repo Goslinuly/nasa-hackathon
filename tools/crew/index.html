@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Экипаж: физиология выхода — Martian Map</title>
+<style>
+  :root {
+    --bg: #0d0a08; --card: #171210; --line: #332620; --text: #f0e2d4; --dim: #a8907c;
+    --accent: #e8a864; --ok: #8fd49b; --warn: #e8c074; --danger: #f08a7a;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f6f1ea; --card: #fffdfa; --line: #e2d6c8; --text: #241a14; --dim: #6d5a4a;
+      --accent: #b96a1c; --ok: #2f7a43; --warn: #8a6410; --danger: #a8342a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--mono);
+    font-size: 13px; line-height: 1.55; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 19px; margin: 0 0 4px; letter-spacing: .02em; }
+  .sub { color: var(--dim); margin: 0 0 22px; max-width: 70ch; }
+
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h2 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent);
+    margin: 0 0 10px; }
+  .card h3 { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
+    margin: 14px 0 6px; border-top: 1px solid var(--line); padding-top: 9px; }
+
+  .row { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; }
+  .row + .row { margin-top: 3px; }
+  .row .k { color: var(--dim); }
+  .row .v { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .big { font-size: 26px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .unit { font-size: 13px; color: var(--dim); }
+
+  label { display: block; color: var(--dim); font-size: 11px; margin-bottom: 3px; }
+  input, select { width: 100%; font: inherit; font-size: 13px; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .fields { display: grid; gap: 9px; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  th, td { text-align: right; padding: 4px 5px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  th { color: var(--dim); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+  th:first-child, td:first-child { text-align: left; }
+  td input { width: 72px; padding: 3px 5px; }
+
+  .tag { display: inline-block; font-size: 9px; letter-spacing: .07em; text-transform: uppercase;
+    padding: 1px 6px; border-radius: 99px; border: 1px solid currentColor; }
+  .t-measurement { color: var(--ok); }
+  .t-model { color: var(--accent); }
+  .t-rule { color: var(--warn); }
+
+  .note { display: flex; gap: 8px; align-items: flex-start; color: var(--dim); font-size: 11.5px; margin-top: 8px; }
+  .note .tag { flex: none; margin-top: 2px; }
+
+  .adv { border-left: 3px solid var(--line); padding: 6px 0 6px 11px; margin-top: 9px; }
+  .adv.ok { border-color: var(--ok); }
+  .adv.warn { border-color: var(--warn); }
+  .adv.danger { border-color: var(--danger); }
+
+  .btn { font: inherit; font-size: 12px; color: var(--text); background: transparent;
+    border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  footer { color: var(--dim); font-size: 11px; margin-top: 26px; max-width: 80ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Экипаж: физиология выхода</h1>
+  <p class="sub">
+    Что происходит с человеком на поверхности Марса: сколько он весит и как прыгает, сколько ест,
+    сколько тепла надо отвести, сколько кислорода стоит маршрут и какую дозу он набирает.
+    Рядом с каждым числом — <span class="tag t-measurement">измерение</span>
+    <span class="tag t-model">модель</span> <span class="tag t-rule">правило</span>, чтобы было видно,
+    что измерено, что посчитано, а что просто принято.
+  </p>
+
+  <div class="grid">
+
+    <section class="card">
+      <h2>Человек</h2>
+      <div class="fields">
+        <div><label for="sex">пол</label><select id="sex"><option value="female">женский</option><option value="male">мужской</option></select></div>
+        <div><label for="age">возраст, лет</label><input id="age" type="number" value="36" min="16" max="80"></div>
+        <div><label for="height">рост, см</label><input id="height" type="number" value="170" min="120" max="220"></div>
+        <div><label for="body">вес, кг</label><input id="body" type="number" value="70" min="35" max="160"></div>
+      </div>
+      <h3>Снаряжение и прыжок</h3>
+      <div class="fields">
+        <div><label for="load">скафандр с ранцем, кг</label><input id="load" type="number" value="45" min="0" max="140"></div>
+        <div><label for="earthjump">прыжок на Земле, см</label><input id="earthjump" type="number" value="40" min="5" max="120"></div>
+        <div><label for="surface">грунт</label><select id="surface"><option value="firm">плотный</option><option value="sand">песок</option></select></div>
+      </div>
+      <h3>Ранец и миссия</h3>
+      <div class="fields">
+        <div><label for="water">вода на охлаждение, кг</label><input id="water" type="number" value="4" min="0.5" max="20" step="0.1"></div>
+        <div><label for="o2">кислород, л</label><input id="o2" type="number" value="420" min="50" max="3000"></div>
+        <div><label for="sky">доля видимого неба</label><input id="sky" type="number" value="0.75" min="0.05" max="1" step="0.05"></div>
+        <div><label for="sols">миссия, солов</label><input id="sols" type="number" value="500" min="1" max="2000"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Маршрут выхода</h2>
+      <table id="legs-table">
+        <thead><tr><th>нога</th><th>длина, м</th><th>уклон, °</th><th>время</th><th>O₂, л</th></tr></thead>
+        <tbody id="legs"></tbody>
+      </table>
+      <div style="margin-top:9px; display:flex; gap:6px">
+        <button class="btn" id="add-leg">+ нога</button>
+        <button class="btn" id="del-leg">− нога</button>
+      </div>
+      <h3>Итого</h3>
+      <div class="row"><span class="k">длина</span><span class="v" id="r-dist">—</span></div>
+      <div class="row"><span class="k">время</span><span class="v" id="r-time">—</span></div>
+      <div class="row"><span class="k">подъём / спуск</span><span class="v" id="r-climb">—</span></div>
+      <div class="row"><span class="k">кислород</span><span class="v" id="r-o2">—</span></div>
+      <div class="row"><span class="k">то же в массе</span><span class="v" id="r-o2kg">—</span></div>
+      <div class="row"><span class="k">углекислый газ на поглотитель</span><span class="v" id="r-co2">—</span></div>
+      <div class="row"><span class="k">энергия</span><span class="v" id="r-kcal">—</span></div>
+      <div id="r-notes"></div>
+    </section>
+
+    <section class="card">
+      <h2>Прыжок</h2>
+      <div class="row" style="margin-bottom:6px">
+        <span class="k">в скафандре</span>
+        <span><span class="big" id="j-suit">—</span> <span class="unit">м</span></span>
+      </div>
+      <div class="row">
+        <span class="k">без скафандра</span>
+        <span><span class="big" id="j-free">—</span> <span class="unit">м</span></span>
+      </div>
+      <h3>Что за этим стоит</h3>
+      <div class="row"><span class="k">работа ног за прыжок</span><span class="v" id="j-work">—</span></div>
+      <div class="row"><span class="k">скорость отрыва</span><span class="v" id="j-v0">—</span></div>
+      <div class="row"><span class="k">время полёта</span><span class="v" id="j-t">—</span></div>
+      <div class="row"><span class="k">скорость приземления</span><span class="v" id="j-land">—</span></div>
+      <div class="row"><span class="k">во сколько раз выше земного</span><span class="v" id="j-ratio">—</span></div>
+      <div id="j-notes"></div>
+    </section>
+
+    <section class="card">
+      <h2>Теплоотдача</h2>
+      <div class="row"><span class="k">метаболическая мощность</span><span class="v" id="t-power">—</span></div>
+      <div class="row"><span class="k">уходит в подъём</span><span class="v" id="t-climb">—</span></div>
+      <div class="row"><span class="k">надо отвести теплом</span><span class="v" id="t-heat">—</span></div>
+      <h3>Расход ранца</h3>
+      <div class="row"><span class="k">вода сублиматора</span><span class="v" id="t-water">—</span></div>
+      <div class="row"><span class="k">кислород</span><span class="v" id="t-o2">—</span></div>
+      <div class="row"><span class="k">хватит воды на</span><span class="v" id="t-wh">—</span></div>
+      <div class="row"><span class="k">хватит кислорода на</span><span class="v" id="t-oh">—</span></div>
+      <div class="row"><span class="k">кончится первым</span><span class="v" id="t-limit">—</span></div>
+      <div id="t-notes"></div>
+    </section>
+
+    <section class="card">
+      <h2>Питание на эти сутки</h2>
+      <div class="row" style="margin-bottom:6px">
+        <span class="k">всего</span>
+        <span><span class="big" id="n-total">—</span> <span class="unit">ккал</span></span>
+      </div>
+      <div class="row"><span class="k">основной обмен</span><span class="v" id="n-bmr">—</span></div>
+      <div class="row"><span class="k">вне выхода</span><span class="v" id="n-hab">—</span></div>
+      <div class="row"><span class="k">сам выход</span><span class="v" id="n-eva">—</span></div>
+      <h3>БЖУ</h3>
+      <div class="row"><span class="k">белки</span><span class="v" id="n-p">—</span></div>
+      <div class="row"><span class="k">жиры</span><span class="v" id="n-f">—</span></div>
+      <div class="row"><span class="k">углеводы</span><span class="v" id="n-c">—</span></div>
+      <div class="row"><span class="k">питьевая вода</span><span class="v" id="n-w">—</span></div>
+      <div id="n-notes"></div>
+    </section>
+
+    <section class="card">
+      <h2>Радиация</h2>
+      <div class="row"><span class="k">за выход, открытое место</span><span class="v" id="d-open">—</span></div>
+      <div class="row"><span class="k">с экранированием рельефом</span><span class="v" id="d-shield">—</span></div>
+      <div class="row"><span class="k">доля, которую рельеф не снимет</span><span class="v" id="d-floor">—</span></div>
+      <div class="row"><span class="k">поправка на набор высоты</span><span class="v" id="d-elev">—</span></div>
+      <h3>Миссия</h3>
+      <div class="row"><span class="k">фон за всю миссию</span><span class="v" id="d-mission">—</span></div>
+      <div class="row"><span class="k">доля карьерного предела</span><span class="v" id="d-career">—</span></div>
+      <div id="d-notes"></div>
+    </section>
+
+    <section class="card" style="grid-column: 1 / -1">
+      <h2>Советы</h2>
+      <div id="advice"></div>
+    </section>
+  </div>
+
+  <footer>
+    Источники: доза — MSL RAD, PDS PPI <code>MSL-M-RAD-3-RDR-V1.0</code>, NASA/JPL-Caltech/SwRI.
+    Скорость, метаболическая мощность и кислород — модель Санти в том же виде, что в
+    <code>backend/src/martian_map/modules/eva/mobility.py</code> и
+    <code>frontend/src/shared/eva/traverse.ts</code>. Вывод всех формул — в
+    <code>docs/PHYSICS.md</code>. Источник истины для сайта —
+    <code>frontend/src/shared/eva/crew.ts</code>; эта страница повторяет его формулы,
+    чтобы её можно было открыть без сборки.
+  </footer>
+</div>
+
+<script type="module">
+// ═══════════════════════════════════════════════════════════════════════
+// Зеркало frontend/src/shared/eva/crew.ts и traverse.ts.
+// Менять формулы — сразу в обоих местах; числа закреплены в crew.test.ts.
+// ═══════════════════════════════════════════════════════════════════════
+
+const G_MARS = 3.72076, G_EARTH = 9.80665;
+const W_PER_LPM_O2 = 348.3;          // traverse.ts: 348,3 Вт на л/мин при RQ 0,85
+const SUBLIMATOR_J_PER_KG = 2.50e6;  // сублимация льда 2,83 МДж/кг минус замерзание 0,334
+const O2_G_PER_L = 1.429;
+const RQ = 0.85;
+const CAREER_LIMIT_MSV = 600;
+const QUALITY_FACTOR = 3.05;
+const ALBEDO_SHARE = 0.21;
+const DOSE = { typical: 0.64, sigma: 0.12 };   // мЗв/земные сутки, RAD
+const SOL_SECONDS = 88775.244;
+
+// ─── traverse.ts ───
+const walkSpeedMs = (s) => -0.01 * Math.max(-20, Math.min(20, s)) + 0.75;
+const outsideDomain = (s) => Math.abs(s) > 20;
+const gradePercent = (s) => Math.tan((s * Math.PI) / 180) * 100;
+const terrainFactor = (surface, v) => (surface === 'sand' ? [1.5 + 1.3 / (v * v), 1.5 + 1.3 / (v * v)] : [1.0, 1.2]);
+
+function metabolicPowerW(crew, load, v, gradePct, eta, mode) {
+  const total = crew + load;
+  const t1 = 1.5 * crew;
+  const t2 = 2.0 * total * (load / crew) ** 2;
+  const t3a = eta * total * 1.5 * v * v;
+  const t3b = eta * total * 0.35 * v * gradePct;
+  const cf = gradePct <= 0
+    ? eta * ((gradePct * total * v) / 3.5 - (total * (gradePct + 6) ** 2) / crew + (25 - v * v))
+    : 0;
+  return mode === 'nasa_tool' ? 0.38 * (t1 + t2 + t3a + t3b - cf) : 0.38 * (t1 + t2 + t3b - cf) + t3a;
+}
+
+function powerCorridorW(crew, load, v, gradePct, surface) {
+  const [a, b] = terrainFactor(surface, Math.max(0.05, v));
+  const etas = a === b ? [a] : [a, b];
+  const vals = [];
+  for (const eta of etas) for (const m of ['nasa_tool', 'inertial_kept']) vals.push(metabolicPowerW(crew, load, v, gradePct, eta, m));
+  return [Math.max(0, Math.min(...vals)), Math.max(0, Math.max(...vals))];
+}
+
+const oxygenLpm = (w) => w / W_PER_LPM_O2;
+
+// ─── crew.ts: прыжок ───
+function jump(bodyKg, loadKg, earthJumpM) {
+  const workJ = bodyKg * G_EARTH * earthJumpM;
+  const h = workJ / ((bodyKg + loadKg) * G_MARS);
+  const v0 = Math.sqrt(2 * G_MARS * h);
+  const free = workJ / (bodyKg * G_MARS);
+  return { workJ, heightM: h, freeHeightM: free, takeoffMs: v0, flightS: (2 * v0) / G_MARS,
+    landingMs: v0, ratio: earthJumpM > 0 ? h / earthJumpM : 0 };
+}
+
+// ─── crew.ts: маршрут ───
+function routeCost(legs, bodyKg, loadKg, surface) {
+  let seconds = 0, o2L = 0, ascentM = 0, descentM = 0, distanceM = 0, anyOutside = false;
+  const rows = [];
+  for (const leg of legs) {
+    const v = walkSpeedMs(leg.slopeDeg);
+    const G = gradePercent(leg.slopeDeg);
+    const [lo, hi] = powerCorridorW(bodyKg, loadKg, v, G, surface);
+    const t = leg.lengthM / v;
+    const o2 = oxygenLpm((lo + hi) / 2) * (t / 60);
+    const climb = leg.lengthM * Math.tan((leg.slopeDeg * Math.PI) / 180);
+    rows.push({ ...leg, seconds: t, o2L: o2, speedMs: v, climbM: climb, outside: outsideDomain(leg.slopeDeg) });
+    seconds += t; o2L += o2; distanceM += leg.lengthM;
+    if (climb > 0) ascentM += climb; else descentM += -climb;
+    if (outsideDomain(leg.slopeDeg)) anyOutside = true;
+  }
+  return { rows, seconds, o2L, ascentM, descentM, distanceM, anyOutside,
+    o2Kg: (o2L * O2_G_PER_L) / 1000, co2L: o2L * RQ, kcal: (o2L * W_PER_LPM_O2 * 60) / 4184 };
+}
+
+// ─── crew.ts: теплоотдача ───
+function thermal(bodyKg, loadKg, speedMs, slopeDeg, surface, feedwaterKg, oxygenL) {
+  const [lo, hi] = powerCorridorW(bodyKg, loadKg, speedMs, gradePercent(slopeDeg), surface);
+  const mid = (lo + hi) / 2;
+  const sin = Math.sin((slopeDeg * Math.PI) / 180);
+  const climbW = sin > 0 ? (bodyKg + loadKg) * G_MARS * speedMs * sin : 0;
+  const heatW = Math.max(0, mid - climbW);
+  const waterKgH = (heatW * 3600) / SUBLIMATOR_J_PER_KG;
+  const o2Lpm = oxygenLpm(mid);
+  const waterHours = waterKgH > 0 ? feedwaterKg / waterKgH : Infinity;
+  const oxygenHours = o2Lpm > 0 ? oxygenL / (o2Lpm * 60) : Infinity;
+  const limiting = waterHours <= oxygenHours ? 'вода' : 'кислород';
+  return { powerLowW: lo, powerHighW: hi, powerMidW: mid, climbW, heatW, waterKgH,
+    oxygenLpm: o2Lpm, waterHours, oxygenHours, limiting, limitHours: Math.min(waterHours, oxygenHours) };
+}
+
+// ─── crew.ts: питание ───
+function nutrition(sex, ageYears, heightCm, bodyKg, evaHours, evaPowerW) {
+  const base = 10 * bodyKg + 6.25 * heightCm - 5 * ageYears;
+  const bmrKcal = sex === 'male' ? base + 5 : base - 161;
+  const evaH = Math.max(0, Math.min(24, evaHours));
+  const habitatKcal = (bmrKcal / 24) * 1.3 * (24 - evaH);
+  const evaKcal = (evaPowerW * evaH * 3600) / 4184;
+  const totalKcal = habitatKcal + evaKcal;
+  const proteinG = 1.6 * bodyKg;
+  const fatG = (0.3 * totalKcal) / 9;
+  const carbG = Math.max(0, (totalKcal - proteinG * 4 - fatG * 9) / 4);
+  return { bmrKcal, habitatKcal, evaKcal, totalKcal, proteinG, fatG, carbG,
+    drinkingWaterL: Math.max(2, totalKcal / 1000) + 0.25 * evaH };
+}
+
+// ─── crew.ts: радиация ───
+function radiation(evaSeconds, skyViewFraction, ascentM, surfaceSols) {
+  const days = Math.max(0, evaSeconds) / 86400;
+  const openMSv = DOSE.typical * days;
+  const sky = Math.max(0, Math.min(1, skyViewFraction));
+  const shieldFraction = (1 - ALBEDO_SHARE) * sky + ALBEDO_SHARE;
+  const sols = Math.max(0, evaSeconds) / SOL_SECONDS;
+  const elevationMSv = ((ascentM / 100) * 4 * QUALITY_FACTOR * sols) / 1000;
+  const missionMSv = DOSE.typical * Math.max(0, surfaceSols) * 1.0275;
+  return { openMSv, lowMSv: (DOSE.typical - DOSE.sigma) * days, highMSv: (DOSE.typical + DOSE.sigma) * days,
+    shieldFraction, shieldedMSv: openMSv * shieldFraction + elevationMSv, elevationMSv,
+    missionMSv, careerPercent: (missionMSv / CAREER_LIMIT_MSV) * 100 };
+}
+
+// ═══════════════════════════ интерфейс ═══════════════════════════
+const $ = (id) => document.getElementById(id);
+const num = (id) => Number($(id).value);
+const fmt = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
+const hm = (s) => {
+  if (!Number.isFinite(s)) return '—';
+  const m = Math.round(s / 60);
+  return m >= 60 ? `${Math.floor(m / 60)} ч ${String(m % 60).padStart(2, '0')} мин` : `${m} мин`;
+};
+const tag = (kind) => {
+  const label = { measurement: 'измерение', model: 'модель', rule: 'правило' }[kind];
+  return `<span class="tag t-${kind}">${label}</span>`;
+};
+const notes = (where, list) => {
+  $(where).innerHTML = list.map(([kind, text]) => `<div class="note">${tag(kind)}<span>${text}</span></div>`).join('');
+};
+
+let legs = [{ lengthM: 900, slopeDeg: 6 }, { lengthM: 700, slopeDeg: 0 }, { lengthM: 900, slopeDeg: -6 }];
+
+function drawLegs(rows) {
+  $('legs').innerHTML = legs.map((leg, i) => {
+    const r = rows && rows[i];
+    return `<tr>
+      <td>${i + 1}</td>
+      <td><input data-leg="${i}" data-field="lengthM" type="number" value="${leg.lengthM}" min="0" step="50"></td>
+      <td><input data-leg="${i}" data-field="slopeDeg" type="number" value="${leg.slopeDeg}" min="-40" max="40" step="1"></td>
+      <td>${r ? hm(r.seconds) : '—'}</td>
+      <td>${r ? fmt(r.o2L) : '—'}</td>
+    </tr>`;
+  }).join('');
+  $('legs').querySelectorAll('input').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      legs[Number(inp.dataset.leg)][inp.dataset.field] = Number(inp.value);
+      recompute();
+    });
+  });
+}
+
+function recompute() {
+  const sex = $('sex').value, age = num('age'), height = num('height'), body = num('body');
+  const load = num('load'), earthJump = num('earthjump') / 100, surface = $('surface').value;
+  const feedwater = num('water'), oxygen = num('o2'), sky = num('sky'), sols = num('sols');
+
+  const route = routeCost(legs, body, load, surface);
+  const meanSlope = route.distanceM > 0
+    ? legs.reduce((s, l) => s + l.slopeDeg * l.lengthM, 0) / route.distanceM : 0;
+  const th = thermal(body, load, walkSpeedMs(meanSlope), meanSlope, surface, feedwater, oxygen);
+  const nut = nutrition(sex, age, height, body, route.seconds / 3600, th.powerMidW);
+  const jmp = jump(body, load, earthJump);
+  const rad = radiation(route.seconds, sky, route.ascentM, sols);
+
+  drawLegs(route.rows);
+
+  $('r-dist').textContent = `${fmt(route.distanceM / 1000, 2)} км`;
+  $('r-time').textContent = hm(route.seconds);
+  $('r-climb').textContent = `+${fmt(route.ascentM, 0)} / −${fmt(route.descentM, 0)} м`;
+  $('r-o2').textContent = `${fmt(route.o2L)} л`;
+  $('r-o2kg').textContent = `${fmt(route.o2Kg, 3)} кг`;
+  $('r-co2').textContent = `${fmt(route.co2L)} л`;
+  $('r-kcal').textContent = `${fmt(route.kcal, 0)} ккал`;
+  notes('r-notes', [
+    ['model', 'Кислород считается той же моделью, что и маршрут на карте: расхождений между панелями быть не может.'],
+    ['model', 'Подъём дороже спуска: за уклон в модели Санти отвечает слагаемое 0,35·V·G, линейное по уклону.'],
+    ...(route.anyOutside ? [['rule', 'Есть ноги круче ±20°: модель скорости там не определена, посчитано по границе.']] : []),
+  ]);
+
+  $('j-suit').textContent = fmt(jmp.heightM, 2);
+  $('j-free').textContent = fmt(jmp.freeHeightM, 2);
+  $('j-work').textContent = `${fmt(jmp.workJ, 0)} Дж`;
+  $('j-v0').textContent = `${fmt(jmp.takeoffMs, 2)} м/с`;
+  $('j-t').textContent = `${fmt(jmp.flightS, 2)} с`;
+  $('j-land').textContent = `${fmt(jmp.landingMs, 2)} м/с`;
+  $('j-ratio').textContent = `×${fmt(jmp.ratio, 2)}`;
+  notes('j-notes', [
+    ['model', 'Модель «та же работа ног»: W = m·g·h на Земле, на Марсе та же работа поднимает уже массу с'
+      + ' ранцем. Жёсткость скафандра не учтена, реальный прыжок будет ниже.'],
+    ['model', 'Вес влияет только через отношение массы тела к массе со скафандром: костюм одинаковый, поэтому'
+      + ' тяжёлому человеку он мешает относительно меньше.'],
+    ['measurement', 'Скорость приземления равна скорости отрыва — и на Земле, и на Марсе. Выше прыжок не значит'
+      + ' мягче падение: удар тот же, просто полёт дольше.'],
+    ['rule', 'В скафандре прыгать не нужно: падение в жёстком костюме с ранцем — главный риск травмы на выходе.'],
+  ]);
+
+  $('t-power').textContent = `${fmt(th.powerLowW, 0)}–${fmt(th.powerHighW, 0)} Вт`;
+  $('t-climb').textContent = `${fmt(th.climbW, 0)} Вт`;
+  $('t-heat').textContent = `${fmt(th.heatW, 0)} Вт`;
+  $('t-water').textContent = `${fmt(th.waterKgH, 3)} кг/ч`;
+  $('t-o2').textContent = `${fmt(th.oxygenLpm, 3)} л/мин`;
+  $('t-wh').textContent = `${fmt(th.waterHours)} ч`;
+  $('t-oh').textContent = `${fmt(th.oxygenHours)} ч`;
+  $('t-limit').textContent = th.limiting;
+  notes('t-notes', [
+    ['model', 'Полезная работа — только подъём центра масс, P = m·g·V·sin θ. Всё остальное становится теплом;'
+      + ' на спуске полезной работы нет вовсе.'],
+    ['measurement', '2,50 МДж на килограмм воды: сублимация льда 2,83 минус теплота замерзания 0,334.'
+      + ' Проверка: при 350 Вт это 0,50 кг/ч — столько и расходовал ранец Apollo.'],
+    ['rule', 'В проекте записано отдельно: для пеших траверсов ограничивающим ресурсом обычно оказывается'
+      + ' вода на охлаждение, а не кислород.'],
+  ]);
+
+  $('n-total').textContent = fmt(nut.totalKcal, 0);
+  $('n-bmr').textContent = `${fmt(nut.bmrKcal, 0)} ккал`;
+  $('n-hab').textContent = `${fmt(nut.habitatKcal, 0)} ккал`;
+  $('n-eva').textContent = `${fmt(nut.evaKcal, 0)} ккал`;
+  $('n-p').textContent = `${fmt(nut.proteinG, 0)} г`;
+  $('n-f').textContent = `${fmt(nut.fatG, 0)} г`;
+  $('n-c').textContent = `${fmt(nut.carbG, 0)} г`;
+  $('n-w').textContent = `${fmt(nut.drinkingWaterL)} л`;
+  notes('n-notes', [
+    ['model', 'Основной обмен по Миффлину–Сан Жеору: земная формула, для Марса и невесомости не валидирована.'],
+    ['model', 'Расход на выходе берётся не из таблиц активности, а из той же метаболической модели, что считает кислород.'],
+    ['rule', 'Белок 1,6 г/кг и жир 30 % калорийности — ориентир спортивного питания, а не норма NASA.'],
+  ]);
+
+  $('d-open').textContent = `${fmt(rad.openMSv, 3)} мЗв`;
+  $('d-shield').textContent = `${fmt(rad.shieldedMSv, 3)} мЗв`;
+  $('d-floor').textContent = `${fmt(ALBEDO_SHARE * 100, 0)} %`;
+  $('d-elev').textContent = `${fmt(rad.elevationMSv, 4)} мЗв`;
+  $('d-mission').textContent = `${fmt(rad.missionMSv, 0)} мЗв`;
+  $('d-career').textContent = `${fmt(rad.careerPercent, 0)} %`;
+  notes('d-notes', [
+    ['measurement', 'Фон 0,64 ± 0,12 мЗв/сут — измерение RAD на Curiosity. Диапазон 0,25–0,95 задаёт солнечный цикл,'
+      + ' поэтому одним числом подавать нельзя.'],
+    ['model', 'Экранирование рельефом: доля = (1 − 0,21)·небо + 0,21. Пол в 21 % — вторичные частицы из грунта,'
+      + ' они приходят снизу, и стена кратера их не закрывает.'],
+    ['rule', 'Карьерный предел NASA 600 мЗв — эксплуатационное правило, а не порог вреда.'],
+  ]);
+
+  // ─── советы ───
+  const hours = route.seconds / 3600;
+  const adv = [];
+  if (hours > th.limitHours) {
+    adv.push(['danger', `Маршрут занимает ${fmt(hours)} ч, а ${th.limiting} кончится через ${fmt(th.limitHours)} ч. Сократить маршрут или взять больше.`]);
+  } else if (hours > th.limitHours * 0.7) {
+    adv.push(['warn', `Маршрут съедает больше 70 % запаса: ${fmt(hours)} ч из ${fmt(th.limitHours)} ч. Резерва на возврат при отказе почти нет.`]);
+  } else {
+    adv.push(['ok', `Запас держит: ${fmt(hours)} ч пути против ${fmt(th.limitHours)} ч ресурса, ограничивает ${th.limiting}.`]);
+  }
+  if (route.o2L > oxygen) adv.push(['danger', `Кислорода нужно ${fmt(route.o2L, 0)} л, а в ранце ${fmt(oxygen, 0)} л.`]);
+  const maxSlope = legs.reduce((m, l) => Math.max(m, Math.abs(l.slopeDeg)), 0);
+  if (maxSlope > 25) adv.push(['danger', `Уклон ${maxSlope}° круче ориентира сообщества 25°. Численного требования NASA по уклону не существует, но это за всеми практиками.`]);
+  else if (maxSlope > 20) adv.push(['danger', `Уклон ${maxSlope}° выше правила планировщика 20°: такой участок исключают.`]);
+  else if (maxSlope > 15) adv.push(['warn', `Уклон ${maxSlope}° выше консервативного порога 15°. Модели рельефа ошибаются на величину порядка самого порога.`]);
+  if (th.limiting === 'вода') adv.push(['warn', 'Ограничивает вода на охлаждение. Снизить темп: тепло растёт как квадрат скорости, а время — только обратно пропорционально ей.']);
+  if (route.ascentM > 300) adv.push(['warn', `Набор высоты ${fmt(route.ascentM, 0)} м. Подъём планировать на начало выхода, спуск — на возврат: дешевле и безопаснее.`]);
+  if (rad.careerPercent > 50) adv.push(['warn', `Фон за миссию — ${fmt(rad.careerPercent, 0)} % карьерного предела. Это решается на уровне программы, а не одного выхода.`]);
+  adv.push(['ok', `Рацион на эти сутки: ${fmt(nut.totalKcal, 0)} ккал, из них ${fmt(nut.evaKcal, 0)} даёт сам выход. Питьевой воды ${fmt(nut.drinkingWaterL)} л — это помимо ${fmt(feedwater)} кг на охлаждение.`]);
+  $('advice').innerHTML = adv.map(([lvl, text]) => `<div class="adv ${lvl}">${text}</div>`).join('');
+}
+
+document.querySelectorAll('#sex,#age,#height,#body,#load,#earthjump,#surface,#water,#o2,#sky,#sols')
+  .forEach((e) => e.addEventListener('input', recompute));
+$('add-leg').addEventListener('click', () => { legs.push({ lengthM: 500, slopeDeg: 0 }); recompute(); });
+$('del-leg').addEventListener('click', () => { if (legs.length > 1) legs.pop(); recompute(); });
+
+drawLegs(null);
+recompute();
+</script>
+</body>
+</html>
