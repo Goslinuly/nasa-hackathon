@@ -19,6 +19,8 @@ import { shadowNeedsRefresh } from './shadowPolicy';
 import { TerrainChunks } from './terrainMesh';
 import { buildTrackPath, headingAlong, nearestOnPath, pointAt, TRACK_CORRIDOR_M, type TrackPath } from './trackPath';
 import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
+import { takePlannedWalkRoute, type PlannedWalkRoute } from '@/shared/walkRoute';
+import { findPath, nearestPassable, passableMask, routeWalkTime, simplifyPath, type RouteGrid } from './gridRoute';
 
 export const EYE_HEIGHT_M = 1.7;
 /** Высота, на которую камера поднимается перед переходом на шар. */
@@ -95,6 +97,38 @@ export interface WalkExtra {
   trackLength: number;
   /** Крутизна выше порога, пропущенная на следе ровера, градусы (NaN — не было). */
   steepOnTrackDeg: number;
+  /** Свой маршрут: откуда, длина, м, и время пешком по модели, с (null — нет маршрута). */
+  route: { source: 'planner' | 'walk'; lengthM: number; walkS: number } | null;
+  /** Щелчок по мини-карте прокладывает маршрут. */
+  routeMode: boolean;
+  /** Последняя попытка проложить маршрут не удалась (показываем ~4 с). */
+  routeFailed: boolean;
+}
+
+/**
+ * Маршрут забирается из общего хранилища один раз; повторное создание сцены для того же
+ * участка в течение пары секунд (двойной запуск эффектов в режиме разработки) получает его же.
+ */
+let lastTaken: { siteId: string; route: PlannedWalkRoute; at: number } | null = null;
+function takeRouteOnce(siteId: string): PlannedWalkRoute | null {
+  const route = takePlannedWalkRoute(siteId);
+  if (route) {
+    lastTaken = { siteId, route, at: Date.now() };
+    return route;
+  }
+  if (lastTaken && lastTaken.siteId === siteId && Date.now() - lastTaken.at < 3000) return lastTaken.route;
+  return null;
+}
+
+/** Шаг грубой сетки для поиска маршрута, м. */
+const ROUTE_CELL_M = 3;
+const ROUTE_COLOR = '#3fe0ff';
+
+interface CustomRoute {
+  source: 'planner' | 'walk';
+  path: TrackPath;
+  walkS: number;
+  mesh: THREE.Group;
 }
 
 export interface TeleportTarget {
@@ -202,6 +236,12 @@ export class WalkScene {
   private trackPath: TrackPath | null = null;
   private autoDrive = false;
   private autoS = 0;
+  /** Свой маршрут (из планировщика или проложенный здесь); автоуправление едет по нему. */
+  private customRoute: CustomRoute | null = null;
+  private routeMode = false;
+  private routeFailedAt = -Infinity;
+  private routeLabels: Label[] = [];
+  private routeGrid: RouteGrid | null = null;
   private steepOnTrackDeg = NaN;
   private steepAt = 0;
   private trackLabels: Label[] = [];
@@ -304,6 +344,7 @@ export class WalkScene {
     this.buildPois();
     this.buildTeleports();
     this.placeAtStart();
+    this.loadPlannedRoute();
     this.scene.add(this.rover.group);
     void this.rover.load(`${import.meta.env.BASE_URL}models/perseverance.glb`).then((ok) => {
       if (ok) this.rover.setVisible(true);
@@ -590,7 +631,8 @@ export class WalkScene {
       const r = canvas.getBoundingClientRect();
       const x = a.x + (e.clientX - r.left) / this.minimapScale;
       const z = a.z + (e.clientY - r.top) / this.minimapScale;
-      this.teleport(x, z);
+      if (this.routeMode) this.routeTo(x, z);
+      else this.teleport(x, z);
       e.stopPropagation();
     };
     canvas.addEventListener('pointerdown', onDown);
@@ -606,6 +648,18 @@ export class WalkScene {
     const dpr = canvas.width / parseFloat(canvas.style.width || '1');
     ctx.drawImage(this.minimapBase, 0, 0);
     const k = this.minimapScale * dpr;
+    if (this.customRoute) {
+      ctx.strokeStyle = ROUTE_COLOR;
+      ctx.lineWidth = 2.5 * dpr;
+      ctx.beginPath();
+      this.customRoute.path.pts.forEach((p, i) => {
+        const x = (p.x - this.minimapOrigin.x) * k;
+        const y = (p.z - this.minimapOrigin.z) * k;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
     const mx = (this.px - this.minimapOrigin.x) * k;
     const my = (this.pz - this.minimapOrigin.z) * k;
     this.camera.getWorldDirection(this.tmp);
@@ -1057,7 +1111,7 @@ export class WalkScene {
 
   /** Автоуправление: ровер едет по треку со своей скоростью, курс сглажен по точке впереди. */
   private autoStep(dt: number): void {
-    const path = this.trackPath;
+    const path = this.activePath;
     if (!path) return this.setAutoDrive(false);
     const next = Math.min(path.length, this.autoS + ROVER_SPEED_MS * dt * this.timeScale);
     const p = pointAt(path, next);
@@ -1086,7 +1140,7 @@ export class WalkScene {
 
   /** Включить/выключить автоуправление по треку ровера. Включение пересаживает в ровер на трек. */
   setAutoDrive(on: boolean): void {
-    const path = this.trackPath;
+    const path = this.activePath;
     if (!on || !path || this.liftHold) {
       if (this.autoDrive) {
         this.autoDrive = false;
@@ -1118,6 +1172,170 @@ export class WalkScene {
 
   get hasTrack(): boolean {
     return this.trackPath !== null;
+  }
+
+  /** Путь автоуправления: свой маршрут, если есть, иначе трек ровера. */
+  private get activePath(): TrackPath | null {
+    return this.customRoute?.path ?? this.trackPath;
+  }
+
+  get hasActivePath(): boolean {
+    return this.activePath !== null;
+  }
+
+  // ---------- свой маршрут ----------
+
+  /** Маршрут из планировщика на шаре: становится активным, старт — в его первой точке. */
+  private loadPlannedRoute(): void {
+    const planned = takeRouteOnce(this.opts.pkg.manifest.id);
+    if (!planned) return;
+    const frame = this.opts.pkg.frame;
+    const pts = planned.points.map((p) => lonLatToLocal(frame, p.lonEast, p.lat));
+    if (!this.setCustomRoute(pts, planned.source)) return;
+    const start = this.nearestValid(pts[0].x, pts[0].z);
+    this.px = start.x;
+    this.pz = start.z;
+    this.baseX = start.x;
+    this.baseZ = start.z;
+    const yaw = headingAlong(this.customRoute!.path, 0);
+    this.startYaw = yaw;
+    this.roverYaw = yaw;
+    this.camera.rotation.set(0, yaw, 0);
+    this.updateCameraHeight();
+  }
+
+  private setCustomRoute(pts: { x: number; z: number }[], source: 'planner' | 'walk'): boolean {
+    const path = buildTrackPath(pts);
+    if (path.pts.length < 2) return false;
+    this.clearRoute(false);
+    const mesh = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({
+      color: ROUTE_COLOR, transparent: true, opacity: 0.85, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -10, depthWrite: false,
+    });
+    const ribbon = new THREE.Mesh(this.ribbonGeometry(path.pts, 0.35), material);
+    ribbon.renderOrder = 3;
+    mesh.add(ribbon);
+    const post = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
+    post.translate(0, 1, 0);
+    const postMaterial = new THREE.MeshBasicMaterial({ color: ROUTE_COLOR });
+    for (const p of [path.pts[0], path.pts[path.pts.length - 1]]) {
+      const y = this.groundY(p.x, p.z);
+      const m = new THREE.Mesh(post, postMaterial);
+      m.position.set(p.x, Number.isFinite(y) ? y : 0, p.z);
+      mesh.add(m);
+    }
+    this.scene.add(mesh);
+    const walkS = routeWalkTime(path.pts, (x, z) => this.sampler.heightAt(x, z), walkSpeed);
+    this.customRoute = { source, path, walkS, mesh };
+    if (!this.routeLabels.length) this.routeLabels = [this.makeLabel('walk-label walk-label-route'), this.makeLabel('walk-label walk-label-route')];
+    return true;
+  }
+
+  /** Убрать свой маршрут; автоуправление вернётся к треку ровера. */
+  clearRoute(emit = true): void {
+    const r = this.customRoute;
+    if (!r) return;
+    if (this.autoDrive) {
+      this.autoDrive = false;
+      this.speedMs = 0;
+    }
+    this.scene.remove(r.mesh);
+    const materials = new Set<THREE.Material>();
+    r.mesh.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      if (m.material) materials.add(m.material as THREE.Material);
+    });
+    materials.forEach((m) => m.dispose());
+    this.customRoute = null;
+    if (emit) this.emitState(true);
+  }
+
+  setRouteMode(on: boolean): void {
+    this.routeMode = on;
+    this.emitState(true);
+  }
+
+  /**
+   * Проложить маршрут от текущего места до точки по DTM: A* на сетке ROUTE_CELL_M,
+   * клетки без данных и круче порога maxSlopeDeg непроходимы. false — пути нет.
+   */
+  routeTo(x: number, z: number): boolean {
+    const { frame, grid } = this.opts.pkg;
+    const a = gridToLocal(frame, -0.5, -0.5);
+    const b = gridToLocal(frame, grid.width - 0.5, grid.height - 0.5);
+    const cell = ROUTE_CELL_M;
+    const width = Math.max(1, Math.floor((b.x - a.x) / cell));
+    const height = Math.max(1, Math.floor((b.z - a.z) / cell));
+    if (!this.routeGrid) {
+      // Крутизна в центрах клеток той же функцией, что и запрет шага (TerrainSampler.slopeDeg).
+      const slope = new Float32Array(width * height);
+      for (let r = 0; r < height; r++) {
+        for (let c = 0; c < width; c++) slope[r * width + c] = this.sampler.slopeDeg(a.x + (c + 0.5) * cell, a.z + (r + 0.5) * cell);
+      }
+      this.routeGrid = { width, height, cellM: cell, slope };
+    }
+    const g = this.routeGrid;
+    const toCell = (px: number, pz: number) => ({
+      col: Math.min(width - 1, Math.max(0, Math.floor((px - a.x) / cell))),
+      row: Math.min(height - 1, Math.max(0, Math.floor((pz - a.z) / cell))),
+    });
+    const mask = passableMask(g, this.maxSlopeDeg);
+    const start = toCell(this.px, this.pz);
+    const goal = nearestPassable(g, mask, toCell(x, z), 3);
+    const cells = goal ? findPath(g, mask, start, goal, this.maxSlopeDeg) : null;
+    if (!cells || cells.length < 2) {
+      this.routeFailedAt = performance.now();
+      this.emitState(true);
+      return false;
+    }
+    const pts = simplifyPath(g, mask, cells).map((c) => ({ x: a.x + (c.col + 0.5) * cell, z: a.z + (c.row + 0.5) * cell }));
+    pts[0] = { x: this.px, z: this.pz };
+    this.setCustomRoute(pts, 'walk');
+    this.routeFailedAt = -Infinity;
+    this.emitState(true);
+    return true;
+  }
+
+  /** Лента, уложенная на рельеф вдоль ломаной (шаг 1 м), полуширина half, м. */
+  private ribbonGeometry(pts: { x: number; z: number }[], half: number): THREE.BufferGeometry {
+    const samples: { x: number; z: number; dx: number; dz: number }[] = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (len < 1e-3) continue;
+      const n = Math.max(1, Math.ceil(len / 1.0));
+      for (let k = 0; k < n; k++) {
+        const t = k / n;
+        samples.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, dx: (b.x - a.x) / len, dz: (b.z - a.z) / len });
+      }
+    }
+    const last = pts[pts.length - 1];
+    if (samples.length) samples.push({ ...last, dx: samples[samples.length - 1].dx, dz: samples[samples.length - 1].dz });
+    const pos = new Float32Array(samples.length * 6);
+    const ok = new Uint8Array(samples.length);
+    samples.forEach((s, i) => {
+      const lx = s.x - s.dz * half;
+      const lz = s.z + s.dx * half;
+      const rx = s.x + s.dz * half;
+      const rz = s.z - s.dx * half;
+      const ly = this.groundY(lx, lz);
+      const ry = this.groundY(rx, rz);
+      ok[i] = Number.isFinite(ly) && Number.isFinite(ry) ? 1 : 0;
+      pos.set([lx, (ly || 0) + 0.14, lz, rx, (ry || 0) + 0.14, rz], i * 6);
+    });
+    const index: number[] = [];
+    for (let i = 0; i < samples.length - 1; i++) {
+      if (!ok[i] || !ok[i + 1]) continue;
+      const k = i * 2;
+      index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setIndex(index);
+    return g;
   }
 
   private groundAt = (x: number, z: number): number => this.sampler.heightAt(x, z) - this.refY;
@@ -1157,6 +1375,13 @@ export class WalkScene {
   }
 
   private updateLabels(): void {
+    const route = this.customRoute;
+    this.routeLabels.forEach((label, i) => {
+      const p = route ? route.path.pts[i === 0 ? 0 : route.path.pts.length - 1] : null;
+      const y = p ? this.groundY(p.x, p.z) : NaN;
+      if (p) label.pos.set(p.x, (Number.isFinite(y) ? y : 0) + 2.4, p.z);
+      this.project(label, i === 0 ? 'A' : tr('Б', 'B'), !!p);
+    });
     for (const p of this.pois) {
       const d = Math.hypot(p.x - this.px, p.z - this.pz);
       p.label.pos.y = p.y + Math.min(60, 4 + d * 0.05);
@@ -1228,7 +1453,12 @@ export class WalkScene {
       solar: this.solarState(),
       autoDrive: this.autoDrive,
       autoS: this.autoS,
-      trackLength: this.trackPath?.length ?? NaN,
+      trackLength: this.activePath?.length ?? NaN,
+      route: this.customRoute
+        ? { source: this.customRoute.source, lengthM: this.customRoute.path.length, walkS: this.customRoute.walkS }
+        : null,
+      routeMode: this.routeMode,
+      routeFailed: performance.now() - this.routeFailedAt < 4000,
       steepOnTrackDeg: performance.now() - this.steepAt < 1500 ? this.steepOnTrackDeg : NaN,
     });
   }

@@ -47,6 +47,10 @@
 .walk-minimap { position: absolute; right: 12px; bottom: 12px; z-index: 2; }
 .walk-minimap canvas { display: block; border: 1px solid rgba(255, 210, 170, 0.45); border-radius: 4px; cursor: crosshair; }
 .walk-minimap-credit { font-size: 10px; color: #c9b3a2; max-width: 200px; margin-top: 2px; text-shadow: 0 1px 2px #000; }
+.walk-route-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; max-width: 200px; }
+.walk-route-tools .walk-btn { font-size: 12px; padding: 4px 8px; }
+.walk-route-info { font-size: 11px; color: #bff4ff; max-width: 200px; margin-bottom: 4px; text-shadow: 0 1px 2px #000; }
+.walk-label-route { color: #bff4ff; border-left: 3px solid #3fe0ff; font-weight: 700; }
 
 .walk-blocked {
   position: absolute; left: 50%; top: 58%; transform: translateX(-50%); padding: 6px 12px; border-radius: 6px;
