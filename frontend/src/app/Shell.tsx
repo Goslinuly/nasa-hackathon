@@ -226,6 +226,38 @@ export function Shell() {
     return () => window.clearTimeout(timer);
   }, [engine, stage]);
 
+  // Щипок на тачпаде: Chrome шлёт wheel с ctrlKey, Safari — gesture*. Без этого вместе с шаром
+  // масштабируется вся страница (панели уезжают за край). В режиме исследования страница не
+  // масштабируется; в Safari щипок приближает шар. На главной зум браузера не трогаем.
+  useEffect(() => {
+    if (stage !== 'explore') return;
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey) event.preventDefault();
+    };
+    let lastScale = 1;
+    const onGestureStart = (event: Event) => {
+      event.preventDefault();
+      lastScale = 1;
+    };
+    const onGestureChange = (event: Event) => {
+      event.preventDefault();
+      const scale = (event as Event & { scale?: number }).scale ?? 1;
+      if (engine && !fullscreen && scale > 0) engine.zoomBy(lastScale / scale);
+      lastScale = scale;
+    };
+    const onGestureEnd = (event: Event) => event.preventDefault();
+    document.addEventListener('wheel', onWheel, { passive: false });
+    document.addEventListener('gesturestart', onGestureStart, { passive: false });
+    document.addEventListener('gesturechange', onGestureChange, { passive: false });
+    document.addEventListener('gestureend', onGestureEnd, { passive: false });
+    return () => {
+      document.removeEventListener('wheel', onWheel);
+      document.removeEventListener('gesturestart', onGestureStart);
+      document.removeEventListener('gesturechange', onGestureChange);
+      document.removeEventListener('gestureend', onGestureEnd);
+    };
+  }, [stage, engine, fullscreen]);
+
   // Полноэкранный режим закрывает шар: отрисовка на паузе.
   useEffect(() => {
     if (!engine || !fullscreen) return;
