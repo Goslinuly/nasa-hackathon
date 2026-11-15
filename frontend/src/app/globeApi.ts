@@ -20,6 +20,7 @@ export function createScopedGlobeApi(engine: MarsGlobeEngine, scope: string, pic
   const lines = new Set<string>();
   const markers = new Set<string>();
   let roverSet = false;
+  let tagSet = false;
   let ownHandler: PickHandler | null = null;
   const key = (layerId: string) => `${scope}:${layerId}`;
 
@@ -41,6 +42,13 @@ export function createScopedGlobeApi(engine: MarsGlobeEngine, scope: string, pic
       roverSet = Boolean(value && value.length > 1);
       return engine.setRoverRoute(value);
     },
+    roverProgress() {
+      return engine.roverProgress();
+    },
+    setRoverTag(element) {
+      tagSet = element !== null;
+      engine.setRoverTag(element);
+    },
     onPick(handler) {
       ownHandler = handler ? (point: EngineLonLat) => handler({ lon: lonEast(point.lon), lat: point.lat }) : null;
       pick.current = ownHandler;
@@ -51,6 +59,10 @@ export function createScopedGlobeApi(engine: MarsGlobeEngine, scope: string, pic
       if (roverSet) {
         engine.setRoverRoute(null);
         roverSet = false;
+      }
+      if (tagSet) {
+        engine.setRoverTag(null);
+        tagSet = false;
       }
       lines.clear();
       markers.clear();

@@ -1,0 +1,94 @@
+/* Карточка у марсохода на шаре: положение задаёт движок каждый кадр, здесь только вид. */
+.rover-card {
+  z-index: 3;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.rover-card:empty {
+  display: none;
+}
+
+.rover-card-body {
+  position: relative;
+  min-width: 190px;
+  padding: 6px 9px 7px;
+  border: 1px solid rgba(127, 214, 255, 0.55);
+  border-radius: 4px;
+  background: rgba(8, 9, 13, 0.82);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Хвостик к марсоходу: по горизонтали там, где он на экране. */
+.rover-card-body::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--rover-x, 50%) - 1px);
+  top: 100%;
+  width: 1px;
+  height: 25px;
+  background: rgba(127, 214, 255, 0.55);
+}
+
+.rover-card.is-below .rover-card-body::after {
+  top: auto;
+  bottom: 100%;
+}
+
+.rover-card-title {
+  margin-bottom: 3px;
+  color: #7fd6ff;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rover-card-full {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+}
+
+.rover-card-full div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rover-card-full dt {
+  color: var(--dim);
+}
+
+.rover-card-full dd {
+  margin: 0;
+}
+
+.rover-card-compact {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .rover-card-body {
+    min-width: 0;
+    padding: 4px 7px 5px;
+    font-size: 10.5px;
+  }
+
+  .rover-card-title {
+    margin-bottom: 1px;
+    font-size: 8.5px;
+  }
+
+  .rover-card-full {
+    display: none;
+  }
+
+  .rover-card-compact {
+    display: grid;
+  }
+}

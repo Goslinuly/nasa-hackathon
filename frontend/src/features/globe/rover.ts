@@ -14,6 +14,9 @@ export class RoverTrack {
   private model: THREE.Object3D | null = null;
   private loading = false;
   private disposed = false;
+  /** Доля пройденного пути в последнем кадре и точка марсохода в сцене. */
+  progress = 0;
+  readonly position = new THREE.Vector3();
 
   constructor() {
     this.group.visible = false;
@@ -39,12 +42,14 @@ export class RoverTrack {
   update(nowMs: number, cameraAltitude: number): void {
     if (!this.curve || !this.model) return;
     const { progress, scale } = roverCycle(nowMs - this.startedAt);
+    this.progress = progress;
     const position = this.curve.getPointAt(progress);
     const tangent = this.curve.getTangentAt(progress);
     if (this.surfaceRadius) {
       const min = this.surfaceRadius(position);
       if (position.length() < min) position.setLength(min);
     }
+    this.position.copy(position);
     this.group.matrix.copy(roverBasis(position, tangent));
     this.group.matrixWorldNeedsUpdate = true;
     const size = roverSizeForView(cameraAltitude, this.routeLength);
