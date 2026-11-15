@@ -8,6 +8,7 @@ import {
   CAREER_DOSE_LIMIT_MSV,
   DEFAULT_CREW,
   crewReport,
+  limitingLabel,
   type CrewInput,
   type Kind,
   type Leg,
@@ -16,17 +17,16 @@ import {
 } from '@/shared/eva/crew';
 import { formatDuration } from '@/shared/eva/suit';
 import type { Surface } from '@/shared/eva/traverse';
+import { locale, useLang, useT } from '@/shared/i18n/lang';
 
 import './crew.css';
 
-const KIND_LABEL: Record<Kind, string> = {
-  measurement: 'измерение',
-  model: 'модель',
-  rule: 'правило',
-};
-
 function Badge({ kind }: { kind: Kind }) {
-  return <span className={`crew-tag crew-tag-${kind}`}>{KIND_LABEL[kind]}</span>;
+  const t = useT();
+  const label = kind === 'measurement' ? t('измерение', 'measurement')
+    : kind === 'model' ? t('модель', 'model')
+      : t('правило', 'rule');
+  return <span className={`crew-tag crew-tag-${kind}`}>{label}</span>;
 }
 
 function Notes({ items }: { items: Note[] }) {
@@ -51,13 +51,8 @@ function Row({ k, v }: { k: string; v: string }) {
   );
 }
 
-const n1 = (v: number) => (Number.isFinite(v) ? v.toFixed(1).replace('.', ',') : '—');
-const n0 = (v: number) => (Number.isFinite(v) ? Math.round(v).toString() : '—');
-const n2 = (v: number) => (Number.isFinite(v) ? v.toFixed(2).replace('.', ',') : '—');
-const n3 = (v: number) => (Number.isFinite(v) ? v.toFixed(3).replace('.', ',') : '—');
-
 interface Props {
-  /** Профиль маршрута: если его дал планировщик, поля ног не показываем. */
+  /** Профиль маршрута: если его дал планировщик, свои ноги не используются. */
   legs?: Leg[];
   /** Доля видимого неба в точке работы, из сцены прогулки. */
   skyViewFraction?: number;
@@ -65,7 +60,19 @@ interface Props {
 }
 
 export function CrewPanel({ legs, skyViewFraction, initial }: Props) {
+  const t = useT();
+  const lang = useLang();
   const [input, setInput] = useState<CrewInput>({ ...DEFAULT_CREW, ...initial });
+
+  // Разделитель дробной части зависит от языка, поэтому числа идут через Intl.
+  const fmt = useMemo(() => {
+    const make = (d: number) =>
+      new Intl.NumberFormat(locale(lang), { minimumFractionDigits: d, maximumFractionDigits: d });
+    const f0 = make(0), f1 = make(1), f2 = make(2), f3 = make(3), f4 = make(4);
+    const guard = (f: Intl.NumberFormat) => (v: number) => (Number.isFinite(v) ? f.format(v) : '—');
+    return { n0: guard(f0), n1: guard(f1), n2: guard(f2), n3: guard(f3), n4: guard(f4) };
+  }, [lang]);
+  const { n0, n1, n2, n3, n4 } = fmt;
 
   const effective = useMemo<CrewInput>(
     () => ({
@@ -81,64 +88,72 @@ export function CrewPanel({ legs, skyViewFraction, initial }: Props) {
     setInput((prev) => ({ ...prev, [key]: value }));
 
   const { jump, nutrition, thermal, route, radiation, advice } = report;
+  const W = t('Вт', 'W');
+  const M = t('м', 'm');
+  const L = t('л', 'L');
+  const KG = t('кг', 'kg');
+  const KCAL = t('ккал', 'kcal');
+  const G = t('г', 'g');
+  const H = t('ч', 'h');
+  const MSV = t('мЗв', 'mSv');
 
   return (
     <section className="crew">
       <div className="crew-grid">
         <article className="crew-card">
-          <h3>Человек</h3>
+          <h3>{t('Человек', 'Human')}</h3>
           <div className="crew-fields">
             <label>
-              пол
+              {t('пол', 'sex')}
               <select value={input.sex} onChange={(e) => set('sex', e.target.value as Sex)}>
-                <option value="female">женский</option>
-                <option value="male">мужской</option>
+                <option value="female">{t('женский', 'female')}</option>
+                <option value="male">{t('мужской', 'male')}</option>
               </select>
             </label>
             <label>
-              возраст, лет
+              {t('возраст, лет', 'age, years')}
               <input type="number" min={16} max={80} value={input.ageYears}
                 onChange={(e) => set('ageYears', Number(e.target.value))} />
             </label>
             <label>
-              рост, см
+              {t('рост, см', 'height, cm')}
               <input type="number" min={120} max={220} value={input.heightCm}
                 onChange={(e) => set('heightCm', Number(e.target.value))} />
             </label>
             <label>
-              вес, кг
+              {t('вес, кг', 'body mass, kg')}
               <input type="number" min={35} max={160} value={input.bodyKg}
                 onChange={(e) => set('bodyKg', Number(e.target.value))} />
             </label>
             <label>
-              скафандр, кг
+              {t('скафандр, кг', 'suit, kg')}
               <input type="number" min={0} max={140} value={input.loadKg}
                 onChange={(e) => set('loadKg', Number(e.target.value))} />
             </label>
             <label>
-              прыжок на Земле, см
+              {t('прыжок на Земле, см', 'jump on Earth, cm')}
               <input type="number" min={5} max={120} value={Math.round(input.earthJumpM * 100)}
                 onChange={(e) => set('earthJumpM', Number(e.target.value) / 100)} />
             </label>
             <label>
-              грунт
+              {t('грунт', 'surface')}
               <select value={input.surface} onChange={(e) => set('surface', e.target.value as Surface)}>
-                <option value="firm">плотный</option>
-                <option value="sand">песок</option>
+                <option value="firm">{t('плотный', 'firm')}</option>
+                <option value="sand">{t('песок', 'sand')}</option>
               </select>
             </label>
             <label>
-              вода на охлаждение, кг
+              {t('вода на охлаждение, кг', 'cooling water, kg')}
               <input type="number" min={0.5} max={20} step={0.1} value={input.feedwaterKg}
                 onChange={(e) => set('feedwaterKg', Number(e.target.value))} />
             </label>
             <label>
-              кислород, л
+              {t('кислород, л', 'oxygen, L')}
               <input type="number" min={50} max={3000} value={input.oxygenL}
                 onChange={(e) => set('oxygenL', Number(e.target.value))} />
             </label>
             <label>
-              миссия, солов
+              {t('миссия, солов', 'mission, sols')}
               <input type="number" min={1} max={2000} value={input.surfaceSols}
                 onChange={(e) => set('surfaceSols', Number(e.target.value))} />
             </label>
@@ -146,77 +161,78 @@ export function CrewPanel({ legs, skyViewFraction, initial }: Props) {
         </article>
 
         <article className="crew-card">
-          <h3>Прыжок</h3>
+          <h3>{t('Прыжок', 'Jump')}</h3>
           <div className="crew-hero">
-            <span className="crew-k">в скафандре</span>
-            <span><b>{n2(jump.heightM)}</b> м</span>
+            <span className="crew-k">{t('в скафандре', 'in the suit')}</span>
+            <span><b>{n2(jump.heightM)}</b> {M}</span>
           </div>
           <div className="crew-hero">
-            <span className="crew-k">без скафандра</span>
-            <span><b>{n2(jump.freeHeightM)}</b> м</span>
+            <span className="crew-k">{t('без скафандра', 'without the suit')}</span>
+            <span><b>{n2(jump.freeHeightM)}</b> {M}</span>
           </div>
-          <Row k="работа ног за прыжок" v={`${n0(jump.workJ)} Дж`} />
-          <Row k="скорость отрыва" v={`${n2(jump.takeoffMs)} м/с`} />
-          <Row k="время полёта" v={`${n2(jump.flightS)} с`} />
-          <Row k="скорость приземления" v={`${n2(jump.landingMs)} м/с`} />
-          <Row k="во сколько раз выше земного" v={`×${n2(jump.ratio)}`} />
+          <Row k={t('работа ног за прыжок', 'leg work per jump')} v={`${n0(jump.workJ)} ${t('Дж', 'J')}`} />
+          <Row k={t('скорость отрыва', 'take-off speed')} v={`${n2(jump.takeoffMs)} ${t('м/с', 'm/s')}`} />
+          <Row k={t('время полёта', 'flight time')} v={`${n2(jump.flightS)} ${t('с', 's')}`} />
+          <Row k={t('скорость приземления', 'landing speed')} v={`${n2(jump.landingMs)} ${t('м/с', 'm/s')}`} />
+          <Row k={t('во сколько раз выше земного', 'times higher than on Earth')} v={`×${n2(jump.ratio)}`} />
           <Notes items={jump.notes} />
         </article>
 
         <article className="crew-card">
-          <h3>Маршрут выхода</h3>
-          <Row k="длина" v={`${n2(route.distanceM / 1000)} км`} />
-          <Row k="время" v={formatDuration(route.seconds)} />
-          <Row k="подъём / спуск" v={`+${n0(route.ascentM)} / −${n0(route.descentM)} м`} />
-          <Row k="кислород" v={`${n1(route.o2L)} л`} />
-          <Row k="то же в массе" v={`${n3(route.o2Kg)} кг`} />
-          <Row k="углекислый газ на поглотитель" v={`${n1(route.co2L)} л`} />
-          <Row k="энергия" v={`${n0(route.kcal)} ккал`} />
+          <h3>{t('Маршрут выхода', 'EVA route')}</h3>
+          <Row k={t('длина', 'distance')} v={`${n2(route.distanceM / 1000)} ${t('км', 'km')}`} />
+          <Row k={t('время', 'time')} v={formatDuration(route.seconds)} />
+          <Row k={t('подъём / спуск', 'ascent / descent')} v={`+${n0(route.ascentM)} / −${n0(route.descentM)} ${M}`} />
+          <Row k={t('кислород', 'oxygen')} v={`${n1(route.o2L)} ${L}`} />
+          <Row k={t('то же в массе', 'the same by mass')} v={`${n3(route.o2Kg)} ${KG}`} />
+          <Row k={t('углекислый газ на поглотитель', 'carbon dioxide to the scrubber')} v={`${n1(route.co2L)} ${L}`} />
+          <Row k={t('энергия', 'energy')} v={`${n0(route.kcal)} ${KCAL}`} />
           <Notes items={route.notes} />
         </article>
 
         <article className="crew-card">
-          <h3>Теплоотдача</h3>
-          <Row k="метаболическая мощность" v={`${n0(thermal.powerLowW)}–${n0(thermal.powerHighW)} Вт`} />
-          <Row k="уходит в подъём" v={`${n0(thermal.climbW)} Вт`} />
-          <Row k="надо отвести теплом" v={`${n0(thermal.heatW)} Вт`} />
-          <Row k="вода сублиматора" v={`${n3(thermal.waterKgH)} кг/ч`} />
-          <Row k="кислород" v={`${n3(thermal.oxygenLpm)} л/мин`} />
-          <Row k="хватит воды на" v={`${n1(thermal.waterHours)} ч`} />
-          <Row k="хватит кислорода на" v={`${n1(thermal.oxygenHours)} ч`} />
-          <Row k="кончится первым" v={thermal.limiting} />
+          <h3>{t('Теплоотдача', 'Heat load')}</h3>
+          <Row k={t('метаболическая мощность', 'metabolic power')} v={`${n0(thermal.powerLowW)}–${n0(thermal.powerHighW)} ${W}`} />
+          <Row k={t('уходит в подъём', 'spent on climbing')} v={`${n0(thermal.climbW)} ${W}`} />
+          <Row k={t('надо отвести теплом', 'must be removed as heat')} v={`${n0(thermal.heatW)} ${W}`} />
+          <Row k={t('вода сублиматора', 'sublimator water')} v={`${n3(thermal.waterKgH)} ${t('кг/ч', 'kg/h')}`} />
+          <Row k={t('кислород', 'oxygen')} v={`${n3(thermal.oxygenLpm)} ${t('л/мин', 'L/min')}`} />
+          <Row k={t('хватит воды на', 'water lasts')} v={`${n1(thermal.waterHours)} ${H}`} />
+          <Row k={t('хватит кислорода на', 'oxygen lasts')} v={`${n1(thermal.oxygenHours)} ${H}`} />
+          <Row k={t('кончится первым', 'runs out first')} v={limitingLabel(thermal.limiting)} />
           <Notes items={thermal.notes} />
         </article>
 
         <article className="crew-card">
-          <h3>Питание на эти сутки</h3>
+          <h3>{t('Питание на эти сутки', 'Ration for the day')}</h3>
           <div className="crew-hero">
-            <span className="crew-k">всего</span>
-            <span><b>{n0(nutrition.totalKcal)}</b> ккал</span>
+            <span className="crew-k">{t('всего', 'total')}</span>
+            <span><b>{n0(nutrition.totalKcal)}</b> {KCAL}</span>
           </div>
-          <Row k="основной обмен" v={`${n0(nutrition.bmrKcal)} ккал`} />
-          <Row k="вне выхода" v={`${n0(nutrition.habitatKcal)} ккал`} />
-          <Row k="сам выход" v={`${n0(nutrition.evaKcal)} ккал`} />
-          <Row k="белки" v={`${n0(nutrition.proteinG)} г`} />
-          <Row k="жиры" v={`${n0(nutrition.fatG)} г`} />
-          <Row k="углеводы" v={`${n0(nutrition.carbG)} г`} />
-          <Row k="питьевая вода" v={`${n1(nutrition.drinkingWaterL)} л`} />
+          <Row k={t('основной обмен', 'basal metabolism')} v={`${n0(nutrition.bmrKcal)} ${KCAL}`} />
+          <Row k={t('вне выхода', 'outside the EVA')} v={`${n0(nutrition.habitatKcal)} ${KCAL}`} />
+          <Row k={t('сам выход', 'the EVA itself')} v={`${n0(nutrition.evaKcal)} ${KCAL}`} />
+          <Row k={t('белки', 'protein')} v={`${n0(nutrition.proteinG)} ${G}`} />
+          <Row k={t('жиры', 'fat')} v={`${n0(nutrition.fatG)} ${G}`} />
+          <Row k={t('углеводы', 'carbohydrates')} v={`${n0(nutrition.carbG)} ${G}`} />
+          <Row k={t('питьевая вода', 'drinking water')} v={`${n1(nutrition.drinkingWaterL)} ${L}`} />
           <Notes items={nutrition.notes} />
         </article>
 
         <article className="crew-card">
-          <h3>Радиация</h3>
-          <Row k="за выход, открытое место" v={`${n3(radiation.openMSv)} мЗв`} />
-          <Row k="с экранированием рельефом" v={`${n3(radiation.shieldedMSv)} мЗв`} />
-          <Row k="доля, которую рельеф не снимет" v={`${n0(ALBEDO_SHARE * 100)} %`} />
-          <Row k="поправка на набор высоты" v={`${radiation.elevationMSv.toFixed(4).replace('.', ',')} мЗв`} />
-          <Row k="фон за всю миссию" v={`${n0(radiation.missionMSv)} мЗв`} />
-          <Row k={`доля предела ${CAREER_DOSE_LIMIT_MSV} мЗв`} v={`${n0(radiation.careerPercent)} %`} />
+          <h3>{t('Радиация', 'Radiation')}</h3>
+          <Row k={t('за выход, открытое место', 'per EVA, in the open')} v={`${n3(radiation.openMSv)} ${MSV}`} />
+          <Row k={t('с экранированием рельефом', 'with terrain shielding')} v={`${n3(radiation.shieldedMSv)} ${MSV}`} />
+          <Row k={t('доля, которую рельеф не снимет', 'share terrain cannot remove')} v={`${n0(ALBEDO_SHARE * 100)} %`} />
+          <Row k={t('поправка на набор высоты', 'correction for ascent')} v={`${n4(radiation.elevationMSv)} ${MSV}`} />
+          <Row k={t('фон за всю миссию', 'background over the mission')} v={`${n0(radiation.missionMSv)} ${MSV}`} />
+          <Row k={t(`доля предела ${CAREER_DOSE_LIMIT_MSV} мЗв`, `share of the ${CAREER_DOSE_LIMIT_MSV} mSv limit`)}
+            v={`${n0(radiation.careerPercent)} %`} />
           <Notes items={radiation.notes} />
         </article>
 
         <article className="crew-card crew-wide">
-          <h3>Советы</h3>
+          <h3>{t('Советы', 'Advice')}</h3>
           {advice.map((a, i) => (
             <p className={`crew-advice crew-advice-${a.level}`} key={i}>{a.text}</p>
           ))}

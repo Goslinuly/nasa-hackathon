@@ -103,7 +103,7 @@ describe('теплоотдача', () => {
     expect(t.waterKgH).toBeCloseTo(0.2407, 3);
     expect(t.waterHours).toBeCloseTo(16.62, 1);
     expect(t.oxygenHours).toBeCloseTo(14.58, 1);
-    expect(t.limiting).toBe('кислород');
+    expect(t.limiting).toBe('oxygen');
   });
 
   it('сверка с ранцем Apollo: 350 Вт — это 0,5 кг воды в час', () => {

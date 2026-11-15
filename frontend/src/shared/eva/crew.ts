@@ -6,6 +6,8 @@
 //
 // Вывод формул: docs/PHYSICS.md, раздел «Физиология экипажа».
 
+import { tr } from '@/shared/i18n/lang';
+
 import { evaDose, DOSE_RATE_MSV_DAY } from './radiation';
 import {
   DEFAULT_TRAVERSE,
@@ -47,6 +49,19 @@ export const QUALITY_FACTOR = 3.05;
 export const ALBEDO_SHARE = 0.21;
 
 export type Kind = 'measurement' | 'model' | 'rule';
+
+/** Что кончится раньше в ранце. Значение языконезависимо, подпись даёт limitingLabel. */
+export type LimitingResource = 'water' | 'oxygen';
+
+/** Число в тексте: разделитель дробной части зависит от языка, как и в панели. */
+function num(value: number, digits = 1): string {
+  const fixed = value.toFixed(digits);
+  return tr(fixed.replace('.', ','), fixed);
+}
+
+export function limitingLabel(resource: LimitingResource): string {
+  return resource === 'water' ? tr('вода', 'water') : tr('кислород', 'oxygen');
+}
 
 export interface Note {
   text: string;
@@ -108,17 +123,24 @@ export function jump(input: JumpInput): JumpResult {
   const takeoffMs = Math.sqrt(2 * G_MARS * heightM);
   const flightS = (2 * takeoffMs) / G_MARS;
   const notes: Note[] = [
-    { kind: 'model', text: 'Модель «та же работа ног»: жёсткость скафандра не учтена, реальный прыжок будет ниже.' },
+    { kind: 'model', text: tr(
+      'Модель «та же работа ног»: жёсткость скафандра не учтена, реальный прыжок будет ниже.',
+      'Model of equal leg work: suit stiffness is not accounted for, so a real jump will be lower.') },
     {
       kind: 'model',
-      text: 'Скорость приземления равна скорости отрыва, как и на Земле. Выше прыжок — не мягче падение, '
-        + 'а дольше полёт: времени на ошибку больше, но удар тот же.',
+      text: tr(
+        'Скорость приземления равна скорости отрыва, как и на Земле. Выше прыжок — не мягче падение, '
+          + 'а дольше полёт: времени на ошибку больше, но удар тот же.',
+        'Landing speed equals take-off speed, exactly as on Earth. A higher jump is not a softer landing, '
+          + 'only a longer flight: more time to react, the same impact.'),
     },
   ];
   if (load > 0) {
     notes.push({
       kind: 'rule',
-      text: 'В скафандре прыгать не нужно: падение в жёстком костюме с ранцем — главный риск травмы на выходе.',
+      text: tr(
+        'В скафандре прыгать не нужно: падение в жёстком костюме с ранцем — главный риск травмы на выходе.',
+        'Jumping in a suit is a bad idea: a fall in a hard suit with a backpack is the main injury risk on EVA.'),
     });
   }
   return { heightM, freeHeightM: workJ / (body * G_MARS), takeoffMs, flightS, workJ,
@@ -184,12 +206,20 @@ export function nutrition(input: NutritionInput): NutritionResult {
   // Питьевая вода: 1 мл на ккал, но не меньше 2 л, плюс потери на выходе.
   const drinkingWaterL = Math.max(2, totalKcal / 1000) + 0.25 * evaH;
   const notes: Note[] = [
-    { kind: 'model', text: 'Основной обмен по Миффлину–Сан Жеору: земная формула, для невесомости и Марса не валидирована.' },
-    { kind: 'model', text: 'Расход на выходе — из метаболической модели Санти, той же, что считает кислород и маршрут.' },
-    { kind: 'rule', text: 'Белок 1,6 г/кг и жир 30 % калорийности — ориентир спортивного питания, а не норма NASA.' },
+    { kind: 'model', text: tr(
+      'Основной обмен по Миффлину–Сан Жеору: земная формула, для невесомости и Марса не валидирована.',
+      'Basal rate by Mifflin–St Jeor: a terrestrial formula, never validated for microgravity or Mars.') },
+    { kind: 'model', text: tr(
+      'Расход на выходе — из метаболической модели Санти, той же, что считает кислород и маршрут.',
+      'EVA expenditure comes from the Santee metabolic model — the same one behind oxygen and routing.') },
+    { kind: 'rule', text: tr(
+      'Белок 1,6 г/кг и жир 30 % калорийности — ориентир спортивного питания, а не норма NASA.',
+      'Protein 1.6 g/kg and fat at 30 % of calories are sports-nutrition guidance, not a NASA standard.') },
   ];
   if (totalKcal < bmrKcal) {
-    notes.push({ kind: 'rule', text: 'Рацион ниже основного обмена: так планировать нельзя даже на сутки.' });
+    notes.push({ kind: 'rule', text: tr(
+      'Рацион ниже основного обмена: так планировать нельзя даже на сутки.',
+      'The ration is below basal metabolism: not plannable even for a single day.') });
   }
   return { bmrKcal, habitatKcal, evaKcal, totalKcal, proteinG, fatG, carbG, drinkingWaterL, notes };
 }
@@ -227,8 +257,8 @@ export interface ThermalResult {
   waterHours: number;
   /** На сколько часов хватит кислорода. */
   oxygenHours: number;
-  /** Что кончится первым. */
-  limiting: 'вода' | 'кислород';
+  /** Что кончится первым. Код, а не подпись: перевод делает интерфейс. */
+  limiting: LimitingResource;
   limitHours: number;
   notes: Note[];
 }
@@ -262,31 +292,43 @@ export function thermal(input: ThermalInput): ThermalResult {
   const o2Lpm = oxygenLpm(powerMidW);
   const waterHours = waterKgH > 0 ? input.feedwaterKg / waterKgH : Infinity;
   const oxygenHours = o2Lpm > 0 ? input.oxygenL / (o2Lpm * 60) : Infinity;
-  const limiting = waterHours <= oxygenHours ? 'вода' : 'кислород';
+  const limiting: LimitingResource = waterHours <= oxygenHours ? 'water' : 'oxygen';
   const limitHours = Math.min(waterHours, oxygenHours);
 
   const notes: Note[] = [
     {
       kind: 'model',
-      text: 'Полезная работа — только подъём центра масс; всё остальное становится теплом. '
-        + 'На спуске полезной работы нет, тепло равно полной мощности.',
+      text: tr(
+        'Полезная работа — только подъём центра масс; всё остальное становится теплом. '
+          + 'На спуске полезной работы нет, тепло равно полной мощности.',
+        'The only useful work is lifting the centre of mass; everything else turns into heat. '
+          + 'Going down there is no useful work at all, so heat equals the full power.'),
     },
     {
       kind: 'measurement',
-      text: '2,50 МДж на килограмм воды: сублимация льда 2,83 минус теплота замерзания 0,334. '
-        + 'При 350 Вт это 0,50 кг/ч — столько и расходовал ранец Apollo.',
+      text: tr(
+        '2,50 МДж на килограмм воды: сублимация льда 2,83 минус теплота замерзания 0,334. '
+          + 'При 350 Вт это 0,50 кг/ч — столько и расходовал ранец Apollo.',
+        '2.50 MJ per kilogram of water: ice sublimation 2.83 minus the heat of freezing 0.334. '
+          + 'At 350 W that is 0.50 kg/h — exactly what the Apollo backpack used.'),
     },
     {
       kind: 'rule',
-      text: `Первым кончится ${limiting}. В проекте это записано отдельно: для пеших траверсов `
-        + 'ограничивающим ресурсом обычно оказывается вода на охлаждение, а не кислород.',
+      text: tr(
+        `Первым кончится ${limitingLabel(limiting)}. В проекте это записано отдельно: для пеших траверсов `
+          + 'ограничивающим ресурсом обычно оказывается вода на охлаждение, а не кислород.',
+        `${limiting === 'water' ? 'Water' : 'Oxygen'} runs out first. The project states it separately: `
+          + 'for walking traverses the limiting resource is usually cooling water, not oxygen.'),
     },
   ];
   if (climbW > 0) {
     notes.push({
       kind: 'model',
-      text: `На подъёме ${climbW.toFixed(0)} Вт уходит в набор высоты, остальное — тепло. `
-        + 'Поэтому подъём дороже по кислороду, но чуть «прохладнее» на ватт расхода.',
+      text: tr(
+        `На подъёме ${climbW.toFixed(0)} Вт уходит в набор высоты, остальное — тепло. `
+          + 'Поэтому подъём дороже по кислороду, но чуть «прохладнее» на ватт расхода.',
+        `Climbing, ${climbW.toFixed(0)} W goes into gaining altitude and the rest becomes heat. `
+          + 'That makes an ascent costlier in oxygen but slightly cooler per watt spent.'),
     });
   }
   return { powerLowW, powerHighW, powerMidW, climbW, heatW, waterKgH, oxygenLpm: o2Lpm,
@@ -352,11 +394,17 @@ export function routeCost(legs: Leg[], params: TraverseParams = DEFAULT_TRAVERSE
   // Энергия: кислород → метаболическая работа. 348,3 Вт на л/мин, значит 1 л кислорода ≈ 20,9 кДж.
   const kcal = (o2L * 348.3 * 60) / 4184;
   const notes: Note[] = [
-    { kind: 'model', text: 'Кислород считается той же моделью, что и маршрут на карте: расхождений между панелями быть не может.' },
-    { kind: 'model', text: 'Подъём дороже спуска: в модели Санти за уклон отвечает слагаемое 0,35·V·G, линейное по уклону.' },
+    { kind: 'model', text: tr(
+      'Кислород считается той же моделью, что и маршрут на карте: расхождений между панелями быть не может.',
+      'Oxygen uses the same model as routing on the map, so the panels cannot disagree.') },
+    { kind: 'model', text: tr(
+      'Подъём дороже спуска: в модели Санти за уклон отвечает слагаемое 0,35·V·G, линейное по уклону.',
+      'Climbing costs more than descending: in the Santee model the grade term 0.35·V·G is linear in slope.') },
   ];
   if (out.some(l => l.outsideModel)) {
-    notes.push({ kind: 'rule', text: 'Часть ног круче ±20°: модель скорости там не определена, числа посчитаны по границе.' });
+    notes.push({ kind: 'rule', text: tr(
+      'Часть ног круче ±20°: модель скорости там не определена, числа посчитаны по границе.',
+      'Some legs are steeper than ±20°: the speed model is undefined there, values are taken at the boundary.') });
   }
   return { legs: out, seconds, o2L, o2LowL, o2HighL, o2Kg: (o2L * O2_G_PER_L) / 1000,
     co2L: o2L * RESPIRATORY_QUOTIENT, kcal, ascentM, descentM, distanceM, notes };
@@ -408,13 +456,21 @@ export function radiation(input: RadiationInput): RadiationResult {
   const shieldedMSv = dose.typicalMSv * shieldFraction + elevationMSv;
   const missionMSv = DOSE_RATE_MSV_DAY.typical * Math.max(0, input.surfaceSols) * 1.0275;
   const notes: Note[] = [
-    { kind: 'measurement', text: 'Фон 0,64 ± 0,12 мЗв/сут — измерение RAD на Curiosity, диапазон 0,25–0,95 задаёт солнечный цикл.' },
-    { kind: 'model', text: `Рельеф снимает не всё: ${Math.round(ALBEDO_SHARE * 100)} % дозы дают вторичные частицы из грунта, они приходят снизу.` },
-    { kind: 'rule', text: `Карьерный предел NASA ${CAREER_DOSE_LIMIT_MSV} мЗв — эксплуатационное правило, а не порог вреда.` },
+    { kind: 'measurement', text: tr(
+      'Фон 0,64 ± 0,12 мЗв/сут — измерение RAD на Curiosity, диапазон 0,25–0,95 задаёт солнечный цикл.',
+      'Background 0.64 ± 0.12 mSv/day is measured by RAD on Curiosity; the 0.25–0.95 range is the solar cycle.') },
+    { kind: 'model', text: tr(
+      `Рельеф снимает не всё: ${Math.round(ALBEDO_SHARE * 100)} % дозы дают вторичные частицы из грунта, они приходят снизу.`,
+      `Terrain cannot shield everything: ${Math.round(ALBEDO_SHARE * 100)} % of the dose is secondary particles from the ground, arriving from below.`) },
+    { kind: 'rule', text: tr(
+      `Карьерный предел NASA ${CAREER_DOSE_LIMIT_MSV} мЗв — эксплуатационное правило, а не порог вреда.`,
+      `The NASA career limit of ${CAREER_DOSE_LIMIT_MSV} mSv is an operational rule, not a threshold of harm.`) },
   ];
   const careerPercent = (missionMSv / CAREER_DOSE_LIMIT_MSV) * 100;
   if (careerPercent > 50) {
-    notes.push({ kind: 'rule', text: 'Фон за миссию съедает больше половины карьерного предела: это планируют на уровне программы, а не выхода.' });
+    notes.push({ kind: 'rule', text: tr(
+      'Фон за миссию съедает больше половины карьерного предела: это планируют на уровне программы, а не выхода.',
+      'Mission background eats more than half the career limit: that is planned at programme level, not per EVA.') });
   }
   return { openMSv: dose.typicalMSv, lowMSv: dose.lowMSv, highMSv: dose.highMSv,
     shieldedMSv, shieldFraction, elevationMSv, missionMSv, careerPercent, notes };
@@ -446,45 +502,69 @@ export function advice(input: AdviceInput): Advice[] {
   if (routeHours > input.thermal.limitHours) {
     out.push({
       level: 'danger',
-      text: `Маршрут занимает ${routeHours.toFixed(1)} ч, а ${input.thermal.limiting} кончится через `
-        + `${input.thermal.limitHours.toFixed(1)} ч. Сократить маршрут или взять больше.`,
+      text: tr(
+        `Маршрут занимает ${num(routeHours)} ч, а ${limitingLabel(input.thermal.limiting)} кончится через `
+          + `${num(input.thermal.limitHours)} ч. Сократить маршрут или взять больше.`,
+        `The route takes ${num(routeHours)} h, but ${limitingLabel(input.thermal.limiting)} runs out in `
+          + `${num(input.thermal.limitHours)} h. Shorten the route or carry more.`),
     });
   } else if (routeHours > input.thermal.limitHours * 0.7) {
     out.push({
       level: 'warn',
-      text: `Маршрут съедает больше 70 % запаса: ${routeHours.toFixed(1)} ч из ${input.thermal.limitHours.toFixed(1)} ч. `
-        + 'Резерва на возврат при отказе почти нет.',
+      text: tr(
+        `Маршрут съедает больше 70 % запаса: ${num(routeHours)} ч из ${num(input.thermal.limitHours)} ч. `
+          + 'Резерва на возврат при отказе почти нет.',
+        `The route eats more than 70 % of the budget: ${num(routeHours)} h out of ${num(input.thermal.limitHours)} h. `
+          + 'Almost no margin left for a walkback after a failure.'),
     });
   } else {
-    out.push({ level: 'ok', text: `Запас держит: ${routeHours.toFixed(1)} ч пути против ${input.thermal.limitHours.toFixed(1)} ч ресурса.` });
+    out.push({ level: 'ok', text: tr(
+      `Запас держит: ${num(routeHours)} ч пути против ${num(input.thermal.limitHours)} ч ресурса.`,
+      `The budget holds: ${num(routeHours)} h of walking against ${num(input.thermal.limitHours)} h of supplies.`) });
   }
 
   if (input.route.o2L > input.oxygenL) {
-    out.push({ level: 'danger', text: `Кислорода нужно ${input.route.o2L.toFixed(0)} л, в ранце ${input.oxygenL.toFixed(0)} л.` });
+    out.push({ level: 'danger', text: tr(
+      `Кислорода нужно ${input.route.o2L.toFixed(0)} л, в ранце ${input.oxygenL.toFixed(0)} л.`,
+      `The route needs ${input.route.o2L.toFixed(0)} L of oxygen; the backpack holds ${input.oxygenL.toFixed(0)} L.`) });
   }
 
   const s = Math.abs(input.maxSlopeDeg);
   if (s > 25) {
-    out.push({ level: 'danger', text: `Уклон ${s.toFixed(0)}° круче ориентира сообщества 25°. Численного требования NASA по уклону нет, но это за всеми практиками.` });
+    out.push({ level: 'danger', text: tr(
+      `Уклон ${s.toFixed(0)}° круче ориентира сообщества 25°. Численного требования NASA по уклону нет, но это за всеми практиками.`,
+      `A ${s.toFixed(0)}° slope is steeper than the community guideline of 25°. NASA has no numeric slope requirement, but this is beyond every practice.`) });
   } else if (s > 20) {
-    out.push({ level: 'danger', text: `Уклон ${s.toFixed(0)}° выше правила планировщика 20°: такой участок исключают.` });
+    out.push({ level: 'danger', text: tr(
+      `Уклон ${s.toFixed(0)}° выше правила планировщика 20°: такой участок исключают.`,
+      `A ${s.toFixed(0)}° slope exceeds the planning-tool rule of 20°: such terrain is excluded.`) });
   } else if (s > 15) {
-    out.push({ level: 'warn', text: `Уклон ${s.toFixed(0)}° выше консервативного порога 15°. Модели рельефа врут на величину порядка самого порога.` });
+    out.push({ level: 'warn', text: tr(
+      `Уклон ${s.toFixed(0)}° выше консервативного порога 15°. Модели рельефа врут на величину порядка самого порога.`,
+      `A ${s.toFixed(0)}° slope is above the conservative threshold of 15°. Terrain models err by about the size of the threshold itself.`) });
   }
 
-  if (input.thermal.limiting === 'вода') {
-    out.push({ level: 'warn', text: 'Ограничивает вода на охлаждение. Снизить темп: тепло растёт как квадрат скорости, а время — только обратно пропорционально.' });
+  if (input.thermal.limiting === 'water') {
+    out.push({ level: 'warn', text: tr(
+      'Ограничивает вода на охлаждение. Снизить темп: тепло растёт как квадрат скорости, а время — только обратно пропорционально.',
+      'Cooling water is the constraint. Slow down: heat grows as the square of speed while time only falls inversely.') });
   }
 
   if (input.radiation.shieldedMSv > 0.2) {
-    out.push({ level: 'warn', text: `За выход ${input.radiation.shieldedMSv.toFixed(2)} мЗв. Работа у стены кратера снимает часть дозы, но не ниже ${Math.round(ALBEDO_SHARE * 100)} %.` });
+    out.push({ level: 'warn', text: tr(
+      `За выход ${num(input.radiation.shieldedMSv, 2)} мЗв. Работа у стены кратера снимает часть дозы, но не ниже ${Math.round(ALBEDO_SHARE * 100)} %.`,
+      `${num(input.radiation.shieldedMSv, 2)} mSv per EVA. Working by a crater wall removes part of the dose, but never below ${Math.round(ALBEDO_SHARE * 100)} %.`) });
   }
 
   if (input.route.ascentM > 300) {
-    out.push({ level: 'warn', text: `Набор высоты ${input.route.ascentM.toFixed(0)} м. Планировать подъём на начало выхода, спуск — на возврат: так дешевле и безопаснее.` });
+    out.push({ level: 'warn', text: tr(
+      `Набор высоты ${input.route.ascentM.toFixed(0)} м. Планировать подъём на начало выхода, спуск — на возврат: так дешевле и безопаснее.`,
+      `${input.route.ascentM.toFixed(0)} m of ascent. Put the climb at the start of the EVA and the descent on the way back: cheaper and safer.`) });
   }
 
-  out.push({ level: 'ok', text: `Рацион на эти сутки: ${input.nutrition.totalKcal.toFixed(0)} ккал, из них ${input.nutrition.evaKcal.toFixed(0)} даёт сам выход.` });
+  out.push({ level: 'ok', text: tr(
+    `Рацион на эти сутки: ${input.nutrition.totalKcal.toFixed(0)} ккал, из них ${input.nutrition.evaKcal.toFixed(0)} даёт сам выход.`,
+    `Ration for the day: ${input.nutrition.totalKcal.toFixed(0)} kcal, of which ${input.nutrition.evaKcal.toFixed(0)} comes from the EVA itself.`) });
   return out;
 }
 

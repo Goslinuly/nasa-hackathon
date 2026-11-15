@@ -291,7 +291,7 @@ function thermal(bodyKg, loadKg, speedMs, slopeDeg, surface, feedwaterKg, oxygen
   const o2Lpm = oxygenLpm(mid);
   const waterHours = waterKgH > 0 ? feedwaterKg / waterKgH : Infinity;
   const oxygenHours = o2Lpm > 0 ? oxygenL / (o2Lpm * 60) : Infinity;
-  const limiting = waterHours <= oxygenHours ? 'вода' : 'кислород';
+  const limiting = waterHours <= oxygenHours ? 'water' : 'oxygen';
   return { powerLowW: lo, powerHighW: hi, powerMidW: mid, climbW, heatW, waterKgH,
     oxygenLpm: o2Lpm, waterHours, oxygenHours, limiting, limitHours: Math.min(waterHours, oxygenHours) };
 }
@@ -329,6 +329,8 @@ function radiation(evaSeconds, skyViewFraction, ascentM, surfaceSols) {
 const $ = (id) => document.getElementById(id);
 const num = (id) => Number($(id).value);
 const fmt = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '—');
+// Коды ресурса языконезависимы, как в crew.ts; подпись даётся здесь.
+const limitLabel = (r) => (r === 'water' ? 'вода' : 'кислород');
 const hm = (s) => {
   if (!Number.isFinite(s)) return '—';
   const m = Math.round(s / 60);
@@ -415,7 +417,7 @@ function recompute() {
   $('t-o2').textContent = `${fmt(th.oxygenLpm, 3)} л/мин`;
   $('t-wh').textContent = `${fmt(th.waterHours)} ч`;
   $('t-oh').textContent = `${fmt(th.oxygenHours)} ч`;
-  $('t-limit').textContent = th.limiting;
+  $('t-limit').textContent = limitLabel(th.limiting);
   notes('t-notes', [
     ['model', 'Полезная работа — только подъём центра масс, P = m·g·V·sin θ. Всё остальное становится теплом;'
       + ' на спуске полезной работы нет вовсе.'],
@@ -457,18 +459,18 @@ function recompute() {
   const hours = route.seconds / 3600;
   const adv = [];
   if (hours > th.limitHours) {
-    adv.push(['danger', `Маршрут занимает ${fmt(hours)} ч, а ${th.limiting} кончится через ${fmt(th.limitHours)} ч. Сократить маршрут или взять больше.`]);
+    adv.push(['danger', `Маршрут занимает ${fmt(hours)} ч, а ${limitLabel(th.limiting)} кончится через ${fmt(th.limitHours)} ч. Сократить маршрут или взять больше.`]);
   } else if (hours > th.limitHours * 0.7) {
     adv.push(['warn', `Маршрут съедает больше 70 % запаса: ${fmt(hours)} ч из ${fmt(th.limitHours)} ч. Резерва на возврат при отказе почти нет.`]);
   } else {
-    adv.push(['ok', `Запас держит: ${fmt(hours)} ч пути против ${fmt(th.limitHours)} ч ресурса, ограничивает ${th.limiting}.`]);
+    adv.push(['ok', `Запас держит: ${fmt(hours)} ч пути против ${fmt(th.limitHours)} ч ресурса, ограничивает ${limitLabel(th.limiting)}.`]);
   }
   if (route.o2L > oxygen) adv.push(['danger', `Кислорода нужно ${fmt(route.o2L, 0)} л, а в ранце ${fmt(oxygen, 0)} л.`]);
   const maxSlope = legs.reduce((m, l) => Math.max(m, Math.abs(l.slopeDeg)), 0);
   if (maxSlope > 25) adv.push(['danger', `Уклон ${maxSlope}° круче ориентира сообщества 25°. Численного требования NASA по уклону не существует, но это за всеми практиками.`]);
   else if (maxSlope > 20) adv.push(['danger', `Уклон ${maxSlope}° выше правила планировщика 20°: такой участок исключают.`]);
   else if (maxSlope > 15) adv.push(['warn', `Уклон ${maxSlope}° выше консервативного порога 15°. Модели рельефа ошибаются на величину порядка самого порога.`]);
-  if (th.limiting === 'вода') adv.push(['warn', 'Ограничивает вода на охлаждение. Снизить темп: тепло растёт как квадрат скорости, а время — только обратно пропорционально ей.']);
+  if (th.limiting === 'water') adv.push(['warn', 'Ограничивает вода на охлаждение. Снизить темп: тепло растёт как квадрат скорости, а время — только обратно пропорционально ей.']);
   if (route.ascentM > 300) adv.push(['warn', `Набор высоты ${fmt(route.ascentM, 0)} м. Подъём планировать на начало выхода, спуск — на возврат: дешевле и безопаснее.`]);
   if (rad.careerPercent > 50) adv.push(['warn', `Фон за миссию — ${fmt(rad.careerPercent, 0)} % карьерного предела. Это решается на уровне программы, а не одного выхода.`]);
   adv.push(['ok', `Рацион на эти сутки: ${fmt(nut.totalKcal, 0)} ккал, из них ${fmt(nut.evaKcal, 0)} даёт сам выход. Питьевой воды ${fmt(nut.drinkingWaterL)} л — это помимо ${fmt(feedwater)} кг на охлаждение.`]);
