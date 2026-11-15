@@ -3,6 +3,7 @@ import math
 import os
 from datetime import UTC, datetime, timedelta
 
+from martian_map.i18n import Text
 from martian_map.modules.eva_sources import cache
 
 DEFAULT_URL = "https://iswa.gsfc.nasa.gov/IswaSystemWebApp/hapi"
@@ -55,18 +56,28 @@ async def fetch_rad(days: int = 30) -> dict:
         series = parse_hapi(await cache.fetch_json(url, params))
     except Exception as exc:
         return cache.unavailable(
-            f"ISWA HAPI недоступен или вернул неожиданный ответ: {type(exc).__name__}"
+            Text(
+                f"ISWA HAPI недоступен или вернул неожиданный ответ: {type(exc).__name__}",
+                f"ISWA HAPI unavailable or returned an unexpected response: {type(exc).__name__}",
+            )
         )
     result = {
         "status": "ok",
-        "source": "NASA ISWA HAPI, msl_rad_dosimetry, детектор E (тканеэквивалентный пластик)",
+        "source": Text(
+            "NASA ISWA HAPI, msl_rad_dosimetry, детектор E (тканеэквивалентный пластик)",
+            "NASA ISWA HAPI, msl_rad_dosimetry, detector E (tissue-equivalent plastic)",
+        ),
         "dataset": DATASET_ID,
         "url": url,
         "days": days,
         "unit": "uGy/sol",
         "count": len(series),
         "series": series,
-        "caveat": "Ряд из внешнего сервиса как есть, без калибровки и без привязки к точке карты.",
+        "caveat": Text(
+            "Ряд из внешнего сервиса как есть, без калибровки и без привязки к точке карты.",
+            "Series from an external service as is, without calibration "
+            "and not tied to a map point.",
+        ),
     }
     cache.cache_put(key, result)
     return result

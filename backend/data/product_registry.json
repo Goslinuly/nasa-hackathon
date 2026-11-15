@@ -51,6 +51,7 @@
       "source_slug": "usgs-mola",
       "kind": "global_dem",
       "title": "MGS MOLA DEM 463 м/пикс",
+      "title_en": "MGS MOLA DEM 463 m/px",
       "mission": "MGS",
       "instrument": "MOLA",
       "product_id": "mars_mgs_mola_dem_463m",
@@ -59,12 +60,14 @@
       "license": null,
       "credit": "NASA/USGS",
       "verification_status": "metadata_verified",
-      "notes": "Глобальный обзорный рельеф. Слишком грубо для прогулки: мелкие препятствия не видны."
+      "notes": "Глобальный обзорный рельеф. Слишком грубо для прогулки: мелкие препятствия не видны.",
+      "notes_en": "Global overview elevation. Too coarse for a walk: small obstacles are not visible."
     },
     {
       "source_slug": "usgs-astrogeology-stac",
       "kind": "global_dem",
       "title": "MOLA + HRSC blended DEM ~200 м/пикс",
+      "title_en": "MOLA + HRSC blended DEM ~200 m/px",
       "mission": "MGS/MEX",
       "instrument": "MOLA/HRSC",
       "product_id": "mola_hrsc_blended_200m",
@@ -73,7 +76,8 @@
       "license": null,
       "credit": null,
       "verification_status": "candidate",
-      "notes": "Почти глобально; только обзор. Конкретный продукт и паспорт ещё не зафиксированы."
+      "notes": "Почти глобально; только обзор. Конкретный продукт и паспорт ещё не зафиксированы.",
+      "notes_en": "Nearly global; overview only. The specific product and its documentation are not fixed yet."
     },
     {
       "source_slug": "murray-lab-ctx",
@@ -88,7 +92,8 @@
       "license": null,
       "credit": "NASA/JPL/MSSS/The Murray Lab",
       "verification_status": "metadata_verified",
-      "notes": "Фотография, не высота; 99,5% Марса между 88°S и 88°N. Условия использования — на странице продукта."
+      "notes": "Фотография, не высота; 99,5% Марса между 88°S и 88°N. Условия использования — на странице продукта.",
+      "notes_en": "A photograph, not elevation; 99.5% of Mars between 88°S and 88°N. Terms of use are on the product page."
     }
   ],
   "regions": [
@@ -97,6 +102,7 @@
       "name_ru": "Кратер Езеро",
       "name_en": "Jezero Crater",
       "description": "Основной кандидат пилотного района. Perseverance: MEDA, PIXL, SuperCam — есть измерения состава и погоды. Область запроса реестра: 56×59 км.",
+      "description_en": "Main candidate for the pilot area. Perseverance: MEDA, PIXL, SuperCam — composition and weather measurements are available. Registry query area: 56×59 km.",
       "hirise_images": { "count": 400, "resolution_m": [0.25, 0.7], "total_area_km2": 21894 },
       "dtms": [
         { "product_id": "DTEEC_016364_1980_016219_1980_U01", "resolution_m": 1.014, "coverage_km2": 171.3, "nodata_pct": 37.2, "height_min_m": -2509, "height_max_m": -1964, "size_mb": 1072, "ortho_count": 8, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_016364_1980_ESP_016219_1980/DTEEC_016364_1980_016219_1980_U01.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_016364_1980_ESP_016219_1980/ESP_016219_1980_RED_A_01_ORTHO.tif" },
@@ -118,6 +124,7 @@
       "name_ru": "Кратер Гейл, место посадки",
       "name_en": "Gale Crater (landing site)",
       "description": "Второй кандидат. Curiosity: RAD, REMS, APXS, ChemCam, CheMin. Рельеф есть у места посадки, а не у центра кратера. Область запроса реестра: 30×36 км.",
+      "description_en": "Second candidate. Curiosity: RAD, REMS, APXS, ChemCam, CheMin. Elevation data cover the landing site, not the crater center. Registry query area: 30×36 km.",
       "hirise_images": { "count": 244, "resolution_m": [0.25, 0.5], "total_area_km2": 12666 },
       "dtms": [
         { "product_id": "DTEEC_009505_1755_009571_1755_U01", "resolution_m": 1.012, "coverage_km2": 134.3, "nodata_pct": 36.4, "height_min_m": -4534, "height_max_m": -3890, "size_mb": 792, "ortho_count": 16, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_009505_1755_PSP_009571_1755/DTEEC_009505_1755_009571_1755_U01.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_009505_1755_PSP_009571_1755/PSP_009505_1755_IRB_C_01_ORTHO.tif" },
@@ -132,7 +139,7 @@
         { "product_id": "DTEEC_024234_1755_024300_1755_U01", "resolution_m": 1.012, "coverage_km2": 78.4, "nodata_pct": 29.8, "height_min_m": -4623, "height_max_m": -4227, "size_mb": 424, "ortho_count": 16, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_024234_1755_ESP_024300_1755/DTEEC_024234_1755_024300_1755_U01.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_024234_1755_ESP_024300_1755/ESP_024234_1755_IRB_C_01_ORTHO.tif" },
         { "product_id": "DTEEC_009149_1750_009294_1750_U01", "resolution_m": 1.012, "coverage_km2": 73.3, "nodata_pct": 25.5, "height_min_m": -4407, "height_max_m": -2269, "size_mb": 372, "ortho_count": 8, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_009149_1750_PSP_009294_1750/DTEEC_009149_1750_009294_1750_U01.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_009149_1750_PSP_009294_1750/PSP_009149_1750_RED_C_01_ORTHO.tif" },
         { "product_id": "DTEEC_001488_1750_001752_1750_U02", "resolution_m": 1.012, "coverage_km2": 68.8, "nodata_pct": 24.6, "height_min_m": -4486, "height_max_m": -2977, "size_mb": 344, "ortho_count": 16, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_001488_1750_PSP_001752_1750/DTEEC_001488_1750_001752_1750_U02.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_001488_1750_PSP_001752_1750/PSP_001488_1750_IRB_C_01_ORTHO.tif" },
-        { "product_id": "DTEEC_040770_1755_039280_1755_A01", "resolution_m": null, "coverage_km2": null, "nodata_pct": null, "height_min_m": null, "height_max_m": null, "size_mb": null, "ortho_count": 0, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/DTEEC_040770_1755_039280_1755_A01.tif", "ortho_example_url": null, "verification_status": "candidate", "verification_notes": "13-й продукт из HTML-карты: в реестре нет NoData и диапазона высот; метаданные сверить со STAC перед использованием." }
+        { "product_id": "DTEEC_040770_1755_039280_1755_A01", "resolution_m": null, "coverage_km2": null, "nodata_pct": null, "height_min_m": null, "height_max_m": null, "size_mb": null, "ortho_count": 0, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/DTEEC_040770_1755_039280_1755_A01.tif", "ortho_example_url": null, "verification_status": "candidate", "verification_notes": "13-й продукт из HTML-карты: в реестре нет NoData и диапазона высот; метаданные сверить со STAC перед использованием.", "verification_notes_en": "13th product from the HTML map: the registry has no NoData or elevation range; check the metadata against STAC before use." }
       ]
     },
     {
@@ -140,6 +147,7 @@
       "name_ru": "Кратер Гусев",
       "name_en": "Gusev Crater",
       "description": "Запасной вариант с хорошим покрытием рельефом (Spirit). Область запроса реестра: 23×24 км.",
+      "description_en": "Fallback option with good elevation coverage (Spirit). Registry query area: 23×24 km.",
       "hirise_images": { "count": 143, "resolution_m": [0.25, 0.5], "total_area_km2": 6344 },
       "dtms": [
         { "product_id": "DTEEC_036087_1655_035164_1655_U01", "resolution_m": 1.014, "coverage_km2": 62.7, "nodata_pct": 26.4, "height_min_m": -1952, "height_max_m": -1890, "size_mb": 328, "ortho_count": 8, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_036087_1655_ESP_035164_1655/DTEEC_036087_1655_035164_1655_U01.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_036087_1655_ESP_035164_1655/ESP_035164_1655_RED_C_01_ORTHO.tif" },
@@ -154,6 +162,7 @@
       "name_ru": "Равнина Меридиана",
       "name_en": "Meridiani Planum",
       "description": "Ровная местность, удобна для проверки уклонов (Opportunity). Область запроса реестра: 24×24 км.",
+      "description_en": "Flat terrain, convenient for checking slopes (Opportunity). Registry query area: 24×24 km.",
       "hirise_images": { "count": 64, "resolution_m": [0.25, 0.5], "total_area_km2": 3377 },
       "dtms": [
         { "product_id": "DTEEC_021747_1780_022380_1780_U01", "resolution_m": 1.012, "coverage_km2": 67.2, "nodata_pct": 26.2, "height_min_m": -1444, "height_max_m": -1365, "size_mb": 344, "ortho_count": 8, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_021747_1780_ESP_022380_1780/DTEEC_021747_1780_022380_1780_U01.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_021747_1780_ESP_022380_1780/ESP_021747_1780_RED_C_01_ORTHO.tif" },
@@ -165,6 +174,7 @@
       "name_ru": "Долины Маринер",
       "name_en": "Valles Marineris",
       "description": "Крупная форма рельефа; HiRISE-рельеф есть только местами. Область запроса реестра: 350×356 км.",
+      "description_en": "A major landform; HiRISE elevation data exist only in places. Registry query area: 350×356 km.",
       "hirise_images": { "count": 600, "resolution_m": [0.25, 0.5], "total_area_km2": 30478 },
       "dtms": [
         { "product_id": "DTEEC_008669_1705_009025_1705_A01", "resolution_m": 1.012, "coverage_km2": 131.5, "nodata_pct": 37.7, "height_min_m": -2726, "height_max_m": -140, "size_mb": 826, "ortho_count": 4, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_008669_1705_PSP_009025_1705/DTEEC_008669_1705_009025_1705_A01.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_008669_1705_PSP_009025_1705/PSP_009025_1705_RED_C_01_ORTHO.tif" },
@@ -178,6 +188,7 @@
       "name_ru": "Олимп",
       "name_en": "Olympus Mons",
       "description": "Самая крупная гора; подробного рельефа почти нет — только обзор. Область запроса реестра: 337×296 км.",
+      "description_en": "The largest mountain; almost no detailed elevation data — overview only. Registry query area: 337×296 km.",
       "hirise_images": { "count": 281, "resolution_m": [0.25, 0.51], "total_area_km2": 14077 },
       "dtms": [
         { "product_id": "DTEEC_005533_1975_005388_1975_A01", "resolution_m": 1.014, "coverage_km2": 128.0, "nodata_pct": 37.5, "height_min_m": 20077, "height_max_m": 21231, "size_mb": 812, "ortho_count": 12, "dtm_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_005533_1975_PSP_005388_1975/DTEEC_005533_1975_005388_1975_A01.tif", "ortho_example_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/PSP_005533_1975_PSP_005388_1975/PSP_005388_1975_IRB_C_01_ORTHO.tif" }

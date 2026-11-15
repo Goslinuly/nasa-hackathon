@@ -1,7 +1,8 @@
 // Тесты прореживания маршрута и подписи смещения для поиска исследований.
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import type { PlacedStudy } from '@/shared/api/scienceTypes';
+import { setLang } from '@/shared/i18n/lang';
 
 import { formatOffset, sampleRoute } from './ResearchAlongRoute';
 
@@ -36,6 +37,7 @@ describe('прореживание маршрута для поиска иссл
 describe('подсказка о том, что лежит в стороне от линии', () => {
   const study = (distance_from_route_m: number, side: 'left' | 'right' | 'on_line') =>
     ({ distance_from_route_m, side }) as PlacedStudy;
+  beforeAll(() => setLang('ru'));
 
   it('называет сторону, а не только расстояние — иначе непонятно, куда смотреть', () => {
     expect(formatOffset(study(120_000, 'right'))).toBe('120 км справа от линии');
@@ -48,5 +50,11 @@ describe('подсказка о том, что лежит в стороне от
 
   it('не выдумывает сторону для точки на самой линии', () => {
     expect(formatOffset(study(0, 'on_line'))).toBe('0 м на самой линии');
+  });
+
+  it('по-английски', () => {
+    setLang('en');
+    expect(formatOffset(study(120_000, 'right'))).toBe('120 km right of the line');
+    setLang('ru');
   });
 });

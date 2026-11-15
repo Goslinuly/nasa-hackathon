@@ -2,7 +2,9 @@
  {
   "external_id": "landing-viking-1",
   "title": "Viking 1 — равнина Хриса",
+  "title_en": "Viking 1 — Chryse Planitia",
   "summary": "Первый успешно работавший посадочный аппарат NASA на Марсе: съёмка поверхности, метеорология и поиск признаков жизни.",
+  "summary_en": "NASA's first successfully operating lander on Mars: surface imaging, meteorology and a search for signs of life.",
   "mission": "Viking 1",
   "source_url": "https://www.giss.nasa.gov/tools/mars24/help/landers.html",
   "point": {
@@ -10,13 +12,16 @@
    "longitude_deg": 312.05
   },
   "position_evidence": "Координаты места посадки по сводке NASA GISS Mars24 (восточная долгота).",
+  "position_evidence_en": "Landing site coordinates from the NASA GISS Mars24 summary (east longitude).",
   "position_uncertainty_m": 10000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "landing-viking-2",
   "title": "Viking 2 — равнина Утопия",
+  "title_en": "Viking 2 — Utopia Planitia",
   "summary": "Второй посадочный аппарат программы Viking, работавший в более северных широтах.",
+  "summary_en": "The second Viking lander, which operated at more northern latitudes.",
   "mission": "Viking 2",
   "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
   "point": {
@@ -24,13 +29,16 @@
    "longitude_deg": 134.01
   },
   "position_evidence": "Координаты места посадки по сводному списку посадок на Марс. Источники расходятся примерно на 0.3°, поэтому погрешность задана с запасом.",
+  "position_evidence_en": "Landing site coordinates from a compiled list of Mars landings. Sources differ by about 0.3°, so the uncertainty is set generously.",
   "position_uncertainty_m": 20000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "landing-pathfinder",
   "title": "Mars Pathfinder — долина Арес",
+  "title_en": "Mars Pathfinder — Ares Vallis",
   "summary": "Посадка с надувными амортизаторами и первый марсоход Sojourner: съёмка и съёмка состава камней.",
+  "summary_en": "Airbag landing and the first rover, Sojourner: imaging and rock composition measurements.",
   "mission": "Mars Pathfinder",
   "source_url": "https://www.giss.nasa.gov/tools/mars24/help/landers.html",
   "point": {
@@ -38,13 +46,16 @@
    "longitude_deg": 326.79
   },
   "position_evidence": "Координаты места посадки по сводке NASA GISS Mars24 (восточная долгота). Источники расходятся примерно на 0.3°, поэтому погрешность задана с запасом.",
+  "position_evidence_en": "Landing site coordinates from the NASA GISS Mars24 summary (east longitude). Sources differ by about 0.3°, so the uncertainty is set generously.",
   "position_uncertainty_m": 20000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "landing-spirit",
   "title": "Spirit (MER-A) — кратер Гусев",
+  "title_en": "Spirit (MER-A) — Gusev crater",
   "summary": "Марсоход, изучавший породы кратера Гусев и холмы Колумбия в поисках следов воды.",
+  "summary_en": "A rover that studied the rocks of Gusev crater and the Columbia Hills, looking for traces of water.",
   "mission": "Mars Exploration Rover A",
   "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
   "point": {
@@ -52,13 +63,16 @@
    "longitude_deg": 175.48
   },
   "position_evidence": "Координаты места посадки по сводному списку посадок на Марс. Значение найдено в одном источнике и не сверено с первичным продуктом миссии.",
+  "position_evidence_en": "Landing site coordinates from a compiled list of Mars landings. The value comes from a single source and has not been checked against a primary mission product.",
   "position_uncertainty_m": 10000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "landing-opportunity",
   "title": "Opportunity (MER-B) — плато Меридиана",
+  "title_en": "Opportunity (MER-B) — Meridiani Planum",
   "summary": "Марсоход-долгожитель: гематитовые сферулы и слоистые отложения как свидетельство участия воды.",
+  "summary_en": "The long-lived rover: hematite spherules and layered deposits as evidence that water was involved.",
   "mission": "Mars Exploration Rover B",
   "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
   "point": {
@@ -66,13 +80,16 @@
    "longitude_deg": 354.47
   },
   "position_evidence": "Координаты места посадки по сводному списку посадок на Марс. Значение найдено в одном источнике и не сверено с первичным продуктом миссии.",
+  "position_evidence_en": "Landing site coordinates from a compiled list of Mars landings. The value comes from a single source and has not been checked against a primary mission product.",
   "position_uncertainty_m": 10000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "landing-phoenix",
   "title": "Phoenix — равнина Ваститас Бореалис",
+  "title_en": "Phoenix — Vastitas Borealis",
   "summary": "Полярная станция: подповерхностный водяной лёд и химия грунта.",
+  "summary_en": "A polar lander: subsurface water ice and soil chemistry.",
   "mission": "Phoenix",
   "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
   "point": {
@@ -80,13 +97,16 @@
    "longitude_deg": 234.26
   },
   "position_evidence": "Координаты места посадки по сводному списку посадок на Марс.",
+  "position_evidence_en": "Landing site coordinates from a compiled list of Mars landings.",
   "position_uncertainty_m": 10000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "landing-curiosity",
   "title": "Curiosity — кратер Гейл",
+  "title_en": "Curiosity — Gale crater",
   "summary": "Марсоход MSL: слоистые отложения горы Шарп, органика и измерения радиации прибором RAD.",
+  "summary_en": "The MSL rover: layered deposits of Mount Sharp, organics and radiation measurements with the RAD instrument.",
   "mission": "Mars Science Laboratory",
   "source_url": "https://www.giss.nasa.gov/tools/mars24/help/landers.html",
   "point": {
@@ -94,13 +114,16 @@
    "longitude_deg": 137.44
   },
   "position_evidence": "Координаты места посадки по сводке NASA GISS Mars24 (восточная долгота).",
+  "position_evidence_en": "Landing site coordinates from the NASA GISS Mars24 summary (east longitude).",
   "position_uncertainty_m": 5000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "landing-insight",
   "title": "InSight — равнина Элизий",
+  "title_en": "InSight — Elysium Planitia",
   "summary": "Стационарная геофизическая станция: сейсмометрия и тепловой поток недр Марса.",
+  "summary_en": "A stationary geophysical station: seismometry and heat flow from the Martian interior.",
   "mission": "InSight",
   "source_url": "https://en.wikipedia.org/wiki/List_of_Mars_landers",
   "point": {
@@ -108,13 +131,16 @@
    "longitude_deg": 135.9
   },
   "position_evidence": "Координаты места посадки по сводному списку посадок на Марс. Источники расходятся примерно на 0.3°, поэтому погрешность задана с запасом.",
+  "position_evidence_en": "Landing site coordinates from a compiled list of Mars landings. Sources differ by about 0.3°, so the uncertainty is set generously.",
   "position_uncertainty_m": 20000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "landing-perseverance",
   "title": "Perseverance — кратер Езеро",
+  "title_en": "Perseverance — Jezero crater",
   "summary": "Марсоход Mars 2020: древняя дельта реки, отбор образцов для будущей доставки на Землю.",
+  "summary_en": "The Mars 2020 rover: an ancient river delta and sample collection for future return to Earth.",
   "mission": "Mars 2020",
   "source_url": "https://www.giss.nasa.gov/tools/mars24/help/landers.html",
   "point": {
@@ -122,13 +148,16 @@
    "longitude_deg": 77.45
   },
   "position_evidence": "Координаты места посадки по сводке NASA GISS Mars24 (восточная долгота).",
+  "position_evidence_en": "Landing site coordinates from the NASA GISS Mars24 summary (east longitude).",
   "position_uncertainty_m": 5000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "olympus-hrsc-young-activity",
   "title": "Олимп — молодая вулканическая и ледниковая активность",
+  "title_en": "Olympus Mons — young volcanic and glacial activity",
   "summary": "Подсчёт кратеров по снимкам HRSC (Mars Express) показал на Олимпе и соседних вулканах эпизоды лавовой и ледниковой активности возрастом вплоть до нескольких миллионов лет — по геологическим меркам гора может быть ещё способна к извержениям.",
+  "summary_en": "Crater counts on HRSC images (Mars Express) showed episodes of lava and glacial activity on Olympus Mons and neighboring volcanoes as young as a few million years — by geological standards the volcano may still be able to erupt.",
   "mission": "Mars Express",
   "instrument": "HRSC",
   "source_url": "https://doi.org/10.1038/nature03231",
@@ -137,13 +166,16 @@
    "longitude_deg": 226.1975
   },
   "position_evidence": "Центр горы Олимп по газеттиру планетной номенклатуры IAU/USGS; выводы работы относятся ко всему щиту и кальдере.",
+  "position_evidence_en": "Center of Olympus Mons from the IAU/USGS planetary nomenclature gazetteer; the study's conclusions apply to the whole shield and caldera.",
   "position_uncertainty_m": 300000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "palikir-rsl-seasonal-flows",
   "title": "Кратер Паликир — сезонные тёмные полосы (RSL)",
+  "title_en": "Palikir crater — recurring slope lineae (RSL)",
   "summary": "На тёплых склонах, включая кратер Паликир, HiRISE зафиксировал сезонно растущие тёмные полосы (recurring slope lineae). Их связывали с рассолами; сегодня обсуждаются и сухие сыпучие механизмы — вопрос открыт.",
+  "summary_en": "On warm slopes, including Palikir crater, HiRISE recorded seasonally growing dark streaks (recurring slope lineae). They were linked to brines; dry granular mechanisms are now discussed as well — the question is open.",
   "mission": "Mars Reconnaissance Orbiter",
   "instrument": "HiRISE",
   "source_url": "https://doi.org/10.1126/science.1204816",
@@ -152,13 +184,16 @@
    "longitude_deg": 202.1416
   },
   "position_evidence": "Кратер Паликир по газеттиру IAU/USGS; полосы наблюдаются на его внутренних склонах.",
+  "position_evidence_en": "Palikir crater from the IAU/USGS gazetteer; the streaks are seen on its inner slopes.",
   "position_uncertainty_m": 8000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "jezero-delta-lake-system",
   "title": "Езеро — древняя дельта и озеро",
+  "title_en": "Jezero — an ancient delta and lake",
   "summary": "Снимки Perseverance подтвердили: западный уступ Езеро — дельта реки, впадавшей в кратерное озеро; верхние слои с валунами говорят о поздних паводках. Это главная причина выбора Езеро для поиска следов древней жизни.",
+  "summary_en": "Perseverance images confirmed that Jezero's western scarp is the delta of a river that flowed into a crater lake; boulder-rich upper layers point to late floods. This is the main reason Jezero was chosen to search for traces of ancient life.",
   "mission": "Mars 2020 Perseverance",
   "instrument": "Mastcam-Z",
   "source_url": "https://doi.org/10.1126/science.abl4051",
@@ -167,13 +202,16 @@
    "longitude_deg": 77.45
   },
   "position_evidence": "Точка у фронта западной дельты Езеро; центр кратера по газеттиру — 18.41° с. ш., 77.69° в. д., дельта смещена к западному борту.",
+  "position_evidence_en": "A point at the front of Jezero's western delta; the crater center per the gazetteer is 18.41° N, 77.69° E, and the delta is offset toward the western rim.",
   "position_uncertainty_m": 15000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "gusev-home-plate-silica",
   "title": "Гусев — кремнезём горячих источников у Home Plate",
+  "title_en": "Gusev — hot-spring silica at Home Plate",
   "summary": "Ровер Spirit нашёл у Home Plate опаловый кремнезём с пальцевидными наростами, похожими на отложения горячих источников Эль-Татио в Чили, где такие формы растят микроорганизмы. Это кандидат в биосигнатуры, а не доказательство жизни.",
+  "summary_en": "The Spirit rover found opaline silica with finger-like protrusions near Home Plate, similar to hot-spring deposits at El Tatio in Chile, where such forms are grown by microorganisms. This is a candidate biosignature, not proof of life.",
   "mission": "MER Spirit",
   "instrument": "Mini-TES",
   "source_url": "https://doi.org/10.1038/ncomms13554",
@@ -182,13 +220,16 @@
    "longitude_deg": 175.5244
   },
   "position_evidence": "Кратер Гусев по газеттиру IAU/USGS; Home Plate и холмы Колумбия лежат близ центра кратера.",
+  "position_evidence_en": "Gusev crater from the IAU/USGS gazetteer; Home Plate and the Columbia Hills lie near the crater center.",
   "position_uncertainty_m": 40000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "cerberus-fossae-marsquakes",
   "title": "Борозды Цербера — очаг марсотрясений",
+  "title_en": "Cerberus Fossae — a source of marsquakes",
   "summary": "Сейсмометр InSight показал, что Марс сейсмически активен, а самые отчётливые низкочастотные толчки приходят из района борозд Цербера — молодых разломов, где кора всё ещё подвижна.",
+  "summary_en": "InSight's seismometer showed that Mars is seismically active, and the clearest low-frequency quakes come from Cerberus Fossae — young faults where the crust is still moving.",
   "mission": "InSight",
   "instrument": "SEIS",
   "source_url": "https://doi.org/10.1038/s41561-020-0539-8",
@@ -197,13 +238,16 @@
    "longitude_deg": 166.3738
   },
   "position_evidence": "Центр борозд Цербера по газеттиру IAU/USGS; эпицентры определены с точностью до сотен километров вдоль системы разломов.",
+  "position_evidence_en": "Center of Cerberus Fossae from the IAU/USGS gazetteer; epicenters are located to within hundreds of kilometers along the fault system.",
   "position_uncertainty_m": 600000,
   "verification_status": "team_supplied_unverified"
  },
  {
   "external_id": "gale-boxwork-ridges",
   "title": "Гейл — полигоны boxwork на склоне горы Шарп",
+  "title_en": "Gale — boxwork polygons on the slope of Mount Sharp",
   "summary": "Сеть полигональных гребней boxwork — минеральные перегородки, осаждённые грунтовыми водами в трещинах и вскрытые выветриванием. Curiosity вышел к ним в 2025 году: это одно из последних мест с доказательствами долгой подповерхностной воды.",
+  "summary_en": "A network of polygonal boxwork ridges — mineral walls deposited by groundwater in fractures and exposed by erosion. Curiosity reached them in 2025: this is one of the last places with evidence of long-lived subsurface water.",
   "mission": "MSL Curiosity",
   "instrument": "Mastcam",
   "source_url": "https://science.nasa.gov/mission/msl-curiosity/",
@@ -212,6 +256,7 @@
    "longitude_deg": 137.383
   },
   "position_evidence": "Площадка boxwork DTM-участка проекта (HiRISE DTM USGS), район работ Curiosity 2025 года.",
+  "position_evidence_en": "The boxwork site of the project's DTM area (USGS HiRISE DTM), where Curiosity worked in 2025.",
   "position_uncertainty_m": 6000,
   "verification_status": "team_supplied_unverified"
  }

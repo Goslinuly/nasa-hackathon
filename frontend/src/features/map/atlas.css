@@ -104,3 +104,14 @@
   .map-status { display: none; }
   .map-badge { max-width: 50%; }
 }
+
+/* Переключатель языка в шапке атласа: свои стили, а не общие кнопки атласа. */
+.atlas-header-end { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.atlas-header .lang-switch { flex-shrink: 0; }
+.atlas-app .atlas-header .lang-switch button { border: 0; border-radius: 999px; background: none; color: rgba(255, 255, 255, 0.6); min-width: 40px; min-height: 32px; padding: 0 10px; font-size: 12px; letter-spacing: 0.08em; }
+.atlas-app .atlas-header .lang-switch button[aria-pressed='true'] { background: rgba(255, 255, 255, 0.14); color: #fff; }
+@media (pointer: coarse) { .atlas-app .atlas-header .lang-switch button { min-height: 40px; } }
+@media (max-width: 760px), (max-height: 500px) {
+  .atlas-header-end { gap: 6px; }
+  .atlas-app .atlas-header .lang-switch button { min-width: 34px; padding: 0 6px; }
+}

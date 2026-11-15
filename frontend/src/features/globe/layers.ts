@@ -37,6 +37,10 @@ export interface Legend {
   low: string;
   high: string;
   quantity: string;
+  /** Подписи по-английски (shared/i18n). */
+  lowEn: string;
+  highEn: string;
+  quantityEn: string;
 }
 
 export interface SpectrumLayer {
@@ -44,6 +48,11 @@ export interface SpectrumLayer {
   title: string;
   kind: string;
   description: string;
+  /** Название, вид данных, описание и охват по-английски (shared/i18n). */
+  titleEn: string;
+  kindEn: string;
+  descriptionEn: string;
+  coverageEn: string;
   color: TrekSource;
   shade?: TrekSource;
   fallback?: SpectrumId;
@@ -61,6 +70,11 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
   natural: {
     id: 'natural',
     title: 'Видимый',
+    titleEn: 'Visible',
+    kindEn: 'optical',
+    descriptionEn:
+      'Natural color from Viking MDIM2.1 (232 m) with HRSC + MOLA relief shading (200 m).',
+    coverageEn: 'whole planet',
     kind: 'оптический',
     description:
       'Естественный цвет Viking MDIM2.1 (232 м) с отмывкой рельефа HRSC + MOLA (200 м).',
@@ -74,6 +88,11 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
   hypsometry: {
     id: 'hypsometry',
     title: 'Высоты',
+    titleEn: 'Elevation',
+    kindEn: 'topographic',
+    descriptionEn:
+      'Color-coded elevation from HRSC + MOLA (200 m) with relief shading.',
+    coverageEn: 'whole planet',
     kind: 'топографический',
     description: 'Гипсометрическая раскраска по высоте HRSC + MOLA (200 м) с отмывкой.',
     color: trek('Mars_MOLA_blend200ppx_HRSC_ClrShade_clon0dd_200mpp_lzw', 'jpg', 8),
@@ -86,11 +105,19 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: '≈ −8 км',
       high: '≈ +21 км',
       quantity: 'Высота над ареоидом',
+      lowEn: '≈ −8 km',
+      highEn: '≈ +21 km',
+      quantityEn: 'Height above the areoid',
     },
   },
   shade: {
     id: 'shade',
     title: 'Рельеф',
+    titleEn: 'Relief',
+    kindEn: 'topographic',
+    descriptionEn:
+      'HRSC + MOLA relief shading at 200 m: light from the northwest, no color.',
+    coverageEn: 'whole planet',
     kind: 'топографический',
     description: 'Отмывка рельефа HRSC + MOLA 200 м: свет с северо-запада, без цвета.',
     color: HRSC_SHADE,
@@ -102,6 +129,11 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
   'themis-day': {
     id: 'themis-day',
     title: 'ИК день',
+    titleEn: 'Day IR',
+    kindEn: 'thermal',
+    descriptionEn:
+      'THEMIS daytime IR (12.6 µm), 100 m: brightness rises with daytime surface temperature. This is image brightness, not degrees.',
+    coverageEn: 'latitudes ±65°; beyond that, the visible layer',
     kind: 'тепловой',
     description:
       'THEMIS дневной ИК (12.6 мкм), 100 м: яркость растёт с температурой поверхности днём. Это яркость снимка, не градусы.',
@@ -116,11 +148,19 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: 'холоднее',
       high: 'теплее',
       quantity: 'Относительная яркость ИК, без шкалы °C',
+      lowEn: 'colder',
+      highEn: 'warmer',
+      quantityEn: 'Relative IR brightness, no °C scale',
     },
   },
   'themis-night': {
     id: 'themis-night',
     title: 'ИК ночь',
+    titleEn: 'Night IR',
+    kindEn: 'thermal',
+    descriptionEn:
+      'THEMIS nighttime IR, 100 m. At night, rocks and outcrops with high thermal inertia stay warm, while dust and sand look dark.',
+    coverageEn: 'latitudes ±65°; beyond that, the visible layer',
     kind: 'тепловой',
     description:
       'THEMIS ночной ИК, 100 м. Ночью тёплыми остаются камни и скальные выходы с высокой тепловой инерцией, а пыль и песок выглядят тёмными.',
@@ -135,11 +175,19 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: 'пыль, песок',
       high: 'камень',
       quantity: 'Относительная яркость ИК ночью, без шкалы °C',
+      lowEn: 'dust, sand',
+      highEn: 'rock',
+      quantityEn: 'Relative nighttime IR brightness, no °C scale',
     },
   },
   'tes-albedo': {
     id: 'tes-albedo',
     title: 'Альбедо',
+    titleEn: 'Albedo',
+    kindEn: 'spectral',
+    descriptionEn:
+      'Surface albedo from the visible and near-IR channel (0.3–2.9 µm) of the TES spectrometer, MGS. The source map is about 7.4 km/px; Trek tiles are coarser. Bright areas are dust, dark areas are exposed rock and sand.',
+    coverageEn: 'whole planet, overview scale',
     kind: 'спектральный',
     description:
       'Альбедо поверхности по видимому и ближнему ИК каналу (0.3–2.9 мкм) спектрометра TES, MGS. Исходная карта около 7.4 км/пикс, в тайлах Trek доступна грубее. Светлые области — пыль, тёмные — открытая порода и песок.',
@@ -154,11 +202,19 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: 'темнее',
       high: 'светлее',
       quantity: 'Относительное отражение (альбедо), оттенок серого',
+      lowEn: 'darker',
+      highEn: 'brighter',
+      quantityEn: 'Relative reflectance (albedo), grayscale',
     },
   },
   'tes-dust': {
     id: 'tes-dust',
     title: 'Пыль',
+    titleEn: 'Dust',
+    kindEn: 'dust cover',
+    descriptionEn:
+      'TES dust cover index (Ruff, Christensen 2002): how much dust hides the surface spectrum. Source grid 16 px/° (about 3.5 km); Trek tiles are coarser. It is a thermal IR index, not dust thickness and not dust in the air.',
+    coverageEn: 'mostly low and middle latitudes',
     kind: 'пылевой покров',
     description:
       'Индекс пылевого покрова TES (Ruff, Christensen 2002): мера того, насколько пыль скрывает спектр поверхности. Исходный шаг 16 пикс/° (около 3.5 км), тайлы Trek грубее. Это индекс по тепловому ИК, а не толщина слоя пыли и не пыль в воздухе.',
@@ -173,11 +229,19 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: 'меньше пыли',
       high: 'больше пыли',
       quantity: 'Индекс пылевого покрова, безразмерный; числовая шкала в тайлах не передана',
+      lowEn: 'less dust',
+      highEn: 'more dust',
+      quantityEn: 'Dust cover index, dimensionless; the tiles carry no numeric scale',
     },
   },
   'tes-inertia': {
     id: 'tes-inertia',
     title: 'Инерция',
+    titleEn: 'Inertia',
+    kindEn: 'thermophysical',
+    descriptionEn:
+      'Surface thermal inertia from TES (Putzig et al. 2005), about 3 km at source, coarser in Trek tiles. Shows how fast the ground heats and cools: low for dust, high for rock and outcrops. Derived from surface temperatures, not measured directly.',
+    coverageEn: 'mostly low and middle latitudes',
     kind: 'термофизический',
     description:
       'Тепловая инерция поверхности по TES (Putzig и др. 2005), около 3 км исходно, в тайлах Trek грубее. Показывает, как быстро грунт греется и остывает: низкая у пыли, высокая у камня и скал. Выводится из температур поверхности, а не измеряется напрямую.',
@@ -192,11 +256,19 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: 'пыль, песок',
       high: 'камень, скалы',
       quantity: 'Тепловая инерция, Дж·м⁻²·К⁻¹·с⁻¹ᐟ²; числовая шкала в тайлах не передана',
+      lowEn: 'dust, sand',
+      highEn: 'rock, outcrops',
+      quantityEn: 'Thermal inertia, J·m⁻²·K⁻¹·s⁻¹ᐟ²; the tiles carry no numeric scale',
     },
   },
   'tes-pyroxene': {
     id: 'tes-pyroxene',
     title: 'Пироксен',
+    titleEn: 'Pyroxene',
+    kindEn: 'chemical (minerals)',
+    descriptionEn:
+      'High-calcium pyroxene fraction from TES spectra (Bandfield 2002), 4 px/° (about 16 km). Spectral deconvolution gives the mineral fraction of the surface: 0.1–0.2 in dark low-latitude areas, below detection on bright ones.',
+    coverageEn: 'dark areas at low and middle latitudes; below detection on bright areas',
     kind: 'химический (минералы)',
     description:
       'Доля высококальциевого пироксена по спектрам TES (Bandfield 2002), 4 пикс/° (около 16 км). Деконволюция спектров даёт долю минерала в поверхности: 0.1–0.2 в тёмных областях низких широт, ниже предела обнаружения на светлых.',
@@ -211,11 +283,19 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: '0',
       high: '≈ 0.2',
       quantity: 'Доля минерала в поверхностном слое (безразмерная)',
+      lowEn: '0',
+      highEn: '≈ 0.2',
+      quantityEn: 'Mineral fraction in the surface layer (dimensionless)',
     },
   },
   'tes-plagioclase': {
     id: 'tes-plagioclase',
     title: 'Плагиоклаз',
+    titleEn: 'Plagioclase',
+    kindEn: 'chemical (minerals)',
+    descriptionEn:
+      'Plagioclase fraction from TES spectra (Bandfield 2002), 4 px/° (about 16 km). Visible in dark areas, peaking around Syrtis Major; below detection on bright surfaces.',
+    coverageEn: 'dark areas at low and middle latitudes; below detection on bright areas',
     kind: 'химический (минералы)',
     description:
       'Доля плагиоклаза по спектрам TES (Bandfield 2002), 4 пикс/° (около 16 км). Заметна в тёмных областях, максимум в районе Большого Сырта; на светлых поверхностях ниже порога обнаружения.',
@@ -230,11 +310,19 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: '0',
       high: '≈ 0.2',
       quantity: 'Доля минерала в поверхностном слое (безразмерная)',
+      lowEn: '0',
+      highEn: '≈ 0.2',
+      quantityEn: 'Mineral fraction in the surface layer (dimensionless)',
     },
   },
   'tes-silicates': {
     id: 'tes-silicates',
     title: 'Силикаты',
+    titleEn: 'Silicates',
+    kindEn: 'chemical (minerals)',
+    descriptionEn:
+      'Fraction of sheet silicates and high-silica glass from TES spectra (Bandfield 2002), 4 px/° (about 16 km). Noisier than the other maps: the spectrum of these minerals resembles atmospheric dust. This is a mineral group, not an element measurement.',
+    coverageEn: 'mostly low and middle latitudes; noisy values',
     kind: 'химический (минералы)',
     description:
       'Доля слоистых силикатов и высококремнистого стекла по спектрам TES (Bandfield 2002), 4 пикс/° (около 16 км). Карта шумнее остальных: спектр этих минералов похож на пыль в атмосфере. Это группа минералов, а не измерение элементов.',
@@ -249,16 +337,30 @@ export const SPECTRA: Record<SpectrumId, SpectrumLayer> = {
       low: '0',
       high: '≈ 0.2',
       quantity: 'Доля группы минералов в поверхностном слое (безразмерная)',
+      lowEn: '0',
+      highEn: '≈ 0.2',
+      quantityEn: 'Mineral group fraction in the surface layer (dimensionless)',
     },
   },
 };
 
 export const DEFAULT_SPECTRUM: SpectrumId = 'natural';
 
+/**
+ * Английское название слоя по русскому (подпись источника в HUD приходит из движка по-русски).
+ * Неизвестное название возвращается как есть.
+ */
+export function layerTitleEn(title: string): string {
+  for (const spectrum of Object.values(SPECTRA)) if (spectrum.title === title) return spectrum.titleEn;
+  for (const overlay of [CTX_OVERLAY, ...HIRISE_OVERLAYS]) if (overlay.title === title) return overlay.titleEn ?? title;
+  return title;
+}
+
 
 export interface OverlayBase {
   id: string;
   title: string;
+  titleEn?: string;
   nativeResolutionM: number;
   credit: string;
   minViewZoom: number;
@@ -284,10 +386,12 @@ function hirise(
   maxZoom: number,
   resolutionM: number,
   [west, south, east, north]: [number, number, number, number],
+  titleEn?: string,
 ): TrekOverlay {
   return {
     id,
     title,
+    titleEn,
     kind: 'trek',
     source: trek(layer, 'png', maxZoom),
     bounds: { west, south, east, north },
@@ -300,6 +404,7 @@ function hirise(
 export const CTX_OVERLAY: CtxOverlay = {
   id: 'ctx',
   title: 'CTX · 5 м (ч/б)',
+  titleEn: 'CTX · 5 m (B/W)',
   kind: 'ctx',
   maxZoom: 13,
   nativeResolutionM: 5,
@@ -308,11 +413,11 @@ export const CTX_OVERLAY: CtxOverlay = {
 };
 
 export const HIRISE_OVERLAYS: TrekOverlay[] = [
-  hirise('hirise-jezero', 'Езеро', 'JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd', 17, 0.25, [77.2229331, 18.3067994, 77.583964, 18.669315]),
-  hirise('hirise-gale', 'Гейл', 'curiosity_hirise_mosaic', 16, 0.5, [137.1224669, -4.9254743, 137.7298129, -4.2489588]),
-  hirise('hirise-gusev', 'Гусев', 'spirit_hirise_mosaic', 17, 0.25, [175.4278511, -14.6925026, 175.5858031, -14.5357546]),
+  hirise('hirise-jezero', 'Езеро', 'JEZ_hirise_soc_006_orthoMosaic_25cm_Eqc_latTs0_lon0_first_dd', 17, 0.25, [77.2229331, 18.3067994, 77.583964, 18.669315], 'Jezero'),
+  hirise('hirise-gale', 'Гейл', 'curiosity_hirise_mosaic', 16, 0.5, [137.1224669, -4.9254743, 137.7298129, -4.2489588], 'Gale'),
+  hirise('hirise-gusev', 'Гусев', 'spirit_hirise_mosaic', 17, 0.25, [175.4278511, -14.6925026, 175.5858031, -14.5357546], 'Gusev'),
   hirise('hirise-columbia', 'Columbia Hills', 'HiRISE_ColumbiaHills', 16, 0.5, [175.3183393, -14.847288, 175.7967313, -14.250304]),
-  hirise('hirise-meridiani', 'Меридиана', 'opportunity_hirise_mosaic', 17, 0.25, [-5.5964391, -2.7513281, -4.9954112, -1.8994384]),
+  hirise('hirise-meridiani', 'Меридиана', 'opportunity_hirise_mosaic', 17, 0.25, [-5.5964391, -2.7513281, -4.9954112, -1.8994384], 'Meridiani'),
   hirise('hirise-phoenix', 'Phoenix', 'phoenix_hirise_mosaic', 16, 0.5, [-125.8898226, 68.165978, -125.6607922, 68.2499439]),
 ];
 

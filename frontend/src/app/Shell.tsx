@@ -1,12 +1,14 @@
 // Единый экран: шар Марса на фоне, главная страница поверх него, режим исследования с панелью режимов.
 import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { REGION_MARKERS, type RegionMarker } from '@/features/globe/coverageData';
+import { REGION_MARKERS, relabelRegionMarkers, type RegionMarker } from '@/features/globe/coverageData';
 import { MarsGlobeEngine, type HoverPoint, type LonLat, type TerrainState, type ViewState } from '@/features/globe/engine';
 import { GlobeHud } from '@/features/globe/GlobeHud';
 import { MARS_RADIUS_KM } from '@/features/globe/tiles';
 import { CoverageCard } from '@/features/coverage/CoverageCard';
 import { makeMarsPoint, type MarsPoint } from '@/shared/coordinates/mars';
+import { pick as pickLang, tr, useLang, useT } from '@/shared/i18n/lang';
+import { LangSwitch } from '@/shared/i18n/LangSwitch';
 
 import { createScopedGlobeApi, type PickSlot } from './globeApi';
 import { GlobeStateContext, ValueStore, type GlobeState } from './globeState';
@@ -44,9 +46,9 @@ class ModeErrorBoundary extends Component<{ onExit(): void; children: ReactNode 
     if (!this.state.failed) return this.props.children;
     return (
       <div className="mode-error">
-        <p>Режим не загрузился. Остальные части карты работают.</p>
+        <p>{tr('Режим не загрузился. Остальные части карты работают.', 'This mode failed to load. The rest of the map still works.')}</p>
         <button type="button" className="ghost-button" onClick={this.props.onExit}>
-          Назад к шару
+          {tr('Назад к шару', 'Back to the globe')}
         </button>
       </div>
     );
@@ -69,9 +71,10 @@ function ModeHost({ mode, engine, pick, params, exit, exitFrom, openMode }: Mode
   useEffect(() => () => globe.release(), [globe]);
   const context: ModeContext = { globe, params, exit, exitFrom, openMode };
   const Panel = mode.Panel;
+  const t = useT();
   return (
     <ModeErrorBoundary onExit={exit}>
-      <Suspense fallback={<p className="dim mode-loading">Загрузка режима…</p>}>
+      <Suspense fallback={<p className="dim mode-loading">{t('Загрузка режима…', 'Loading…')}</p>}>
         <Panel {...context} />
       </Suspense>
     </ModeErrorBoundary>
@@ -79,6 +82,8 @@ function ModeHost({ mode, engine, pick, params, exit, exitFrom, openMode }: Mode
 }
 
 export function Shell() {
+  const t = useT();
+  const lang = useLang();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const barRef = useRef<HTMLElement>(null);
@@ -201,6 +206,11 @@ export function Shell() {
   }, [pick, selectPoint]);
 
   const engine = globe?.engine ?? null;
+
+  // Подписи районов на шаре движок строит один раз: при смене языка обновляем их текст.
+  useEffect(() => {
+    if (labelsRef.current) relabelRegionMarkers(labelsRef.current);
+  }, [lang, globe]);
 
   // Главная ↔ исследование: интерфейс уходит, камера летит, шар становится управляемым.
   useEffect(() => {
@@ -367,23 +377,24 @@ export function Shell() {
           <div className="explore-ui" aria-hidden={stage !== 'explore' || fullscreen}>
             <header ref={barRef} className="explore-bar">
               <button type="button" className="explore-back" onClick={goUp}>
-                ← Назад
+                {t('← Назад', '← Back')}
               </button>
               <button type="button" className="brand explore-brand" onClick={() => navigate({ view: 'landing' })}>
                 Martian&nbsp;Map
               </button>
-              <nav className="mode-bar" aria-label="Режимы">
+              <LangSwitch className="explore-lang" />
+              <nav className="mode-bar" aria-label={t('Режимы', 'Modes')}>
                 {VISIBLE_MODES.map((mode) => (
                   <button
                     key={mode.id}
                     type="button"
                     className={mode.id === activeMode?.id ? 'active' : undefined}
                     aria-pressed={mode.id === activeMode?.id}
-                    title={mode.description}
+                    title={pickLang(mode.description, mode.descriptionEn)}
                     onClick={() => (mode.id === activeMode?.id ? exitMode() : openMode(mode.id))}
                   >
-                    <span className="mode-title">{mode.title}</span>
-                    <span className="mode-desc">{mode.description}</span>
+                    <span className="mode-title">{pickLang(mode.title, mode.titleEn)}</span>
+                    <span className="mode-desc">{pickLang(mode.description, mode.descriptionEn)}</span>
                   </button>
                 ))}
               </nav>
@@ -393,19 +404,19 @@ export function Shell() {
               <aside
                 ref={panelRef}
                 className={`mode-panel${collapsed ? ' collapsed' : ''}`}
-                aria-label={activeMode.title}
+                aria-label={pickLang(activeMode.title, activeMode.titleEn)}
               >
                 <div className="mode-panel-head">
-                  <h1 className="planner-title">{activeMode.title}</h1>
+                  <h1 className="planner-title">{pickLang(activeMode.title, activeMode.titleEn)}</h1>
                   <button
                     type="button"
                     className="panel-close"
-                    aria-label={collapsed ? 'Развернуть панель' : 'Свернуть панель'}
+                    aria-label={collapsed ? t('Развернуть панель', 'Expand panel') : t('Свернуть панель', 'Collapse panel')}
                     onClick={() => setCollapsed((v) => !v)}
                   >
                     {collapsed ? '▴' : '▾'}
                   </button>
-                  <button type="button" className="panel-close" aria-label="Закрыть режим" onClick={exitMode}>
+                  <button type="button" className="panel-close" aria-label={t('Закрыть режим', 'Close mode')} onClick={exitMode}>
                     ×
                   </button>
                 </div>
@@ -425,10 +436,10 @@ export function Shell() {
             )}
 
             {showPointCard && (
-              <aside ref={panelRef} className="mode-panel point-panel" aria-label="Данные точки">
+              <aside ref={panelRef} className="mode-panel point-panel" aria-label={t('Данные точки', 'Point data')}>
                 <div className="mode-panel-head">
-                  <h1 className="planner-title">Данные точки</h1>
-                  <button type="button" className="panel-close" aria-label="Закрыть" onClick={() => {
+                  <h1 className="planner-title">{t('Данные точки', 'Point data')}</h1>
+                  <button type="button" className="panel-close" aria-label={t('Закрыть', 'Close')} onClick={() => {
                     setPointOpen(false);
                     globe.engine.setProbe(null);
                   }}>
@@ -442,16 +453,18 @@ export function Shell() {
             )}
 
             {!activeMode && !showPointCard && (
-              <p className="explore-hint">Вращайте шар · колесо — приближение · клик — данные точки</p>
+              <p className="explore-hint">
+                {t('Вращайте шар · колесо — приближение · клик — данные точки', 'Drag to rotate · scroll to zoom · click for point data')}
+              </p>
             )}
 
             <GlobeHud />
 
             <div className="zoom-buttons">
-              <button type="button" aria-label="Приблизить" onClick={() => globe.engine.zoomBy(0.5)}>
+              <button type="button" aria-label={t('Приблизить', 'Zoom in')} onClick={() => globe.engine.zoomBy(0.5)}>
                 +
               </button>
-              <button type="button" aria-label="Отдалить" onClick={() => globe.engine.zoomBy(2)}>
+              <button type="button" aria-label={t('Отдалить', 'Zoom out')} onClick={() => globe.engine.zoomBy(2)}>
                 −
               </button>
             </div>

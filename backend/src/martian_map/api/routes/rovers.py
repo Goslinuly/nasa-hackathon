@@ -1,9 +1,10 @@
 # Роут снимков роверов: лента NASA по солу, отказы источника не превращаются в 500.
 from fastapi import APIRouter, Query
 
+from martian_map.api.lang import LocalizedRoute
 from martian_map.modules.rovers import photos
 
-router = APIRouter(prefix="/rovers")
+router = APIRouter(route_class=LocalizedRoute, prefix="/rovers")
 
 
 @router.get("/photos")

@@ -13,9 +13,14 @@ from typing import Any
 
 import httpx
 
+from martian_map.i18n import Text
+
 DONKI_URL = "https://ccmc.gsfc.nasa.gov/DONKI/WS/get"
 EVENT_TYPES = ("FLR", "CME", "SEP", "GST")
-NOTE = "DONKI описывает обстановку у Земли; приход к Марсу — оценка"
+NOTE = Text(
+    "DONKI описывает обстановку у Земли; приход к Марсу — оценка",
+    "DONKI describes conditions near Earth; arrival at Mars is an estimate",
+)
 CACHE_TTL_S = 30 * 60
 STALE_TTL_S = 6 * 60 * 60
 TIMEOUT_S = 15.0
@@ -43,42 +48,51 @@ def _hhmm(value: str | None) -> str | None:
     return utc[11:16] if utc else None
 
 
-def _flr(item: dict) -> tuple[str | None, str]:
-    parts = [f"Солнечная вспышка класса {item.get('classType') or '?'}"]
+def _join(parts: list[tuple[str, str]]) -> Text:
+    return Text(", ".join(ru for ru, _ in parts), ", ".join(en for _, en in parts))
+
+
+def _flr(item: dict) -> tuple[str | None, Text]:
+    cls = item.get("classType") or "?"
+    parts = [(f"Солнечная вспышка класса {cls}", f"Class {cls} solar flare")]
     if item.get("sourceLocation"):
-        parts.append(f"область {item['sourceLocation']}")
+        parts.append((f"область {item['sourceLocation']}", f"region {item['sourceLocation']}"))
     if peak := _hhmm(item.get("peakTime")):
-        parts.append(f"пик {peak} UTC")
-    return item.get("beginTime"), ", ".join(parts)
+        parts.append((f"пик {peak} UTC", f"peak {peak} UTC"))
+    return item.get("beginTime"), _join(parts)
 
 
-def _cme(item: dict) -> tuple[str | None, str]:
-    parts = ["Выброс корональной массы"]
+def _cme(item: dict) -> tuple[str | None, Text]:
+    parts = [("Выброс корональной массы", "Coronal mass ejection")]
     analyses = item.get("cmeAnalyses") or []
     best = next((a for a in analyses if a.get("isMostAccurate")), analyses[0] if analyses else None)
     if best and best.get("speed"):
-        parts.append(f"скорость {round(best['speed'])} км/с")
+        speed = round(best["speed"])
+        parts.append((f"скорость {speed} км/с", f"speed {speed} km/s"))
     if best and best.get("halfAngle"):
-        parts.append(f"полуугол {round(best['halfAngle'])}°")
+        half = round(best["halfAngle"])
+        parts.append((f"полуугол {half}°", f"half-angle {half}°"))
     if item.get("sourceLocation"):
-        parts.append(f"источник {item['sourceLocation']}")
-    return item.get("startTime"), ", ".join(parts)
+        parts.append((f"источник {item['sourceLocation']}", f"source {item['sourceLocation']}"))
+    return item.get("startTime"), _join(parts)
 
 
-def _sep(item: dict) -> tuple[str | None, str]:
+def _sep(item: dict) -> tuple[str | None, Text]:
     instruments = [i.get("displayName") for i in item.get("instruments") or [] if i]
-    text = "Поток солнечных энергичных частиц"
+    ru, en = "Поток солнечных энергичных частиц", "Solar energetic particle event"
     if instruments:
-        text += f" ({', '.join(instruments)})"
-    return item.get("eventTime"), text
+        suffix = f" ({', '.join(instruments)})"
+        ru, en = ru + suffix, en + suffix
+    return item.get("eventTime"), Text(ru, en)
 
 
-def _gst(item: dict) -> tuple[str | None, str]:
+def _gst(item: dict) -> tuple[str | None, Text]:
     kp = [k.get("kpIndex") for k in item.get("allKpIndex") or [] if k.get("kpIndex") is not None]
-    text = "Геомагнитная буря у Земли"
+    ru, en = "Геомагнитная буря у Земли", "Geomagnetic storm at Earth"
     if kp:
-        text += f", Kp до {max(kp):g}"
-    return item.get("startTime"), text
+        ru += f", Kp до {max(kp):g}"
+        en += f", Kp up to {max(kp):g}"
+    return item.get("startTime"), Text(ru, en)
 
 
 PARSERS = {"FLR": _flr, "CME": _cme, "SEP": _sep, "GST": _gst}
@@ -122,9 +136,13 @@ class DonkiService:
         try:
             data: Any = response.json()
         except ValueError as exc:
-            raise DonkiUnavailable(f"{event_type}: ответ не JSON") from exc
+            raise DonkiUnavailable(
+                Text(f"{event_type}: ответ не JSON", f"{event_type}: response is not JSON")
+            ) from exc
         if not isinstance(data, list):
-            raise DonkiUnavailable(f"{event_type}: ожидался список")
+            raise DonkiUnavailable(
+                Text(f"{event_type}: ожидался список", f"{event_type}: expected a list")
+            )
         return normalize(event_type, data)
 
     async def _fetch(self, days: int) -> dict:

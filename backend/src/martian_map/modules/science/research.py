@@ -7,20 +7,30 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from martian_map.i18n import Text
 from martian_map.modules.coordinates.types import MARS_MEAN_RADIUS_M, MarsPoint
 from martian_map.modules.science.models import ResearchStudy
+from martian_map.modules.science.translations import bilingual_card
+
+ANTIPODAL_POINTS = Text(
+    "Для противоположных точек Марса добавьте промежуточную точку.",
+    "For antipodal points on Mars, add an intermediate point.",
+)
 
 
 class ResearchInput(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     external_id: str = Field(min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=300)
+    title_en: str | None = Field(default=None, max_length=300)
     summary: str = Field(min_length=1)
+    summary_en: str | None = None
     source_url: HttpUrl
     mission: str | None = Field(default=None, max_length=100)
     instrument: str | None = Field(default=None, max_length=100)
     point: MarsPoint | None = None
     position_evidence: str | None = Field(default=None, min_length=1)
+    position_evidence_en: str | None = None
     position_uncertainty_m: float | None = Field(default=None, ge=0)
     verification_status: Literal["team_supplied_unverified", "source_verified"] = (
         "team_supplied_unverified"
@@ -69,7 +79,7 @@ def prepare_route(points: list[MarsPoint]):
         a, b = vector(a_point), vector(b_point)
         arc = angle(a, b)
         if math.pi - arc < 1e-7:
-            raise ValueError("Для противоположных точек Марса добавьте промежуточную точку.")
+            raise ValueError(ANTIPODAL_POINTS)
         segments.append((a, b, arc, distance))
         if arc > 1e-12:
             n = cross(a, b)
@@ -138,7 +148,7 @@ def nearest_on_route(point: MarsPoint, segments) -> tuple[float, float]:
 
 
 def study_card(study: ResearchStudy) -> dict:
-    return {
+    return bilingual_card({
         "id": study.id,
         "external_id": study.external_id,
         "title": study.title,
@@ -151,7 +161,7 @@ def study_card(study: ResearchStudy) -> dict:
         "longitude_deg": study.longitude_deg,
         "position_evidence": study.position_evidence,
         "position_uncertainty_m": study.position_uncertainty_m,
-    }
+    })
 
 
 async def find_research(session: AsyncSession, query: ResearchRouteInput) -> dict:
@@ -185,9 +195,14 @@ async def find_research(session: AsyncSession, query: ResearchRouteInput) -> dic
         "geometry": {"type": "LineString", "coordinates": coordinates},
         "method": "mars_mean_sphere_overview",
         "radius_m": MARS_MEAN_RADIUS_M,
-        "explanation": "Обзорный коридор поиска по сфере Марса. Это не проверенная "
-        "проходимая тропа; расстояния приближённые. Наличие исследования "
-        "рядом не переносит его измерения на маршрут.",
+        "explanation": Text(
+            "Обзорный коридор поиска по сфере Марса. Это не проверенная "
+            "проходимая тропа; расстояния приближённые. Наличие исследования "
+            "рядом не переносит его измерения на маршрут.",
+            "An overview search corridor on the Mars sphere. It is not a verified "
+            "walkable trail; distances are approximate. A study nearby does not "
+            "transfer its measurements to the route.",
+        ),
         "matched_total": len(found),
         "truncated": len(found) > query.limit,
         "unlocated_studies": unlocated,

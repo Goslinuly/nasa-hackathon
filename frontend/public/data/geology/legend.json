@@ -1,9 +1,12 @@
 {
  "title": "Геологическая карта Марса 1:20 000 000",
+ "title_en": "Geologic map of Mars, 1:20,000,000",
  "credit": "USGS SIM 3292, Tanaka et al. (2014); сервис USGS Astrogeology ArcGIS",
+ "credit_en": "USGS SIM 3292, Tanaka et al. (2014); USGS Astrogeology ArcGIS service",
  "source": "https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/Tanaka_et_al_2014_Mars_Global_Map_Features/FeatureServer/3",
  "retrieved": "2026-11-14",
  "status": "производный растр из векторной публикации, упрощение 0.02°",
+ "status_en": "raster derived from the vector publication, simplified to 0.02°",
  "extent": {
   "lon_min": -180,
   "lon_max": 180,

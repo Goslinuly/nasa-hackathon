@@ -1,5 +1,9 @@
 // HTTP-клиент API /api/v1.
+//
+// Каждый запрос несёт ?lang= текущего языка интерфейса: тексты API (пояснения, подписи,
+// ошибки) приходят на нём же, компонентам ничего передавать не нужно.
 import type { MarsPoint } from '@/shared/coordinates/mars';
+import { getLang, tr } from '@/shared/i18n/lang';
 
 import type {
   RadAnalysisResponse,
@@ -34,12 +38,31 @@ export class ApiError extends Error {
   }
 }
 
-async function getJson<T>(path: string, params?: Record<string, string | number>): Promise<T> {
-  const url = new URL(`${API_BASE}${path}`, window.location.origin);
+/** Адрес эндпоинта с параметрами и языком интерфейса (?lang=ru|en). */
+export function apiUrl(path: string, params?: Record<string, string | number>): URL {
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const url = new URL(`${API_BASE}${path}`, origin);
   for (const [key, value] of Object.entries(params ?? {})) {
     url.searchParams.set(key, String(value));
   }
-  const response = await fetch(url);
+  url.searchParams.set('lang', getLang());
+  return url;
+}
+
+// Ответ nginx при недоступном backend приходит только по-русски: он не знает языка интерфейса.
+function errorMessage(code: string, message: string): string {
+  if (code === 'api_unreachable') {
+    return tr(
+      message,
+      'The API is unreachable. Check the API_HOST variable of the frontend service ' +
+        '(private host:port or https://public-domain) and the backend status.',
+    );
+  }
+  return message;
+}
+
+async function getJson<T>(path: string, params?: Record<string, string | number>): Promise<T> {
+  const response = await fetch(apiUrl(path, params));
   if (!response.ok) {
     let code = 'http_error';
     let message = `HTTP ${response.status}`;
@@ -49,7 +72,7 @@ async function getJson<T>(path: string, params?: Record<string, string | number>
       message = body?.error?.message ?? message;
     } catch {
     }
-    throw new ApiError(code, message, response.status);
+    throw new ApiError(code, errorMessage(code, message), response.status);
   }
   return (await response.json()) as T;
 }
@@ -77,16 +100,24 @@ export async function fetchResearchRoute(
   points: MarsPoint[],
   corridorM: number,
 ): Promise<ResearchRoute> {
-  const response = await fetch(`${API_BASE}/science/research/along-route`, {
+  const response = await fetch(apiUrl('/science/research/along-route'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ points, corridor_m: corridorM }),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
+    const code = body?.error?.code ?? 'http_error';
     throw new ApiError(
-      body?.error?.code ?? 'http_error',
-      body?.error?.message ?? `Ошибка поиска исследований: HTTP ${response.status}`,
+      code,
+      errorMessage(
+        code,
+        body?.error?.message ??
+          tr(
+            `Ошибка поиска исследований: HTTP ${response.status}`,
+            `Research search failed: HTTP ${response.status}`,
+          ),
+      ),
       response.status,
     );
   }
@@ -94,16 +125,21 @@ export async function fetchResearchRoute(
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   if (!response.ok) {
     const failure = await response.json().catch(() => null);
+    const code = failure?.error?.code ?? 'http_error';
     throw new ApiError(
-      failure?.error?.code ?? 'http_error',
-      failure?.error?.message ?? `Ошибка EVA: HTTP ${response.status}`,
+      code,
+      errorMessage(
+        code,
+        failure?.error?.message ??
+          tr(`Ошибка EVA: HTTP ${response.status}`, `EVA request failed: HTTP ${response.status}`),
+      ),
       response.status,
     );
   }

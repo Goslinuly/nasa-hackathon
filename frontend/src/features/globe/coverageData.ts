@@ -5,22 +5,49 @@ export interface DtmFootprint {
   ring: [number, number][];
 }
 
+import { pick } from '@/shared/i18n/lang';
+
 export interface RegionMarker {
   slug: string;
-  name: string;
+  /** Подпись на текущем языке: шар читает её, когда строит метки. */
+  readonly name: string;
+  nameRu: string;
+  nameEn: string;
   mission: string;
   lat: number;
   lon: number;
 }
 
+function region(slug: string, nameRu: string, nameEn: string, mission: string, lat: number, lon: number): RegionMarker {
+  return {
+    slug,
+    nameRu,
+    nameEn,
+    mission,
+    lat,
+    lon,
+    get name() {
+      return pick(nameRu, nameEn);
+    },
+  };
+}
+
 export const REGION_MARKERS: RegionMarker[] = [
-  { slug: 'jezero', name: 'Кратер Езеро', mission: 'Perseverance', lat: 18.5, lon: 77.5 },
-  { slug: 'gale', name: 'Кратер Гейл', mission: 'Curiosity', lat: -4.7, lon: 137.45 },
-  { slug: 'gusev', name: 'Кратер Гусев', mission: 'Spirit', lat: -14.5, lon: 175.5 },
-  { slug: 'meridiani', name: 'Равнина Меридиана', mission: 'Opportunity', lat: -1.9, lon: -5.5 },
-  { slug: 'valles-marineris', name: 'Долины Маринер', mission: '—', lat: -10.0, lon: -77.0 },
-  { slug: 'olympus-mons', name: 'Олимп', mission: '—', lat: 18.5, lon: -134.0 },
+  region('jezero', 'Кратер Езеро', 'Jezero crater', 'Perseverance', 18.5, 77.5),
+  region('gale', 'Кратер Гейл', 'Gale crater', 'Curiosity', -4.7, 137.45),
+  region('gusev', 'Кратер Гусев', 'Gusev crater', 'Spirit', -14.5, 175.5),
+  region('meridiani', 'Равнина Меридиана', 'Meridiani Planum', 'Opportunity', -1.9, -5.5),
+  region('valles-marineris', 'Долины Маринер', 'Valles Marineris', '—', -10.0, -77.0),
+  region('olympus-mons', 'Олимп', 'Olympus Mons', '—', 18.5, -134.0),
 ];
+
+/** Подписи меток районов уже на шаре: после смены языка меняем текст на месте. */
+export function relabelRegionMarkers(container: HTMLElement): void {
+  container.querySelectorAll<HTMLElement>('.globe-label').forEach((label) => {
+    const marker = REGION_MARKERS.find((m) => label.textContent === m.nameRu || label.textContent === m.nameEn);
+    if (marker && label.textContent !== marker.name) label.textContent = marker.name;
+  });
+}
 
 export const DTM_FOOTPRINTS: DtmFootprint[] = [
   { id: 'DTEEC_049897_1980_049330_1980_U01', region: 'jezero', ring: [[77.004, 18.106], [77.0934, 18.1165], [77.1237, 17.889], [77.0345, 17.8794]] },
