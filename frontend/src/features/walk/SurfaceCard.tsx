@@ -52,10 +52,13 @@ export function SurfaceCard({ probe, compact, onClose }: { probe: SurfaceProbe; 
   const rock = unit ? likelyRock(unit.label) : null;
   const inertia = ti?.value ?? null;
   const inertiaText = interpretInertia(inertia);
+  // Точка в нижней половине экрана — карточка сверху и заканчивается выше метки.
+  const top = probe.screenY > 0.5;
   const from = probe.vehicle === 'rover' ? t('от ровера', 'from the rover') : t('от вас', 'from you');
 
   return (
-    <div className={`walk-probe${compact ? ' walk-probe--compact' : ''}`} role="dialog" aria-label={t('Точка на поверхности', 'Surface point')}>
+    <div className={`walk-probe${compact ? ' walk-probe--compact' : ''}${top ? ' walk-probe--top' : ''}`}
+      style={top ? { maxHeight: `min(520px, max(140px, calc(${(probe.screenY * 100).toFixed(1)}% - ${compact ? 30 : 160}px)))` } : undefined} role="dialog" aria-label={t('Точка на поверхности', 'Surface point')}>
       <div className="walk-probe-head">
         <strong>{t('Точка на поверхности', 'Surface point')}</strong>
         <button type="button" className="walk-probe-close" onClick={onClose} aria-label={t('Закрыть', 'Close')}>

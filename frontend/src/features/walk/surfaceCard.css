@@ -25,9 +25,12 @@
 .walk-probe-tag--model { color: #ffe066; }
 .walk-probe-tag--interp { color: #ff9de2; }
 .walk-probe--compact {
-  bottom: auto; top: 50%; transform: translate(-50%, -50%); width: min(320px, calc(100% - 32px)); min-width: 0;
-  max-height: calc(100dvh - 24px); font-size: 11px; padding: 6px 8px 8px;
+  bottom: 8px; width: min(320px, calc(100% - 32px)); min-width: 0;
+  max-height: 62dvh; font-size: 11px; padding: 6px 8px 8px;
 }
+/* Точка в нижней половине экрана: карточка сверху, чтобы метка оставалась видна. */
+.walk-probe--top { bottom: auto; top: 120px; }
+.walk-probe--compact.walk-probe--top { top: 8px; }
 .walk-probe--compact .walk-probe-head strong { font-size: 12px; }
 .walk-probe--compact .walk-probe-close { width: 24px; height: 24px; font-size: 11px; }
 .walk-probe--compact h4 { font-size: 11px; }

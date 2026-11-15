@@ -183,6 +183,8 @@ export interface SurfaceProbe {
   distanceM: number;
   vehicle: Vehicle;
   siteId: string;
+  /** Где на экране выбрана точка, доля высоты (0 — верх): карточка встаёт так, чтобы не закрыть метку. */
+  screenY: number;
 }
 
 interface Label {
@@ -830,6 +832,7 @@ export class WalkScene {
       distanceM: Math.hypot(hit.x - this.px, hit.z - this.pz),
       vehicle: this.vehicle,
       siteId: pkg.manifest.id,
+      screenY: (clientY - r.top) / r.height,
     };
     this.placeProbeMarker(hit.x, hit.y, hit.z, hit.t);
     this.opts.onProbe?.(probe);
