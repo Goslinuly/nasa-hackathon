@@ -316,15 +316,19 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         <div className="walk-timescale" role="group" aria-label={t('Чем перемещаться', 'How to move')}>
           <button type="button" className={`walk-btn ${state?.vehicle !== 'walk' ? 'is-on' : ''}`} onClick={() => s?.setVehicle('rover')}>{t('Ровер', 'Rover')}</button>
           <button type="button" className={`walk-btn ${state?.vehicle === 'walk' ? 'is-on' : ''}`} onClick={() => s?.setVehicle('walk')}>{t('Пешком', 'On foot')}</button>
-          {s?.hasTrack && (
+          {s?.hasActivePath && (
             <button
               type="button"
               className={`walk-btn ${extra?.autoDrive ? 'is-on' : ''}`}
               aria-pressed={!!extra?.autoDrive}
-              title={t(
-                `Ровер сам едет по треку ${pkg.track?.rover ?? 'ровера'}. W/S/A/D — снова вручную`,
-                `The rover drives itself along the ${pkg.track?.rover ?? 'rover'} track. W/S/A/D to take control again`,
-              )}
+              title={
+                extra?.route
+                  ? t('Ровер сам едет по вашему маршруту. W/S/A/D — снова вручную', 'The rover drives itself along your route. W/S/A/D to take control again')
+                  : t(
+                      `Ровер сам едет по треку ${pkg.track?.rover ?? 'ровера'}. W/S/A/D — снова вручную`,
+                      `The rover drives itself along the ${pkg.track?.rover ?? 'rover'} track. W/S/A/D to take control again`,
+                    )
+              }
               onClick={() => s?.setAutoDrive(!extra?.autoDrive)}
             >
               {t('Автоуправление', 'Autodrive')}
@@ -418,7 +422,37 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       )}
 
       <div className="walk-minimap">
-        <canvas ref={minimapRef} title={t('Щёлкните, чтобы перейти в точку', 'Click to go to a point')} />
+        <div className="walk-route-tools">
+          <button
+            type="button"
+            className={`walk-btn ${extra?.routeMode ? 'is-on' : ''}`}
+            aria-pressed={!!extra?.routeMode}
+            title={t(
+              'Щелчок по мини-карте прокладывает маршрут отсюда в обход крутых склонов',
+              'A click on the minimap plans a route from here around steep slopes',
+            )}
+            onClick={() => s?.setRouteMode(!extra?.routeMode)}
+          >
+            {t('Проложить маршрут', 'Plan a route')}
+          </button>
+          {extra?.route && (
+            <button type="button" className="walk-btn" onClick={() => s?.clearRoute()}>
+              {t('Сбросить маршрут', 'Clear route')}
+            </button>
+          )}
+        </div>
+        {extra?.route && (
+          <div className="walk-route-info">
+            {t(
+              `${extra.route.source === 'planner' ? 'Маршрут из планировщика' : 'Ваш маршрут'}: ${fmtKm(extra.route.lengthM)} · пешком ≈ ${fmtDuration(extra.route.walkS)} (модель)`,
+              `${extra.route.source === 'planner' ? 'Route from the planner' : 'Your route'}: ${fmtKm(extra.route.lengthM)} · on foot ≈ ${fmtDuration(extra.route.walkS)} (model)`,
+            )}
+          </div>
+        )}
+        <canvas
+          ref={minimapRef}
+          title={extra?.routeMode ? t('Щёлкните, куда проложить маршрут', 'Click where to plan the route') : t('Щёлкните, чтобы перейти в точку', 'Click to go to a point')}
+        />
         <div className="walk-minimap-credit">
           {credit ? `${credit.product} · ${pick(credit.credit ?? '', credit.credit_en)}` : ''}
           {pkg.manifest.backdrop ? ` · ${pick(pkg.manifest.backdrop.label, pkg.manifest.backdrop.label_en)}` : ''}
@@ -427,10 +461,21 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
 
       {extra?.autoDrive && (
         <div className="walk-note">
-          {t(
-            `Автоуправление по треку ${pkg.track?.rover ?? 'ровера'}: ${fmtKm(extra.autoS)} из ${fmtKm(extra.trackLength)} · W/S/A/D — вручную`,
-            `Autodrive along the ${pkg.track?.rover ?? 'rover'} track: ${fmtKm(extra.autoS)} of ${fmtKm(extra.trackLength)} · W/S/A/D for manual`,
-          )}
+          {extra.route
+            ? t(
+                `Автоуправление по своему маршруту: ${fmtKm(extra.autoS)} из ${fmtKm(extra.trackLength)} · W/S/A/D — вручную`,
+                `Autodrive along your route: ${fmtKm(extra.autoS)} of ${fmtKm(extra.trackLength)} · W/S/A/D for manual`,
+              )
+            : t(
+                `Автоуправление по треку ${pkg.track?.rover ?? 'ровера'}: ${fmtKm(extra.autoS)} из ${fmtKm(extra.trackLength)} · W/S/A/D — вручную`,
+                `Autodrive along the ${pkg.track?.rover ?? 'rover'} track: ${fmtKm(extra.autoS)} of ${fmtKm(extra.trackLength)} · W/S/A/D for manual`,
+              )}
+        </div>
+      )}
+
+      {extra?.routeFailed && (
+        <div className="walk-blocked walk-blocked--warn">
+          {t('Маршрут не найден: мешают крутые склоны или нет данных', 'No route found: steep slopes or missing data are in the way')}
         </div>
       )}
 
@@ -481,6 +526,16 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       )}
     </>
   );
+}
+
+/** «1 ч 05 мин» или «12 мин». */
+function fmtDuration(sec: number): string {
+  if (!Number.isFinite(sec)) return '—';
+  const min = Math.max(1, Math.round(sec / 60));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (getLang() === 'en') return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`;
+  return h ? `${h} ч ${String(m).padStart(2, '0')} мин` : `${m} мин`;
 }
 
 /** «0,4 км» или «350 м». */
