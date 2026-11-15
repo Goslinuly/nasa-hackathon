@@ -24,6 +24,8 @@ import { findPath, nearestPassable, passableMask, routeWalkTime, simplifyPath, t
 import { G_MARS, jump as jumpModel } from '@/shared/eva/crew';
 import { getCrewProfile, subscribeCrewProfile } from '@/shared/eva/crewProfile';
 import { eyeHeightM, stepJump, type Airborne } from './jump';
+import { pointLonLat, rayMarchTerrain } from './surfacePoint';
+import { OVERVIEW_SITE_ID } from './overviewPackage';
 
 /** Прежняя фиксированная высота глаз; теперь она считается по росту из профиля (jump.ts). */
 export const EYE_HEIGHT_M = 1.7;
@@ -158,6 +160,29 @@ export interface WalkSceneOptions {
   arrive?: boolean;
   onState(state: WalkState, extra: WalkExtra): void;
   onExit(): void;
+  /** Выбрана точка на поверхности (касание, правая кнопка, клавиша I). */
+  onProbe?(probe: SurfaceProbe): void;
+}
+
+/** Точка на поверхности под касанием: всё из сетки высот участка («данные»). */
+export interface SurfaceProbe {
+  x: number;
+  z: number;
+  lat: number;
+  lonEast: number;
+  /** Высота относительно ареоида, м; NaN — нет данных. */
+  elevationM: number;
+  slopeDeg: number;
+  /** База разностей для уклона, м. */
+  slopeBaseM: number;
+  /** Откуда высота: HiRISE DTM, CTX, MOLA (подпись из паспорта участка). */
+  heightSource: string;
+  /** Обзорный режим (MOLA). */
+  overview: boolean;
+  /** Расстояние по горизонтали от человека или ровера, м. */
+  distanceM: number;
+  vehicle: Vehicle;
+  siteId: string;
 }
 
 interface Label {
@@ -276,6 +301,9 @@ export class WalkScene {
   private fastSeconds = 0;
 
   private tmp = new THREE.Vector3();
+  private probeMarker: THREE.Mesh | null = null;
+  private probeScale = 1;
+  private raycaster = new THREE.Raycaster();
   private sunDir = new THREE.Vector3(0, 1, 0);
   /** Где и при каком солнце последний раз рисовалась карта теней (shadowPolicy.ts). */
   private shadowAt = { x: NaN, z: NaN, t: 0, sun: new THREE.Vector3() };
@@ -720,7 +748,17 @@ export class WalkScene {
       this.controls = controls;
       const onClick = () => this.lock();
       canvas.addEventListener('click', onClick);
-      this.disposers.push(() => canvas.removeEventListener('click', onClick));
+      // Правая кнопка — точка на поверхности: без захвата мыши под курсором, с захватом — в центре экрана.
+      const onContext = (e: MouseEvent) => {
+        e.preventDefault();
+        if (this.controls?.isLocked) this.probeCenter();
+        else this.probeAt(e.clientX, e.clientY);
+      };
+      canvas.addEventListener('contextmenu', onContext);
+      this.disposers.push(() => {
+        canvas.removeEventListener('click', onClick);
+        canvas.removeEventListener('contextmenu', onContext);
+      });
     }
     const isTyping = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -734,6 +772,10 @@ export class WalkScene {
       }
       if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4') {
         this.setTimeScale(TIME_SCALES[Number(e.code.slice(5)) - 1]);
+        return;
+      }
+      if (e.code === 'KeyI') {
+        if (!e.repeat) this.probeCenter();
         return;
       }
       if (e.code === 'Space') {
@@ -759,6 +801,78 @@ export class WalkScene {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
     });
+  }
+
+  // ---------- точка на поверхности ----------
+
+  /** Луч из камеры через точку экрана до рельефа; при попадании — метка и onProbe. */
+  probeAt(clientX: number, clientY: number): SurfaceProbe | null {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return null;
+    const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    this.camera.updateMatrixWorld();
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const { origin, direction } = this.raycaster.ray;
+    const hit = rayMarchTerrain(origin, direction, this.groundAt, this.camera.far, 0.25 * this.viewScale);
+    if (!hit) return null;
+    const { pkg } = this.opts;
+    const geo = pointLonLat(pkg.frame, hit.x, hit.z);
+    const probe: SurfaceProbe = {
+      x: hit.x,
+      z: hit.z,
+      lat: geo.lat,
+      lonEast: geo.lonEast,
+      elevationM: this.sampler.heightAt(hit.x, hit.z),
+      slopeDeg: this.sampler.slopeDeg(hit.x, hit.z),
+      slopeBaseM: 2 * this.sampler.dz,
+      heightSource: dataLevelLabel(pkg.manifest, this.sampler.sourceAt(hit.x, hit.z)),
+      overview: pkg.manifest.id === OVERVIEW_SITE_ID,
+      distanceM: Math.hypot(hit.x - this.px, hit.z - this.pz),
+      vehicle: this.vehicle,
+      siteId: pkg.manifest.id,
+    };
+    this.placeProbeMarker(hit.x, hit.y, hit.z, hit.t);
+    this.opts.onProbe?.(probe);
+    return probe;
+  }
+
+  /** Точка в центре экрана (взгляд при захваченной мыши). */
+  probeCenter(): SurfaceProbe | null {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    return this.probeAt(r.left + r.width / 2, r.top + r.height / 2);
+  }
+
+  clearProbe(): void {
+    if (!this.probeMarker) return;
+    this.scene.remove(this.probeMarker);
+    this.probeMarker.geometry.dispose();
+    (this.probeMarker.material as THREE.Material).dispose();
+    this.probeMarker = null;
+  }
+
+  private placeProbeMarker(x: number, y: number, z: number, dist: number): void {
+    this.clearProbe();
+    const geo = new THREE.RingGeometry(0.75, 1, 40);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({
+      color: '#3fe0ff', transparent: true, opacity: 0.9, depthWrite: false, fog: false,
+      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -16, side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(geo, mat);
+    // Размер растёт с расстоянием, чтобы метка была видна и вблизи, и вдали.
+    this.probeScale = Math.max(0.35, dist * 0.015);
+    ring.position.set(x, y + Math.max(0.05, this.probeScale * 0.15), z);
+    ring.renderOrder = 5;
+    this.probeMarker = ring;
+    this.scene.add(ring);
+  }
+
+  private pulseProbe(now: number): void {
+    const m = this.probeMarker;
+    if (!m) return;
+    const k = 0.5 + 0.5 * Math.sin(now * 0.006);
+    m.scale.setScalar(this.probeScale * (0.8 + 0.4 * k));
+    (m.material as THREE.MeshBasicMaterial).opacity = 0.55 + 0.4 * (1 - k);
   }
 
   lock(): void {
@@ -1024,6 +1138,7 @@ export class WalkScene {
       this.renderer.render(this.scene, this.camera);
     }
     this.updateLabels();
+    this.pulseProbe(now);
 
     this.minimapTimer -= dt;
     if (this.minimapTimer <= 0) {

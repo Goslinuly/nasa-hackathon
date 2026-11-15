@@ -9,7 +9,8 @@ import { SLOPE_THRESHOLDS } from './motion';
 import { SiteBrief } from './SiteBrief';
 import { fetchManifest, fetchSiteIndex, loadSitePackage, siteBaseUrl, type SiteIndexEntry, type SitePackage } from './sitePackage';
 import { MARS_RADIUS_KM } from '@/features/globe/tiles';
-import { ASCENT_M, ROVER_REAL_SPEED_MS, ROVER_SPEED_MS, TIME_SCALES, WalkScene, type TeleportTarget, type WalkExtra } from './walkScene';
+import { ASCENT_M, ROVER_REAL_SPEED_MS, ROVER_SPEED_MS, TIME_SCALES, WalkScene, type SurfaceProbe, type TeleportTarget, type WalkExtra } from './walkScene';
+import { SurfaceCard } from './SurfaceCard';
 
 /** Подъём камеры перед переходом на шар. */
 const ASCENT_MS = 1400;
@@ -328,6 +329,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   const [extra, setExtra] = useState<WalkExtra | null>(null);
   const [teleports, setTeleports] = useState<TeleportTarget[]>([]);
   const [menu, setMenu] = useState<'none' | 'settings' | 'teleport' | 'nav'>('none');
+  const [probe, setProbe] = useState<SurfaceProbe | null>(null);
   const compact = useCompact();
   const [shadows, setShadows] = useState(true);
   const [groundDetail, setGroundDetail] = useState(true);
@@ -376,6 +378,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
           setExtra(x);
         },
         onExit: () => exitRef.current(),
+        onProbe: setProbe,
       });
     } catch (e) {
       setWebglError((e as Error).message);
@@ -408,7 +411,18 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
     <>
       <div ref={hostRef} className="walk-host" />
       <div ref={labelsRef} className="walk-labels" />
-      {touch && <TouchLook onLook={(dx, dy) => sceneRef.current?.lookBy(dx, dy)} />}
+      {touch && <TouchLook onLook={(dx, dy) => sceneRef.current?.lookBy(dx, dy)} onTap={(x, y) => sceneRef.current?.probeAt(x, y)} />}
+      {!touch && extra?.locked && <div className="walk-crosshair" aria-hidden="true" />}
+      {probe && (
+        <SurfaceCard
+          probe={probe}
+          compact={compact}
+          onClose={() => {
+            sceneRef.current?.clearProbe();
+            setProbe(null);
+          }}
+        />
+      )}
       {touch && <Joystick onMove={(x, y) => sceneRef.current?.setJoystick(x, y)} />}
       {state && <Hud state={state} />}
       {state?.vehicle === 'walk' && (
@@ -656,15 +670,15 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </div>
       )}
 
-      {!touch && extra && !extra.locked && !extra.lifting && menu === 'none' && (
+      {!touch && extra && !extra.locked && !extra.lifting && menu === 'none' && !probe && (
         <div className="walk-hint" onClick={() => s?.lock()}>
           {state?.vehicle === 'walk' ? (
             <>
               <strong>{t('Щёлкните, чтобы идти', 'Click to walk')}</strong>
               <span>
                 {t(
-                  'WASD или стрелки — шаг, мышь — взгляд, 1/2/3/4 — время ×1/×10/×60/×600, Esc — отпустить мышь, Esc ещё раз — на глобус',
-                  'WASD or arrows to step, mouse to look, 1/2/3/4 for time ×1/×10/×60/×600, Esc to release the mouse, Esc again to return to the globe',
+                  'WASD или стрелки — шаг, мышь — взгляд, 1/2/3/4 — время ×1/×10/×60/×600, I или правая кнопка — что за точка на поверхности, Esc — отпустить мышь, Esc ещё раз — на глобус',
+                  'WASD or arrows to step, mouse to look, 1/2/3/4 for time ×1/×10/×60/×600, I or right-click to inspect a surface point, Esc to release the mouse, Esc again to return to the globe',
                 )}
               </span>
             </>
@@ -673,8 +687,8 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
               <strong>{t('Щёлкните, чтобы ехать', 'Click to drive')}</strong>
               <span>
                 {t(
-                  'W/S — вперёд и назад, A/D — поворот, мышь — взгляд с мачты, 1/2/3/4 — время ×1/×10/×60/×600, Esc — отпустить мышь, Esc ещё раз — на глобус',
-                  'W/S forward and back, A/D to turn, mouse to look from the mast, 1/2/3/4 for time ×1/×10/×60/×600, Esc to release the mouse, Esc again to return to the globe',
+                  'W/S — вперёд и назад, A/D — поворот, мышь — взгляд с мачты, 1/2/3/4 — время ×1/×10/×60/×600, I или правая кнопка — что за точка на поверхности, Esc — отпустить мышь, Esc ещё раз — на глобус',
+                  'W/S forward and back, A/D to turn, mouse to look from the mast, 1/2/3/4 for time ×1/×10/×60/×600, I or right-click to inspect a surface point, Esc to release the mouse, Esc again to return to the globe',
                 )}
               </span>
             </>

@@ -1,0 +1,34 @@
+/* Точка на поверхности: карточка и прицел */
+.walk-crosshair {
+  position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); pointer-events: none; z-index: 2;
+}
+.walk-probe {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 13;
+  width: min(420px, calc(100% - 480px)); min-width: 300px; max-height: min(60vh, 520px); overflow: auto; box-sizing: border-box;
+  background: rgba(24, 13, 8, 0.92); border: 1px solid rgba(63, 224, 255, 0.45); border-radius: 8px; padding: 8px 12px 10px;
+  color: #f4e6d8; font-size: 13px; line-height: 1.35;
+}
+.walk-probe-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.walk-probe-head strong { font-size: 14px; color: #bff4ff; }
+.walk-probe-close {
+  border: 0; background: rgba(255, 255, 255, 0.1); color: #f4e6d8; border-radius: 4px; width: 26px; height: 26px;
+  cursor: pointer; font-size: 13px; flex: none; padding: 0;
+}
+.walk-probe section { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 210, 170, 0.15); }
+.walk-probe-head + section { border-top: 0; padding-top: 0; }
+.walk-probe h4 { margin: 0 0 3px; font-size: 12px; font-weight: 600; color: #e9c9a8; }
+.walk-probe-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 0; }
+.walk-probe-src { margin: 3px 0 0; font-size: 11px; color: #b9a291; }
+.walk-probe-tag { flex: none; font-size: 10px; padding: 0 5px; border-radius: 3px; border: 1px solid currentColor; }
+.walk-probe-tag--data { color: #9dff8a; }
+.walk-probe-tag--model { color: #ffe066; }
+.walk-probe-tag--interp { color: #ff9de2; }
+.walk-probe--compact {
+  bottom: auto; top: 50%; transform: translate(-50%, -50%); width: min(320px, calc(100% - 32px)); min-width: 0;
+  max-height: calc(100dvh - 24px); font-size: 11px; padding: 6px 8px 8px;
+}
+.walk-probe--compact .walk-probe-head strong { font-size: 12px; }
+.walk-probe--compact .walk-probe-close { width: 24px; height: 24px; font-size: 11px; }
+.walk-probe--compact h4 { font-size: 11px; }
+.walk-probe--compact .walk-probe-src { font-size: 9.5px; }
