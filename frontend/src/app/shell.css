@@ -181,8 +181,20 @@ body {
 
 .landing-main {
   position: relative;
-  background: linear-gradient(to bottom, rgba(5, 5, 7, 0) 0, rgba(5, 5, 7, 0.86) 220px);
+  /* Лёгкое затемнение: звёзды видны и ниже первого экрана, текст читается. По центру, где
+     колонка текста, чуть плотнее, к краям прозрачнее. */
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 40%, rgba(5, 5, 7, 0.42), rgba(5, 5, 7, 0.12) 75%),
+    linear-gradient(to bottom, rgba(5, 5, 7, 0) 0, rgba(5, 5, 7, 0.28) 220px);
   padding-bottom: 20px;
+}
+
+.landing-main .section-intro,
+.landing-main .section-note,
+.landing-main p,
+.landing-main h2,
+.landing-main h3 {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.85);
 }
 
 .landing .footer {
