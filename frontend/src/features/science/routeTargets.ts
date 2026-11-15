@@ -2,6 +2,8 @@
 // (геология SIM 3292, тепловая инерция TES, профиль высот), а не из каталога исследований.
 // Это подсказка, где остановиться, а не измерение и не подтверждённая находка.
 
+import { likelyRock, UNIT_NAMES_RU } from '@/shared/geology/units';
+
 export type TargetKind = 'geology_contact' | 'bedrock' | 'dunes' | 'scarp' | 'vantage';
 
 export interface GeologyUnitRef {
@@ -73,6 +75,21 @@ interface Candidate extends RouteTarget {
   score: number;
 }
 
+/** Название единицы: русское из таблицы SIM 3292, иначе подпись легенды (она английская). */
+function unitName(unit: GeologyUnitRef, lang: 'ru' | 'en'): string {
+  return lang === 'ru' ? (UNIT_NAMES_RU[unit.unit] ?? unit.label) : unit.label;
+}
+
+/** Вероятные породы по обе стороны контакта; пустая строка, когда тип единицы неизвестен. */
+function rocks(before: GeologyUnitRef, after: GeologyUnitRef, lang: 'ru' | 'en'): string {
+  const left = likelyRock(before.label);
+  const right = likelyRock(after.label);
+  if (!left && !right) return '';
+  const names = [left?.[lang], right?.[lang]].filter(Boolean);
+  const list = [...new Set(names)].join(lang === 'ru' ? ' и ' : ' and ');
+  return lang === 'ru' ? `Ожидаемые породы: ${list}. ` : `Rocks to expect: ${list}. `;
+}
+
 function midpoint(a: RouteSample, b: RouteSample) {
   return { lon: (a.lon + b.lon) / 2, lat: (a.lat + b.lat) / 2, alongM: (a.alongM + b.alongM) / 2 };
 }
@@ -98,11 +115,13 @@ function contacts(samples: RouteSample[]): Candidate[] {
         `Contact of units ${before.unit} and ${after.unit}`,
       ],
       why: [
-        `Граница двух геологических единиц: ${before.label} и ${after.label}. ` +
+        `Граница двух геологических единиц: ${unitName(before, 'ru')} и ${unitName(after, 'ru')}. ` +
           'На контакте видно, какая порода лежит выше, то есть порядок событий. ' +
+          rocks(before, after, 'ru') +
           'Положение границы на карте масштаба 1:20 000 000 верно до километра — выход искать на месте.',
         `The boundary between two geologic units: ${before.label} and ${after.label}. ` +
           'At a contact you see which rock lies on top, that is, the order of events. ' +
+          rocks(before, after, 'en') +
           'On a 1:20,000,000 map the boundary is good to about a kilometre — find the outcrop on the ground.',
       ],
       evidence: GEOLOGY_EVIDENCE,

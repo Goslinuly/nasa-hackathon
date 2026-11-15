@@ -40,6 +40,25 @@ describe('научные цели по маршруту', () => {
     expect(contact?.evidence[0]).toContain('SIM 3292');
   });
 
+  it('названия единиц в русском тексте берутся из таблицы SIM 3292, в английском — из легенды', () => {
+    const highland = { unit: 'eHh', label: 'Early Hesperian highland unit' };
+    const volcanic = { unit: 'eHv', label: 'Early Hesperian volcanic unit' };
+    const found = findRouteTargets(
+      samples(20).map((sample, index) => ({
+        ...sample,
+        geology: index < 10 ? highland : volcanic,
+      })),
+      OPTIONS,
+    );
+    const contact = found.find((target) => target.kind === 'geology_contact');
+    expect(contact?.why[0]).toContain('Раннегесперийская нагорная единица');
+    expect(contact?.why[0]).toContain('Раннегесперийская вулканическая единица');
+    expect(contact?.why[0]).not.toContain('Early Hesperian');
+    expect(contact?.why[0]).toContain('Ожидаемые породы: древняя кратерированная кора');
+    expect(contact?.why[1]).toContain('Early Hesperian highland unit');
+    expect(contact?.why[1]).toContain('Rocks to expect: ancient cratered crust');
+  });
+
   it('одна и та же пара единиц не повторяется', () => {
     const found = findRouteTargets(
       samples(40, (i) => ({ unit: Math.floor(i / 5) % 2 === 0 ? 'Nh1' : 'Ah3' })),
