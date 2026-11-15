@@ -1,0 +1,16 @@
+/* Описание участка прогулки (SiteBrief): спокойный текст одной колонкой. */
+.site-brief { display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; color: inherit; }
+.site-brief p { margin: 0; }
+.site-brief b { font-weight: 600; }
+.site-brief-head { margin-top: 2px; }
+.site-brief ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.site-brief li { opacity: 0.9; }
+.site-brief-card {
+  display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding: 12px 14px;
+  border: 1px solid rgba(240, 160, 110, 0.55); border-radius: 10px; background: rgba(255, 255, 255, 0.03);
+}
+.site-brief-go {
+  min-height: 44px; border: 0; border-radius: 8px; background: #f0a06e; color: #1b120c;
+  font: inherit; font-weight: 600; cursor: pointer;
+}
+.site-brief-go:hover { background: #f5b48a; }

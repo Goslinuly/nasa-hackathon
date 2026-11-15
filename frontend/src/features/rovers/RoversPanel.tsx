@@ -13,6 +13,7 @@ import {
   traversePoints,
   type RoversData,
 } from './data';
+import { SiteBriefCard } from '@/features/walk/SiteBrief';
 import './rovers.css';
 
 const LINES = 'traverses';
@@ -110,13 +111,11 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
               </dl>
               <p>{current.detail}</p>
               {current.walkSite && (
-                <button
-                  type="button"
-                  className="rv-action"
-                  onClick={() => openMode('walk', { site: current.walkSite! })}
-                >
-                  Пройти по маршруту
-                </button>
+                <SiteBriefCard
+                  siteId={current.walkSite}
+                  label="Пройти по маршруту"
+                  onDescend={() => openMode('walk', { site: current.walkSite! })}
+                />
               )}
               <a className="rv-source" href={current.sourceUrl} target="_blank" rel="noreferrer">
                 Источник: NASA/JPL-Caltech, MMGIS

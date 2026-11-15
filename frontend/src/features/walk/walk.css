@@ -151,3 +151,6 @@
   .walk-time:has(> .walk-btn:only-child) { overflow: visible; }
   .walk-menu { top: 56px; max-height: calc(100dvh - 72px); }
 }
+
+/* Описание участка внутри карточки выбора: те же отступы, что у заголовка. */
+.walk-pick .site-brief { padding: 0 12px 12px; }

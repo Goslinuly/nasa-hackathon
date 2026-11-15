@@ -9,6 +9,10 @@ export interface SiteIndexEntry {
   id: string;
   title: string;
   center: { lat: number; lon_east: number };
+  /** Каким маршрутом идти на участке. */
+  route?: string;
+  /** Почему выбран этот участок: научная цель, данные, ограничения. */
+  why?: string[];
 }
 
 export interface ManifestPoi {

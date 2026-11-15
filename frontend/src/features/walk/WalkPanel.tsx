@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ModeContext, WalkState } from '@/app/modeContract';
 import { Hud } from '@/features/hud/Hud';
 import { SLOPE_THRESHOLDS } from './motion';
+import { SiteBrief } from './SiteBrief';
 import { fetchManifest, fetchSiteIndex, loadSitePackage, siteBaseUrl, type SiteIndexEntry, type SitePackage } from './sitePackage';
 import { MARS_RADIUS_KM } from '@/features/globe/tiles';
 import { ASCENT_M, ROVER_REAL_SPEED_MS, ROVER_SPEED_MS, TIME_SCALES, WalkScene, type TeleportTarget, type WalkExtra } from './walkScene';
@@ -133,8 +134,9 @@ function SiteChooser({ ctx, notice }: { ctx: ModeContext; notice?: string }) {
                 <small>
                   {Math.abs(s.center.lat).toFixed(3)}° {s.center.lat >= 0 ? 'с. ш.' : 'ю. ш.'}, {s.center.lon_east.toFixed(3)}° в. д.
                 </small>
-                {on && s.note && <span>{s.note}</span>}
+                {on && s.note && !s.route && <span>{s.note}</span>}
               </button>
+              {on && <SiteBrief site={s} />}
               {on && (
                 <button type="button" className="walk-pick-go" disabled={descending} onClick={() => void descend(s)}>
                   {descending ? 'Спуск…' : 'Спуститься'}

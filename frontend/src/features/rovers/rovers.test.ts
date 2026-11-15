@@ -56,6 +56,7 @@ describe('текущие позиции', () => {
       expect(item.distanceKm).toBeGreaterThan(0);
     }
     expect(items.find(i => i.id === 'curiosity')?.walkSite).toBe('gale-boxwork');
+    expect(items.find(i => i.id === 'perseverance')?.walkSite).toBe('jezero');
     expect(roverMarkers(items).every(m => m.kind === 'rover')).toBe(true);
   });
 

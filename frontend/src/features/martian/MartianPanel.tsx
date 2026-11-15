@@ -5,6 +5,7 @@ import type { ModeContext } from '@/app/modeContract';
 
 import { loadRoute, mainStops, routeLines, stopMarkers, type RouteFile, type RouteStop } from './data';
 import { RouteProfile } from './RouteProfile';
+import { SiteBriefCard } from '@/features/walk/SiteBrief';
 import './martian.css';
 
 const LINES = 'watney-route';
@@ -103,10 +104,8 @@ export default function MartianPanel({ globe, openMode }: ModeContext) {
             ) : (
               <button type="button" className="mt-btn" onClick={flyRoute}>Облететь маршрут</button>
             )}
-            <button type="button" className="mt-btn is-primary" onClick={() => openMode('walk', { site: 'ares3' })}>
-              Спуститься на Ares 3
-            </button>
           </div>
+          <SiteBriefCard siteId="ares3" label="Спуститься на Ares 3" onDescend={() => openMode('walk', { site: 'ares3' })} />
 
           <RouteProfile points={route.profile.points} stops={route.stops} activeStopId={selected} />
           <p className="mt-credit">

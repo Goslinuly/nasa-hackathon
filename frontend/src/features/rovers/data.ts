@@ -111,7 +111,7 @@ export function roverItems(current: CurrentFile): RoverItem[] {
     distanceKm: r.dist_total_m / 1000,
     detail: `Высота ${Math.round(r.elevation_m).toLocaleString('ru-RU')} м над ареоидом`,
     sourceUrl: r.source_url,
-    walkSite: r.id === 'curiosity' ? 'gale-boxwork' : undefined,
+    walkSite: r.id === 'curiosity' ? 'gale-boxwork' : r.id === 'perseverance' ? 'jezero' : undefined,
   }));
   const heli = current.ingenuity;
   const last = heli.flights[heli.flights.length - 1];
