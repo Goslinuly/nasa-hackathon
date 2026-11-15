@@ -18,9 +18,11 @@ const PHASE_LABEL: Record<SolarState['phase'], [string, string]> = {
 interface Props {
   scene: WalkScene | null;
   solar: SolarState | null;
+  /** Телефон: свёрнутая кнопка показывает только время, панель без справочных строк. */
+  compact?: boolean;
 }
 
-export function TimeControls({ scene, solar }: Props) {
+export function TimeControls({ scene, solar, compact = false }: Props) {
   const tt = useT();
   const [open, setOpen] = useState(false);
   const [experiment, setExperiment] = useState(false);
@@ -57,7 +59,9 @@ export function TimeControls({ scene, solar }: Props) {
     return (
       <div className="walk-time">
         <button type="button" className="walk-btn" onClick={() => setOpen(true)}>
-          {solar
+          {solar && compact
+            ? `🕒 ${formatSolClock(solar.ltstHours).slice(0, 5)}`
+            : solar
             ? `${tt('Время', 'Time')} ${formatSolClock(solar.ltstHours)} · ${tt(...PHASE_LABEL[solar.phase])}${experiment ? ` · ${tt('эксперимент', 'experiment')}` : ''}`
             : tt('Время', 'Time')}
         </button>
@@ -72,11 +76,12 @@ export function TimeControls({ scene, solar }: Props) {
   }
   const fmt = (v: number, d: number) => (getLang() === 'en' ? v.toFixed(d) : v.toFixed(d).replace('.', ','));
   return (
-    <div className="walk-time">
+    <div className={`walk-time walk-time--open${compact ? ' walk-time--compact' : ''}`}>
       <div className="walk-menu-row walk-time-head">
         <strong>{tt('Время на Марсе', 'Time on Mars')}</strong>
-        <button type="button" className="walk-btn" onClick={() => setOpen(false)}>{tt('Свернуть', 'Collapse')}</button>
+        <button type="button" className="walk-btn" onClick={() => setOpen(false)} aria-label={tt('Свернуть', 'Collapse')}>{compact ? '✕' : tt('Свернуть', 'Collapse')}</button>
       </div>
+      {!compact && (
       <dl className="walk-time-grid">
         <dt>{tt('Местное истинное солнечное время', 'Local true solar time')}</dt>
         <dd>{formatSolClock(solar.ltstHours)} LTST</dd>
@@ -89,9 +94,11 @@ export function TimeControls({ scene, solar }: Props) {
         <dt>{tt('Поток на вершине атмосферы', 'Flux at top of atmosphere')}</dt>
         <dd>{Math.round(solar.irradianceWm2)} {tt('Вт/м²', 'W/m²')}</dd>
       </dl>
+      )}
+      {compact && <p className="walk-muted">{formatSolClock(solar.ltstHours)} LTST · {tt(...PHASE_LABEL[solar.phase])} · Ls {fmt(solar.ls, 0)}°</p>}
       <div className="walk-menu-row" role="group" aria-label={tt('Режим времени', 'Time mode')}>
-        <button type="button" className={`walk-btn ${!experiment ? 'is-on' : ''}`} onClick={() => chooseMode(false)}>{tt('Реальное время Марса', 'Real Mars time')}</button>
-        <button type="button" className={`walk-btn ${experiment ? 'is-on' : ''}`} onClick={() => chooseMode(true)}>{tt('Эксперимент', 'Experiment')}</button>
+        <button type="button" className={`walk-btn ${!experiment ? 'is-on' : ''}`} onClick={() => chooseMode(false)}>{compact ? tt('Реальное', 'Real') : tt('Реальное время Марса', 'Real Mars time')}</button>
+        <button type="button" className={`walk-btn ${experiment ? 'is-on' : ''}`} onClick={() => chooseMode(true)}>{compact ? tt('Своё', 'Custom') : tt('Эксперимент', 'Experiment')}</button>
       </div>
       {experiment && (
         <>
@@ -111,12 +118,12 @@ export function TimeControls({ scene, solar }: Props) {
           </label>
         </>
       )}
-      <p className="walk-muted">
+      {!compact && <p className="walk-muted">
         {tt(
           'Модель: Mars24 (Allison & McEwen). Панорама неба производная, её источник указывает команда. Оптическая толщина τ взята из модели, это не измерение.',
           'Model: Mars24 (Allison & McEwen). The sky panorama is derived; the team lists its source. Optical depth τ comes from a model, it is not a measurement.',
         )}
-      </p>
+      </p>}
     </div>
   );
 }

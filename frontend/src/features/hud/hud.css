@@ -263,3 +263,11 @@
   .walk-hud .hud-tl .hud-value { white-space: nowrap; }
   .walk-hud .hud-tc { top: 40px; transform: translateX(-50%) scale(0.65); }
 }
+
+.walk-hud .hud-toggle-short { display: none; }
+@media (max-width: 760px), (max-height: 500px) {
+  .walk-hud .hud-toggle-long { display: none; }
+  .walk-hud .hud-toggle-short { display: inline; }
+  /* Компас — вверху по центру, между кнопкой времени и меню. */
+  .walk-hud .hud-tc { top: max(2px, env(safe-area-inset-top)); transform: translateX(-50%) scale(0.6); transform-origin: top center; }
+}

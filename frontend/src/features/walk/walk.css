@@ -253,3 +253,46 @@
     transform: none; min-height: 28px; font-size: 10px; padding: 2px 8px;
   }
 }
+
+/* Компактная раскладка (телефон): слева время, по центру компас, справа меню, ускорение и язык. */
+.walk-topbar--compact {
+  left: auto !important; right: max(6px, env(safe-area-inset-right)) !important; top: max(4px, env(safe-area-inset-top)) !important;
+  max-width: none !important; overflow: visible !important; gap: 4px;
+}
+.walk-topbar--compact .walk-lang { order: 0 !important; }
+.walk-speed { min-width: 48px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.walk-menu--nav { display: flex; flex-direction: column; gap: 4px; }
+.walk-menu-item.is-on { background: #b4552a; }
+@media (max-width: 760px), (max-height: 500px) {
+  .walk-menu { top: calc(max(4px, env(safe-area-inset-top)) + 40px) !important; right: max(6px, env(safe-area-inset-right)) !important;
+    left: auto !important; width: min(280px, calc(100% - 12px)) !important; max-height: calc(100dvh - 56px) !important; overflow-y: auto; }
+  .walk-time { top: max(4px, env(safe-area-inset-top)) !important; left: max(6px, env(safe-area-inset-left)) !important; width: auto !important; }
+  .walk-time--open {
+    width: min(280px, calc(100vw - 12px)) !important; max-height: calc(100dvh - 12px) !important; overflow-y: auto !important;
+    padding: 6px !important; background: rgb(24, 13, 8) !important; border: 1px solid rgba(255, 210, 170, 0.3) !important; z-index: 14;
+  }
+  .walk-time--open .walk-menu-row { flex-wrap: wrap; gap: 4px; }
+  .walk-time--open p { margin: 0; font-size: 11px; }
+  /* Мини-карта — в самый угол экрана. */
+  .walk-minimap { right: env(safe-area-inset-right) !important; bottom: env(safe-area-inset-bottom) !important; }
+  .walk-minimap canvas { border-radius: 4px 0 0 0; }
+  .walk-root .walk-hud .hud-toggle {
+    top: calc(max(4px, env(safe-area-inset-top)) + 38px) !important; bottom: auto !important;
+    left: max(6px, env(safe-area-inset-left)) !important; right: auto !important; transform: none !important;
+    min-height: 28px; font-size: 10px; padding: 2px 8px;
+  }
+}
+@media (max-width: 760px), (max-height: 500px) {
+  .walk-minimap { flex-direction: column-reverse !important; align-items: flex-end !important; gap: 4px !important; }
+  .walk-route-tools { flex-direction: row !important; max-width: none !important; margin-right: 6px !important; }
+  .walk-time-head { flex-wrap: nowrap !important; justify-content: space-between; }
+}
+@media (max-width: 760px), (max-height: 500px) {
+  /* Кнопки маршрута над картой, сама карта — вплотную к углу. */
+  .walk-minimap { display: flex !important; flex-direction: column !important; align-items: flex-end !important; }
+  .walk-minimap-credit { text-align: right; margin-right: 4px; }
+}
+@media (max-width: 760px) and (min-height: 501px) {
+  /* Вертикально: компас под строкой кнопок. */
+  .walk-hud .hud-tc { top: calc(max(4px, env(safe-area-inset-top)) + 46px); }
+}

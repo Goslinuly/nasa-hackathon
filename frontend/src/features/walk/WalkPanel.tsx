@@ -18,6 +18,7 @@ import { Joystick, TouchLook } from './TouchControls';
 import './walk.css';
 import { AstronautSettings, jumpNotice } from './AstronautSettings';
 import { LandscapeGate } from './LandscapeGate';
+import { nextTimeScale, useCompact } from './compact';
 import { enterLandscape, exitLandscape } from './landscape';
 import { buildOverviewPackage, OVERVIEW_SITE_ID } from './overviewPackage';
 import { setPlannedWalkRoute, takePlannedWalkRoute, type PlannedWalkRoute } from '@/shared/walkRoute';
@@ -326,7 +327,8 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   const [state, setState] = useState<WalkState | null>(null);
   const [extra, setExtra] = useState<WalkExtra | null>(null);
   const [teleports, setTeleports] = useState<TeleportTarget[]>([]);
-  const [menu, setMenu] = useState<'none' | 'settings' | 'teleport'>('none');
+  const [menu, setMenu] = useState<'none' | 'settings' | 'teleport' | 'nav'>('none');
+  const compact = useCompact();
   const [shadows, setShadows] = useState(true);
   const [groundDetail, setGroundDetail] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
@@ -424,8 +426,24 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </button>
       )}
       {extra?.jump && <div className="walk-note walk-note--jump">{jumpNotice(extra.jump, t)}</div>}
-      <TimeControls scene={sceneRef.current} solar={extra?.solar ?? null} />
+      <TimeControls scene={sceneRef.current} solar={extra?.solar ?? null} compact={compact} />
 
+      {compact ? (
+        <div className="walk-topbar walk-topbar--compact">
+          <button type="button" className={`walk-btn ${menu !== 'none' ? 'is-on' : ''}`} aria-expanded={menu !== 'none'} onClick={() => setMenu(menu === 'none' ? 'nav' : 'none')}>
+            ☰ {t('Меню', 'Menu')}
+          </button>
+          <button
+            type="button"
+            className="walk-btn walk-speed"
+            title={t('Ускорение времени: нажмите, чтобы переключить', 'Time speed-up: tap to switch')}
+            onClick={() => s?.setTimeScale(nextTimeScale(TIME_SCALES, state?.timeScale ?? 1))}
+          >
+            ×{state?.timeScale ?? 1}
+          </button>
+          <LangSwitch className="walk-lang" />
+        </div>
+      ) : (
       <div className="walk-topbar">
         <button type="button" className="walk-btn" onClick={leave}>{t('На глобус', 'To the globe')}</button>
         <div className="walk-timescale" role="group" aria-label={t('Чем перемещаться', 'How to move')}>
@@ -465,8 +483,24 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </div>
         <LangSwitch className="walk-lang" />
       </div>
+      )}
 
       {touch && <LandscapeGate />}
+
+      {menu === 'nav' && (
+        <div className="walk-menu walk-menu--nav">
+          <button type="button" className="walk-menu-item" onClick={leave}>{t('На глобус', 'To the globe')}</button>
+          <button type="button" className={`walk-menu-item ${state?.vehicle !== 'walk' ? 'is-on' : ''}`} onClick={() => { s?.setVehicle('rover'); setMenu('none'); }}>{t('Ровер', 'Rover')}</button>
+          <button type="button" className={`walk-menu-item ${state?.vehicle === 'walk' ? 'is-on' : ''}`} onClick={() => { s?.setVehicle('walk'); setMenu('none'); }}>{t('Пешком', 'On foot')}</button>
+          {s?.hasActivePath && (
+            <button type="button" className={`walk-menu-item ${extra?.autoDrive ? 'is-on' : ''}`} onClick={() => { s?.setAutoDrive(!extra?.autoDrive); setMenu('none'); }}>
+              {t('Автоуправление', 'Autodrive')}{extra?.autoDrive ? ' ✓' : ''}
+            </button>
+          )}
+          <button type="button" className="walk-menu-item" onClick={() => setMenu('teleport')}>{t('Перейти к точке', 'Go to point')}</button>
+          <button type="button" className="walk-menu-item" onClick={() => setMenu('settings')}>{t('Настройки', 'Settings')}</button>
+        </div>
+      )}
 
       {menu === 'teleport' && (
         <div className="walk-menu">
