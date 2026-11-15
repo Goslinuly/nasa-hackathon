@@ -2,6 +2,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildEvaPoints, levelBadge, formatCorridor, formatDuration, slopeBadge } from './evaProfile';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 const thresholds = [
   { key: 'conservative_plan', low_deg: -15, high_deg: 15, nature: 'a', label: 'a' },

@@ -12,6 +12,10 @@ import {
   slopeLevel,
   walkSpeed,
 } from './suit';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 describe('скорость в скафандре', () => {
   it('V = −0.01·θ + 0.75', () => {

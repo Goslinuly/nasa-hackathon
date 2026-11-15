@@ -4,6 +4,7 @@ import { MARS_RADIUS_KM } from '@/features/globe/tiles';
 import { decodeHeights } from '@/features/walk/heightGrid';
 import { decodePng } from '@/features/walk/png';
 import { fetchManifest, siteBaseUrl, type SiteIndexEntry, type SiteManifest } from '@/features/walk/sitePackage';
+import { tr } from '@/shared/i18n/lang';
 
 import type { HeightGrid, LonLat } from './routing';
 
@@ -59,8 +60,12 @@ export function assertConsistent(manifest: SiteManifestBounds): number {
   const heightPx = (b.north - b.south) * ppd;
   if (Math.abs(widthPx - h.width) > PIXEL_TOLERANCE || Math.abs(heightPx - h.height) > PIXEL_TOLERANCE) {
     throw new Error(
-      `Границы участка ${manifest.id} не согласованы с сеткой: по границам ${widthPx.toFixed(1)}×${heightPx.toFixed(1)} пикс, ` +
-        `в паспорте ${h.width}×${h.height} пикс при шаге ${h.pixel_m} м`,
+      tr(
+        `Границы участка ${manifest.id} не согласованы с сеткой: по границам ${widthPx.toFixed(1)}×${heightPx.toFixed(1)} пикс, ` +
+          `в паспорте ${h.width}×${h.height} пикс при шаге ${h.pixel_m} м`,
+        `Site ${manifest.id} bounds do not match the grid: ${widthPx.toFixed(1)}×${heightPx.toFixed(1)} px from the bounds, ` +
+          `${h.width}×${h.height} px in the manifest at ${h.pixel_m} m step`,
+      ),
     );
   }
   return ppd;
@@ -68,13 +73,13 @@ export function assertConsistent(manifest: SiteManifestBounds): number {
 
 export async function loadLocalGrid(siteId: string, signal?: AbortSignal): Promise<HeightGrid> {
   const manifest = (await fetchManifest(siteId)) as SiteManifestBounds;
-  if (!manifest.bounds_lonlat) throw new Error(`В паспорте участка ${siteId} нет границ в градусах`);
+  if (!manifest.bounds_lonlat) throw new Error(tr(`В паспорте участка ${siteId} нет границ в градусах`, `Site ${siteId} manifest has no bounds in degrees`));
   const ppd = assertConsistent(manifest);
   const h = manifest.height;
   const res = await fetch(siteBaseUrl(siteId) + h.file, { signal });
-  if (!res.ok) throw new Error(`Высоты участка недоступны (${res.status})`);
+  if (!res.ok) throw new Error(tr(`Высоты участка недоступны (${res.status})`, `Site heights unavailable (${res.status})`));
   const png = await decodePng(await res.arrayBuffer());
-  if (png.width !== h.width || png.height !== h.height) throw new Error('Размер height.png не совпадает с паспортом');
+  if (png.width !== h.width || png.height !== h.height) throw new Error(tr('Размер height.png не совпадает с паспортом', 'height.png size does not match the manifest'));
   const decoded = decodeHeights(png.data, png.channels, png.width, png.height, h.base_m, h.step_m);
   return {
     width: png.width,

@@ -30,6 +30,10 @@
   justify-content: flex-end; max-width: calc(100% - 24px); z-index: 11;
 }
 .walk-timescale { display: flex; gap: 2px; }
+/* Переключатель языка в тон кнопкам прогулки. */
+.walk-topbar .walk-lang { background: rgba(28, 16, 10, 0.75); border-color: rgba(255, 210, 170, 0.35); align-self: center; }
+.walk-topbar .walk-lang button { min-height: 26px; min-width: 34px; color: #e8d3c2; }
+.walk-topbar .walk-lang button[aria-pressed='true'] { background: #b4552a; color: #fff; }
 .walk-menu {
   position: absolute; top: 56px; right: 12px; width: min(340px, calc(100% - 24px)); max-height: 60vh; overflow: auto;
   background: rgba(24, 13, 8, 0.9); border: 1px solid rgba(255, 210, 170, 0.3); border-radius: 8px; padding: 10px; z-index: 11;

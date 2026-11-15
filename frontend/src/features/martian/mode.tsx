@@ -6,7 +6,9 @@ import type { ModeDefinition } from '@/app/modeContract';
 export const mode: ModeDefinition = {
   id: 'martian',
   title: 'Маршрут „Марсианина“',
+  titleEn: 'The Martian route',
   description: 'Путь Марка Уотни из романа и рельеф под ним',
+  descriptionEn: "Mark Watney's path from the novel and the terrain beneath it",
   order: 30,
   fullscreen: false,
   Panel: lazy(() => import('./MartianPanel')),

@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_TRAVERSE, segmentCost, walkSpeed } from '@/shared/eva/traverse';
 
 import { buildRoverTable, formatClock, formatKmPair, roverCardText, roverStatsAt } from './roverStats';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 const firm = { ...DEFAULT_TRAVERSE, perCell: false };
 

@@ -2,44 +2,66 @@
   {
     "id": "gale-boxwork",
     "title": "Гейл, район boxwork на склоне горы Шарп",
+    "title_en": "Gale, boxwork area on the slope of Mount Sharp",
     "center": {
       "lat": -4.80421,
       "lon_east": 137.382525
     },
     "route": "Лагерь A → научная цель Б: 677 м по прямой и подъём на 47 м. Один пеший выход туда и обратно.",
+    "route_en": "Camp A → science target B: 677 m in a straight line and a 47 m climb. One EVA on foot, there and back.",
     "why": [
       "Boxwork — сетка минеральных гребней на склоне горы Шарп. Curiosity изучал их в 2025 году, это пример научной цели из задания.",
       "В обоих концах маршрута есть круговые панорамы Curiosity, у точки Б ровер бурил породу.",
       "Рельеф HiRISE 1 м и снимок 0,25 м, на рельефе лежит настоящий трек ровера.",
       "Радиацию здесь измерял прибор RAD этого же ровера."
+    ],
+    "why_en": [
+      "Boxwork is a network of mineral ridges on the slope of Mount Sharp. Curiosity studied it in 2025; it is the example science target from the challenge.",
+      "Both ends of the route have Curiosity 360° panoramas, and the rover drilled rock near point B.",
+      "HiRISE terrain at 1 m and an image at 0.25 m, with the real rover track on the terrain.",
+      "Radiation here was measured by the same rover's RAD instrument."
     ]
   },
   {
     "id": "ares3",
     "title": "Ares 3, Acidalia Planitia («Марсианин»)",
+    "title_en": "Ares 3, Acidalia Planitia (The Martian)",
     "center": {
       "lat": 31.38,
       "lon_east": 331.371
     },
     "route": "Свободная прогулка по участку 2 × 2 км вокруг точки посадки Ares 3.",
+    "route_en": "Free walk over a 2 × 2 km area around the Ares 3 landing site.",
     "why": [
       "Место посадки из романа Энди Вейра «Марсианин». Снимок HiRISE ESP_040776_2115 сделан по координатам, которые автор прислал команде HiRISE.",
       "Равнина Acidalia Planitia почти плоская: перепад высот на участке около 65 м.",
       "Трека ровера и научных измерений здесь нет. Участок нужен, чтобы сравнить сцену из книги с настоящим рельефом."
+    ],
+    "why_en": [
+      "The landing site from Andy Weir's novel The Martian. HiRISE image ESP_040776_2115 was taken at the coordinates the author sent to the HiRISE team.",
+      "Acidalia Planitia is almost flat: the elevation range across the site is about 65 m.",
+      "There is no rover track and no science measurements here. The site lets you compare the scene from the book with real terrain."
     ]
   },
   {
     "id": "jezero",
     "title": "Езеро, западный вал кратера: путь Perseverance к солу 2022",
+    "title_en": "Jezero, western crater rim: Perseverance's path to sol 2022",
     "center": {
       "lat": 18.435,
       "lon_east": 77.24
     },
     "route": "По треку Perseverance на западном валу кратера Езеро: солы 1592–2022, участок 3 × 2 км.",
+    "route_en": "Along Perseverance's track on the western rim of Jezero crater: sols 1592–2022, a 3 × 2 km area.",
     "why": [
       "Здесь Perseverance изучает породы вала кратера Езеро, где когда-то было озеро с дельтой реки.",
       "По треку ровера можно проехать в автоуправлении.",
       "Рельеф HiRISE 1 м есть только на четверти участка, у текущей позиции ровера — CTX 20 м. Под ногами это подписано."
+    ],
+    "why_en": [
+      "Here Perseverance studies the rocks of the rim of Jezero crater, which once held a lake with a river delta.",
+      "You can drive the rover's track with autodrive.",
+      "HiRISE 1 m terrain covers only a quarter of the site; near the rover's current position it is CTX 20 m. This is labelled underfoot."
     ]
   }
 ]

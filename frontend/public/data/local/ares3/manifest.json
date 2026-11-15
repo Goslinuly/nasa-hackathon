@@ -2,7 +2,9 @@
  "schema_version": 1,
  "id": "ares3",
  "title": "Ares 3, Acidalia Planitia («Марсианин»)",
+ "title_en": "Ares 3, Acidalia Planitia (The Martian)",
  "note": "Место посадки Ares 3 из романа Энди Вейра; участок вокруг центра снимка.",
+ "note_en": "Ares 3 landing site from Andy Weir's novel; the area around the image centre.",
  "crs": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +R=3396190 +units=m +no_defs=True",
  "coordinates": "planetocentric latitude, east longitude 0-360",
  "center": {
@@ -98,9 +100,11 @@
   {
    "id": "ares3",
    "title": "Ares 3",
+   "title_en": "Ares 3",
    "lat": 31.38,
    "lon_east": 331.371,
-   "note": "Центр снимка HiRISE ESP_040776_2115 по координатам автора романа"
+   "note": "Центр снимка HiRISE ESP_040776_2115 по координатам автора романа",
+   "note_en": "Centre of HiRISE image ESP_040776_2115, taken at the author's coordinates"
   }
  ],
  "track": null,

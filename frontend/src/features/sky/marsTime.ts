@@ -1,5 +1,7 @@
 // Марсианское время и положение Солнца по алгоритму Mars24 (Allison & McEwen): MSD ведёт все производные величины.
 
+import { tr } from '@/shared/i18n/lang';
+
 const D2R = Math.PI / 180;
 const R2D = 180 / Math.PI;
 
@@ -154,8 +156,8 @@ export function formatSolClock(hours: number): string {
 
 /** Сезон по ареоцентрической долготе Солнца для северного полушария. */
 export function seasonLabel(ls: number): string {
-  if (ls < 90) return 'северная весна';
-  if (ls < 180) return 'северное лето';
-  if (ls < 270) return 'северная осень';
-  return 'северная зима';
+  if (ls < 90) return tr('северная весна', 'northern spring');
+  if (ls < 180) return tr('северное лето', 'northern summer');
+  if (ls < 270) return tr('северная осень', 'northern autumn');
+  return tr('северная зима', 'northern winter');
 }

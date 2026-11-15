@@ -2,7 +2,9 @@
  "schema_version": 1,
  "id": "jezero",
  "title": "Езеро, западный вал кратера: путь Perseverance к солу 2022",
+ "title_en": "Jezero, western crater rim: Perseverance's path to sol 2022",
  "note": "Подъём Perseverance на западный вал кратера Езеро и текущая позиция на сол 2022. Рельеф 1 м есть только в восточной части; запад, включая текущую позицию, покрыт лишь CTX 20 м.",
+ "note_en": "Perseverance's climb onto the western rim of Jezero crater and its position at sol 2022. 1 m terrain exists only in the eastern part; the west, including the current position, has only CTX 20 m.",
  "crs": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +R=3396190 +units=m +no_defs=True",
  "coordinates": "planetocentric latitude, east longitude 0-360",
  "center": {
@@ -44,6 +46,11 @@
     "0": "HiRISE DTM 1 м",
     "1": "CTX DTM 20 м (билинейная интерполяция)",
     "2": "переходная полоса"
+   },
+   "values_en": {
+    "0": "HiRISE DTM 1 m",
+    "1": "CTX DTM 20 m (bilinear interpolation)",
+    "2": "transition band"
    },
    "hirise_fraction": 0.2552,
    "fill_fraction": 0.7448,
@@ -101,6 +108,7 @@
    "url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/HiRISE/DTM_MOLAtopography_DeltaGeoid_Jezero_CR_SOUTH_Edited_affine_1m_Eqc_latTs0_lon0.tif",
    "source_pixel_m": 1.0,
    "credit": "NASA/JPL/University of Arizona (HiRISE); Mars 2020 TRN HiRISE DTM и ортомозаика USGS Astrogeology (Fergason et al., 2020), doi:10.5066/P9REJ9JN",
+   "credit_en": "NASA/JPL/University of Arizona (HiRISE); Mars 2020 TRN HiRISE DTM and orthomosaic, USGS Astrogeology (Fergason et al., 2020), doi:10.5066/P9REJ9JN",
    "license": "USGS, общественное достояние"
   },
   {
@@ -109,6 +117,7 @@
    "url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/HiRISE/JEZ_hirise_soc_007_orthoMosaic_25cm_Ortho_blend120.tif",
    "source_pixel_m": 0.25,
    "credit": "NASA/JPL/University of Arizona (HiRISE); Mars 2020 TRN HiRISE DTM и ортомозаика USGS Astrogeology (Fergason et al., 2020), doi:10.5066/P9REJ9JN",
+   "credit_en": "NASA/JPL/University of Arizona (HiRISE); Mars 2020 TRN HiRISE DTM and orthomosaic, USGS Astrogeology (Fergason et al., 2020), doi:10.5066/P9REJ9JN",
    "license": "USGS, общественное достояние"
   },
   {
@@ -117,6 +126,7 @@
    "url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/JEZ_ctx_B_soc_008_DTM_MOLAtopography_DeltaGeoid_20m_Eqc_latTs0_lon0.tif",
    "source_pixel_m": 20.0,
    "credit": "NASA/JPL/MSSS (CTX); Mars 2020 TRN CTX DTM и ортомозаика USGS Astrogeology, doi:10.5066/P906QQT8",
+   "credit_en": "NASA/JPL/MSSS (CTX); Mars 2020 TRN CTX DTM and orthomosaic, USGS Astrogeology, doi:10.5066/P906QQT8",
    "license": "USGS, общественное достояние"
   },
   {
@@ -125,6 +135,7 @@
    "url": "https://asc-pds-services.s3.us-west-2.amazonaws.com/mosaic/mars2020_trn/CTX/JEZ_ctx_B_soc_008_orthoMosaic_6m_Eqc_latTs0_lon0.tif",
    "source_pixel_m": 6.0,
    "credit": "NASA/JPL/MSSS (CTX); Mars 2020 TRN CTX DTM и ортомозаика USGS Astrogeology, doi:10.5066/P906QQT8",
+   "credit_en": "NASA/JPL/MSSS (CTX); Mars 2020 TRN CTX DTM and orthomosaic, USGS Astrogeology, doi:10.5066/P906QQT8",
    "license": "USGS, общественное достояние"
   }
  ],
@@ -132,9 +143,11 @@
   {
    "id": "rover",
    "title": "Perseverance, сол 2022",
+   "title_en": "Perseverance, sol 2022",
    "lat": 18.43559434,
    "lon_east": 77.23322287,
-   "note": "Текущая позиция по M20_waypoints_current.json; вне HiRISE DTM, рельеф CTX 20 м"
+   "note": "Текущая позиция по M20_waypoints_current.json; вне HiRISE DTM, рельеф CTX 20 м",
+   "note_en": "Current position from M20_waypoints_current.json; outside the HiRISE DTM, CTX 20 m terrain"
   }
  ],
  "track": {
@@ -152,6 +165,7 @@
    "p90": 3.21
   },
   "note": "Высота трека — телеметрия ровера (elev_geoid). Линию маршрута класть на рельеф DTM; разница — смещение вертикального датума, а не ошибка точки.",
+  "note_en": "Track elevation is rover telemetry (elev_geoid). Drape the route line on the DTM terrain; the difference is a vertical datum offset, not a point error.",
   "by_dtm_source": {
    "hirise": {
     "points": 31,
@@ -176,6 +190,7 @@
   "backdrop": "c5835b92d6956dc5733b6ee714e5d42924e861e6ea065a8f5f028fcbc790e323"
  },
  "quality_note": "HiRISE-часть участка — стереопара CR (Crater Rim), самая западная в мозаике TRN. Паспорт USGS: «several quality issues due to uncompensated y-parallax ... users should be cautious when using this area for analysis». Подписывать как зону пониженного качества. Западнее HiRISE DTM нет ни в TRN, ни в PDS: там высоты CTX 20 м и ортофото CTX 6 м, мелкий рельеф не виден.",
+ "quality_note_en": "The HiRISE part of the site is the CR (Crater Rim) stereo pair, the westernmost in the TRN mosaic. USGS readme: «several quality issues due to uncompensated y-parallax ... users should be cautious when using this area for analysis». Label it as a lower-quality zone. West of it there is no HiRISE DTM in TRN or PDS: heights are CTX 20 m and the orthoimage is CTX 6 m, so small relief is not visible.",
  "backdrop": {
   "file": "backdrop.glb",
   "pixel_m": 200,
@@ -183,8 +198,11 @@
   "frame": "те же оси и нулевой уровень, что у участка: x восток, y = высота − base_m, z юг; метры",
   "vexag": 1,
   "label": "дальний план: обзорный рельеф кратера Езеро ~200 м/пикс, без снимка",
+  "label_en": "far view: overview terrain of Jezero crater ~200 m/px, no image",
   "note": "Кратер Езеро из jezerocode.glb, привязан по MOLA MEGDR и высотам участка (корреляция 0,988), высоты приведены к ×1. Под участком вырезан, у края на 3 м ниже участка с переходом 4 км.",
+  "note_en": "Jezero crater from jezerocode.glb, registered to MOLA MEGDR and the site heights (correlation 0.988), heights at ×1. Cut out under the site; at the edge it sits 3 m below the site with a 4 km transition.",
   "credit": "Обзорный рельеф кратера Езеро (~200 м/пикс), подготовлен командой по глобальным данным; масштаб и положение проверены по MOLA MEGDR (NASA/GSFC MOLA Science Team) и HiRISE/CTX DTM Mars 2020 TRN (USGS)",
+  "credit_en": "Overview terrain of Jezero crater (~200 m/px), prepared by the team from global data; scale and position checked against MOLA MEGDR (NASA/GSFC MOLA Science Team) and Mars 2020 TRN HiRISE/CTX DTM (USGS)",
   "generated_by": "backend/scripts/blender/site_scene.py --backdrop jezerocode.glb --backdrop-glb-step 2 (калибровка backend/scripts/blender/backdrops/jezerocode.json)",
   "sha256": "c5835b92d6956dc5733b6ee714e5d42924e861e6ea065a8f5f028fcbc790e323"
  }

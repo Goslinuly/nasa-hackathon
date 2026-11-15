@@ -1,18 +1,23 @@
 // Данные режима «Маршрут „Марсианина“»: типы route.json и расчёты для профиля высот.
 import type { GlobeLine, GlobeMarker } from '@/app/modeContract';
+import { pick, tr } from '@/shared/i18n/lang';
 
 export interface RouteImage {
   title: string;
+  title_en?: string;
   url: string;
 }
 
 export interface RouteStop {
   id: string;
   name: string;
+  name_en?: string;
   place: string;
+  place_en?: string;
   lat: number;
   lon: number;
   novel: string;
+  novel_en?: string;
   images: RouteImage[];
   coord_source: string;
   /** Расстояние от Ares 3 по маршруту, км; null у боковой поездки. */
@@ -26,8 +31,11 @@ export interface RouteStop {
 export interface RouteFile {
   fetched_utc: string;
   title: string;
+  title_en?: string;
   note: string;
+  note_en?: string;
   geometry_note: string;
+  geometry_note_en?: string;
   hirise_remark: { text: string; ru: string; author: string; url: string };
   stops: RouteStop[];
   /** [lon, lat] */
@@ -53,7 +61,7 @@ export const ROUTE_COLOR = '#ff7a4d';
 
 export async function loadRoute(signal?: AbortSignal): Promise<RouteFile> {
   const response = await fetch(ROUTE_URL, { signal });
-  if (!response.ok) throw new Error(`Не удалось загрузить маршрут: ${response.status}`);
+  if (!response.ok) throw new Error(tr(`Не удалось загрузить маршрут: ${response.status}`, `Could not load the route: ${response.status}`));
   return (await response.json()) as RouteFile;
 }
 
@@ -74,7 +82,7 @@ export function stopMarkers(route: RouteFile): GlobeMarker[] {
     id: stop.id,
     lon: stop.lon,
     lat: stop.lat,
-    label: stop.name,
+    label: pick(stop.name, stop.name_en),
     kind: 'site',
     color: ROUTE_COLOR,
   }));

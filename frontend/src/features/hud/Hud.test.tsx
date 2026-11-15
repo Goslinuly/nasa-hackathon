@@ -6,6 +6,10 @@ import type { WalkState } from '@/app/modeContract';
 
 import { angleDelta } from './Compass';
 import { HudView } from './Hud';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 const gale: WalkState = {
   siteId: 'gale-boxwork',
@@ -88,6 +92,21 @@ describe('HUD', () => {
     const late = { ...gale, evaSeconds: 7.5 * 3600, baseDistanceM: 2000 };
     const html = renderToStaticMarkup(<HudView state={late} ext={{}} level="full" />);
     expect(html).toContain('Точка невозврата');
+  });
+
+  it('по-английски: подписи, метки и стороны света', () => {
+    setLang('en');
+    try {
+      const galeEn = { ...gale, dataLevel: 'HiRISE DTM 1 m' };
+      const html = renderToStaticMarkup(<HudView state={galeEn} ext={{ rad, lightTable: null, spaceWeather: null }} level="full" />);
+      expect(html).toContain('archive 2021-11-07');
+      expect(html).toContain('11.4 µGy/h');
+      expect(html).toMatch(/Earth link.*no data/);
+      expect(html).toContain('B 680 m');
+      expect(html).not.toMatch(/[А-Яа-яЁё]/);
+    } finally {
+      setLang('ru');
+    }
   });
 
   it('разность углов компаса', () => {

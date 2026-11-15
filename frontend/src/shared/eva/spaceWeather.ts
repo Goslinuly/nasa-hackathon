@@ -16,11 +16,11 @@ export interface SpaceWeather {
   events: DonkiEvent[];
 }
 
-export const DONKI_TYPE_LABEL: Record<string, string> = {
-  FLR: 'вспышка',
-  CME: 'выброс массы',
-  SEP: 'поток частиц',
-  GST: 'геомагнитная буря',
+export const DONKI_TYPE_LABEL: Record<string, [string, string]> = {
+  FLR: ['вспышка', 'flare'],
+  CME: ['выброс массы', 'CME'],
+  SEP: ['поток частиц', 'particle event'],
+  GST: ['геомагнитная буря', 'geomagnetic storm'],
 };
 
 /** Для радиации на поверхности важнее потоки частиц и выбросы, потом вспышки; бури — у Земли. */

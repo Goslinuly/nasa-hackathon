@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import type { WalkState } from '@/app/modeContract';
+import { pick, tr } from '@/shared/i18n/lang';
 import { icrfToLocalEnu } from '@/features/sky/marsSky';
 import { daysSinceJ2000, solarGeometry, type SolarGeometry } from '@/features/sky/marsTime';
 import { SkyDome, DEFAULT_TAU } from '@/features/sky/skyDome';
@@ -99,6 +100,8 @@ export interface WalkExtra {
 export interface TeleportTarget {
   id: string;
   label: string;
+  /** Подпись по-английски; без неё — русская. */
+  labelEn?: string;
   x: number;
   z: number;
 }
@@ -123,6 +126,7 @@ interface Label {
 interface LocalPoi {
   id: string;
   title: string;
+  titleEn?: string;
   x: number;
   z: number;
   y: number;
@@ -443,12 +447,12 @@ export class WalkScene {
       const label = this.makeLabel('walk-label walk-label-poi');
       label.el.style.setProperty('--poi', color);
       label.pos.set(l.x, y + 6, l.z);
-      this.pois.push({ id: p.id, title: p.title, x: l.x, z: l.z, y, label });
+      this.pois.push({ id: p.id, title: p.title, titleEn: p.title_en, x: l.x, z: l.z, y, label });
     });
   }
 
   private buildTeleports(): void {
-    for (const p of this.pois) this.teleports.push({ id: `poi-${p.id}`, label: p.title, x: p.x, z: p.z });
+    for (const p of this.pois) this.teleports.push({ id: `poi-${p.id}`, label: p.title, labelEn: p.titleEn, x: p.x, z: p.z });
     const rover = this.opts.pkg.track?.rover ?? '';
     this.trackPoints.forEach((p, i) => {
       if (i % 20 === 0 || i === this.trackPoints.length - 1) {
@@ -470,7 +474,13 @@ export class WalkScene {
     if (first && this.sampler.sourceAt(x, z) !== 0) {
       const hi = this.nearestHirise(x, z);
       if (hi) {
-        this.teleports.unshift({ id: 'hirise-start', label: 'Начало подробного рельефа HiRISE', x: hi.x, z: hi.z });
+        this.teleports.unshift({
+          id: 'hirise-start',
+          label: 'Начало подробного рельефа HiRISE',
+          labelEn: 'Start of detailed HiRISE terrain',
+          x: hi.x,
+          z: hi.z,
+        });
         x = hi.x;
         z = hi.z;
         target = first;
@@ -1150,7 +1160,7 @@ export class WalkScene {
     for (const p of this.pois) {
       const d = Math.hypot(p.x - this.px, p.z - this.pz);
       p.label.pos.y = p.y + Math.min(60, 4 + d * 0.05);
-      this.project(p.label, `${p.title} · ${formatDistance(d)}`, true);
+      this.project(p.label, `${pick(p.title, p.titleEn)} · ${formatDistance(d)}`, true);
     }
     const near = this.trackPoints
       .map((p) => ({ p, d: Math.hypot(p.x - this.px, p.z - this.pz) }))
@@ -1188,7 +1198,7 @@ export class WalkScene {
     }
     const state: WalkState = {
       siteId: pkg.manifest.id,
-      siteTitle: pkg.manifest.title,
+      siteTitle: pick(pkg.manifest.title, pkg.manifest.title_en),
       lat: ll.lat,
       lonEast: ll.lonEast,
       heightM: this.sampler.heightAt(this.px, this.pz),
@@ -1331,5 +1341,6 @@ export function orthoExposureGain(bitmap: ImageBitmap | HTMLCanvasElement): numb
 }
 
 export function formatDistance(m: number): string {
-  return m < 1000 ? `${Math.round(m)} м` : `${(m / 1000).toFixed(2).replace('.', ',')} км`;
+  if (m < 1000) return `${Math.round(m)} ${tr('м', 'm')}`;
+  return tr(`${(m / 1000).toFixed(2).replace('.', ',')} км`, `${(m / 1000).toFixed(2)} km`);
 }

@@ -16,6 +16,13 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from rover_layers_en import (
+    TRAVERSE_NOTE_EN,
+    with_current_en,
+    with_missions_en,
+    with_route_en,
+)
+
 MMGIS = "https://mars.nasa.gov/mmgis-maps"
 URLS = {
     "m20_traverse": f"{MMGIS}/M20/Layers/json/M20_traverse.json",
@@ -128,6 +135,7 @@ def build_traverse(rows, *, name, source_url, fetched, total_m):
         "source_url": source_url,
         "credit": CREDIT_MMGIS,
         "note": "Упрощено алгоритмом Дугласа — Пекера; долгота восточная 0–360.",
+        "note_en": TRAVERSE_NOTE_EN,
         "features": [
             {
                 "type": "Feature",
@@ -598,25 +606,25 @@ def main() -> None:
     write(out / "msl_traverse.geojson",
           build_traverse(msl_rows(msl), name="Curiosity", source_url=URLS["msl_waypoints"],
                          fetched=fetched, total_m=curiosity["dist_total_m"]))
-    write(out / "current.json", {
+    write(out / "current.json", with_current_en({
         "fetched_utc": fetched,
         "credit": CREDIT_MMGIS,
         "note": "Позиции по последней локализации в MMGIS; высота над ареоидом.",
         "rovers": [perseverance, curiosity],
         "ingenuity": heli,
-    })
+    }))
 
-    route = build_route(fetched)
+    route = with_route_en(build_route(fetched))
     write(PUBLIC / "martian" / "route.json", route)
 
     missions = [*MISSIONS, ingenuity_mission(heli)]
     missions.sort(key=lambda m: m["landed"])
-    write(PUBLIC / "memorial" / "missions.json", {
+    write(PUBLIC / "memorial" / "missions.json", with_missions_en({
         "fetched_utc": fetched,
         "coordinates": "planetocentric latitude, east longitude 0-360",
         "note": "Даты последней связи сверены по Mars24 (NASA GISS) и страницам миссий.",
         "missions": missions,
-    })
+    }))
     print(f"Готово: маршрут {route['profile']['total_km']} км, "
           f"высоты {route['profile']['min_m']}…{route['profile']['max_m']} м")
 

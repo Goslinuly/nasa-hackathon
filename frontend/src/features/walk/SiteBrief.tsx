@@ -3,6 +3,8 @@
 // Файл лёгкий (без three.js), его можно импортировать из любых панелей.
 import { useEffect, useState } from 'react';
 
+import { pick, useLang, useT } from '@/shared/i18n/lang';
+
 import { fetchSiteIndex, type SiteIndexEntry } from './sitePackage';
 import './siteBrief.css';
 
@@ -26,19 +28,23 @@ export function useSiteIndex(): SiteIndexEntry[] | null {
 }
 
 export function SiteBrief({ site }: { site: SiteIndexEntry }) {
+  const t = useT();
+  const lang = useLang();
   if (!site.route && !site.why?.length) return null;
+  const route = site.route ? pick(site.route, site.route_en) : '';
+  const why = lang === 'en' && site.why_en?.length ? site.why_en : site.why;
   return (
     <div className="site-brief">
       {site.route && (
         <p className="site-brief-route">
-          <b>Маршрут.</b> {site.route}
+          <b>{t('Маршрут.', 'Route.')}</b> {route}
         </p>
       )}
-      {site.why && site.why.length > 0 && (
+      {why && why.length > 0 && (
         <>
-          <b className="site-brief-head">Почему здесь</b>
+          <b className="site-brief-head">{t('Почему здесь', 'Why here')}</b>
           <ul>
-            {site.why.map((line) => (
+            {why.map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>
@@ -49,16 +55,17 @@ export function SiteBrief({ site }: { site: SiteIndexEntry }) {
 }
 
 /** Карточка участка с кнопкой спуска — для панелей других режимов. */
-export function SiteBriefCard({ siteId, onDescend, label = 'Спуститься' }: { siteId: string; onDescend(): void; label?: string }) {
+export function SiteBriefCard({ siteId, onDescend, label }: { siteId: string; onDescend(): void; label?: string }) {
+  const t = useT();
   const sites = useSiteIndex();
   const site = sites?.find((s) => s.id === siteId);
   if (!site) return null;
   return (
     <section className="site-brief-card">
-      <strong>{site.title}</strong>
+      <strong>{pick(site.title, site.title_en)}</strong>
       <SiteBrief site={site} />
       <button type="button" className="site-brief-go" onClick={onDescend}>
-        {label}
+        {label ?? t('Спуститься', 'Descend')}
       </button>
     </section>
   );

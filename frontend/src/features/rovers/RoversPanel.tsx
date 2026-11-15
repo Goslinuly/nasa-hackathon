@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { GlobeLine, ModeContext } from '@/app/modeContract';
+import { locale, useLang, useT } from '@/shared/i18n/lang';
 
 import {
   ROVER_COLORS,
@@ -23,6 +24,8 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
   const [data, setData] = useState<RoversData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const t = useT();
+  const lang = useLang();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -34,7 +37,8 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
     return () => controller.abort();
   }, []);
 
-  const items = useMemo(() => (data ? roverItems(data.current) : []), [data]);
+  // Подписи в карточках и метках на шаре зависят от языка: пересобираем при смене.
+  const items = useMemo(() => (data ? roverItems(data.current) : []), [data, lang]);
 
   useEffect(() => {
     if (!data) return;
@@ -68,16 +72,18 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
   }, [current, globe]);
 
   return (
-    <aside className="rv-panel" aria-label="Маршруты роверов">
+    <aside className="rv-panel" aria-label={t('Маршруты роверов', 'Rover routes')}>
 
-      {error && <p className="rv-error">Данные не загрузились: {error}</p>}
-      {!data && !error && <p className="rv-dim">Загружаю треки…</p>}
+      {error && <p className="rv-error">{t('Данные не загрузились', 'Data failed to load')}: {error}</p>}
+      {!data && !error && <p className="rv-dim">{t('Загружаю треки…', 'Loading tracks…')}</p>}
 
       {data && (
         <>
           <p className="rv-dim">
-            Позиции на {formatUtc(data.current.fetched_utc)} (дата выгрузки из NASA MMGIS). Роверы
-            едут дальше, а на глобусе показана последняя известная нам точка.
+            {t(
+              `Позиции на ${formatUtc(data.current.fetched_utc)} (дата выгрузки из NASA MMGIS). Роверы едут дальше, а на глобусе показана последняя известная нам точка.`,
+              `Positions as of ${formatUtc(data.current.fetched_utc)} (NASA MMGIS export date). The rovers keep driving; the globe shows the last point we know.`,
+            )}
           </p>
           <ul className="rv-list">
             {items.map(item => (
@@ -90,7 +96,7 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
                   <span className="rv-swatch" style={{ background: ROVER_COLORS[item.id] }} />
                   <span className="rv-name">{item.name}</span>
                   <span className="rv-meta">
-                    сол {item.sol} · {item.distanceKm.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} км
+                    {t('сол', 'sol')} {item.sol} · {item.distanceKm.toLocaleString(locale(), { maximumFractionDigits: 1 })} {t('км', 'km')}
                   </span>
                 </button>
               </li>
@@ -102,29 +108,29 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
               <h3>{current.name}</h3>
               <p className="rv-dim">{current.mission}</p>
               <dl>
-                <dt>Сол</dt>
+                <dt>{t('Сол', 'Sol')}</dt>
                 <dd>{current.sol}</dd>
-                <dt>Координаты</dt>
+                <dt>{t('Координаты', 'Coordinates')}</dt>
                 <dd>{formatLatLon(current.lat, current.lon)}</dd>
-                <dt>{current.id === 'ingenuity' ? 'Пролетел' : 'Проехал'}</dt>
-                <dd>{current.distanceKm.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} км</dd>
+                <dt>{current.id === 'ingenuity' ? t('Пролетел', 'Flown') : t('Проехал', 'Driven')}</dt>
+                <dd>{current.distanceKm.toLocaleString(locale(), { maximumFractionDigits: 2 })} {t('км', 'km')}</dd>
               </dl>
               <p>{current.detail}</p>
               {current.walkSite && (
                 <SiteBriefCard
                   siteId={current.walkSite}
-                  label="Пройти по маршруту"
+                  label={t('Пройти по маршруту', 'Walk the route')}
                   onDescend={() => openMode('walk', { site: current.walkSite! })}
                 />
               )}
               <a className="rv-source" href={current.sourceUrl} target="_blank" rel="noreferrer">
-                Источник: NASA/JPL-Caltech, MMGIS
+                {t('Источник', 'Source')}: NASA/JPL-Caltech, MMGIS
               </a>
             </section>
           )}
 
           <footer className="rv-credit">
-            Треки упрощены до ~2000 точек. Данные: {data.current.credit}.
+            {t('Треки упрощены до ~2000 точек. Данные', 'Tracks simplified to ~2000 points. Data')}: {data.current.credit}.
           </footer>
         </>
       )}

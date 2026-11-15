@@ -25,6 +25,7 @@ import type {
   SpaceWeatherSummary,
   WalkbackResponse,
 } from '@/shared/api/evaTypes';
+import { locale, tr, useT } from '@/shared/i18n/lang';
 
 import {
   buildEvaPoints,
@@ -62,7 +63,7 @@ function useLoad<T>(run: () => Promise<T>, deps: unknown[]): Load<T> {
     setValue({ state: 'loading' });
     run().then(
       (data) => live && setValue({ state: 'ready', data }),
-      (reason) => live && setValue({ state: 'error', message: reason instanceof Error ? reason.message : 'Ошибка' }),
+      (reason) => live && setValue({ state: 'error', message: reason instanceof Error ? reason.message : tr('Ошибка', 'Error') }),
     );
     return () => {
       live = false;
@@ -72,7 +73,8 @@ function useLoad<T>(run: () => Promise<T>, deps: unknown[]): Load<T> {
 }
 
 function Badge({ kind }: { kind: Kind }) {
-  const label = { measurement: 'измерение', model: 'модель', rule: 'правило' }[kind];
+  const t = useT();
+  const label = { measurement: t('измерение', 'measurement'), model: t('модель', 'model'), rule: t('правило', 'rule') }[kind];
   return <span className={`eva-badge eva-badge-${kind}`}>{label}</span>;
 }
 
@@ -88,15 +90,15 @@ function ProvenanceNote({ provenance }: { provenance?: Provenance }) {
 }
 
 function Status<T>({ load, children }: { load: Load<T>; children(data: T): ReactNode }) {
-  if (load.state === 'loading') return <p className="dim">Загрузка…</p>;
-  if (load.state === 'error') return <p className="warn">Не удалось получить данные: {load.message}</p>;
+  if (load.state === 'loading') return <p className="dim">{tr('Загрузка…', 'Loading…')}</p>;
+  if (load.state === 'error') return <p className="warn">{tr('Не удалось получить данные', 'Could not get the data')}: {load.message}</p>;
   return <>{children(load.data)}</>;
 }
 
 function Unavailable({ detail }: { detail?: string }) {
   return (
     <>
-      <p className="warn">Источник недоступен</p>
+      <p className="warn">{tr('Источник недоступен', 'Source unavailable')}</p>
       {detail && <p className="planner-note">{detail}</p>}
     </>
   );
@@ -123,13 +125,13 @@ function Sparkline({ values }: { values: number[] }) {
     .map((v, i) => `${i ? 'L' : 'M'}${((i / (values.length - 1)) * 200).toFixed(1)},${(29 - ((v - min) / span) * 28).toFixed(1)}`)
     .join('');
   return (
-    <svg className="eva-spark" viewBox="0 0 200 30" preserveAspectRatio="none" role="img" aria-label="Фон радиации за период">
+    <svg className="eva-spark" viewBox="0 0 200 30" preserveAspectRatio="none" role="img" aria-label={tr('Фон радиации за период', 'Radiation background over the period')}>
       <path d={path} />
     </svg>
   );
 }
 
-const km = (m: number) => `${(m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} км`;
+const km = (m: number) => `${(m / 1000).toLocaleString(locale(), { maximumFractionDigits: 1 })} ${tr('км', 'km')}`;
 
 interface Props {
   profile: ProfileSample[];
@@ -143,6 +145,7 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
   const surface = surfaceProp ?? ownSurface;
   const [crew, setCrew] = useState<1 | 2>(2);
   const [o2Input, setO2Input] = useState('');
+  const t = useT();
 
   const points = useMemo(() => buildEvaPoints(profile), [profile]);
   const deltaH = useMemo(() => elevationGain(profile), [profile]);
@@ -209,14 +212,14 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
         }));
 
   return (
-    <section className="eva-panel" aria-label="Безопасность выхода (EVA)">
-      <h2 className="planner-subtitle">Безопасность выхода (EVA)</h2>
-      {points.length === 0 && <p className="dim">В профиле маршрута нет участков для расчёта.</p>}
+    <section className="eva-panel" aria-label={t('Безопасность выхода (EVA)', 'EVA safety')}>
+      <h2 className="planner-subtitle">{t('Безопасность выхода (EVA)', 'EVA safety')}</h2>
+      {points.length === 0 && <p className="dim">{t('В профиле маршрута нет участков для расчёта.', 'The route profile has no segments to compute.')}</p>}
 
       <h3 className="eva-heading">
-        Время и расходники <Badge kind="model" />
+        {t('Время и расходники', 'Time and consumables')} <Badge kind="model" />
       </h3>
-      <div className="day-toggle" role="radiogroup" aria-label="Состав выхода">
+      <div className="day-toggle" role="radiogroup" aria-label={t('Состав выхода', 'EVA crew')}>
         {([2, 1] as const).map((value) => (
           <button
             key={value}
@@ -226,11 +229,11 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
             className={crew === value ? 'active' : undefined}
             onClick={() => setCrew(value)}
           >
-            {value === 2 ? 'Пара' : 'Один'}
+            {value === 2 ? t('Пара', 'Pair') : t('Один', 'Solo')}
           </button>
         ))}
       </div>
-      <div className="day-toggle" role="radiogroup" aria-label="Поверхность" hidden={surfaceProp !== undefined}>
+      <div className="day-toggle" role="radiogroup" aria-label={t('Поверхность', 'Surface')} hidden={surfaceProp !== undefined}>
         {(['firm', 'sand'] as EvaSurface[]).map((value) => (
           <button
             key={value}
@@ -240,7 +243,7 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
             className={surface === value ? 'active' : undefined}
             onClick={() => setSurface(value)}
           >
-            {value === 'firm' ? 'Твёрдая' : 'Песок'}
+            {value === 'firm' ? t('Твёрдая', 'Firm') : t('Песок', 'Sand')}
           </button>
         ))}
       </div>
@@ -249,25 +252,29 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
           <>
             <dl className="route-stats">
               <div>
-                <dt>Время выхода</dt>
+                <dt>{t('Время выхода', 'EVA time')}</dt>
                 <dd>{formatDuration(data.totals.time_s)}</dd>
               </div>
               <div>
-                <dt>{crew === 2 ? 'Кислород на пару' : 'Кислород'}</dt>
+                <dt>{crew === 2 ? t('Кислород на пару', 'Oxygen for the pair') : t('Кислород', 'Oxygen')}</dt>
                 <dd className="eva-corridor">
-                  {formatCorridor(data.totals.o2_l.low * crew, data.totals.o2_l.high * crew, 'л')}
+                  {formatCorridor(data.totals.o2_l.low * crew, data.totals.o2_l.high * crew, t('л', 'L'))}
                 </dd>
               </div>
             </dl>
             {crew === 2 && (
               <p className="planner-note">
-                Выход парой — правило NASA: напарник страхует при одиночном отказе и удваивает науку за выход.
-                Кислород здесь — сумма двух комплектов; запас и возврат каждый несёт свои, общих баллонов в модели нет.
+                {t(
+                  'Выход парой — правило NASA: напарник страхует при одиночном отказе и удваивает науку за выход. Кислород здесь — сумма двух комплектов; запас и возврат каждый несёт свои, общих баллонов в модели нет.',
+                  'EVAs in pairs are a NASA rule: the partner covers any single failure and doubles the science per EVA. Oxygen here is the sum of two kits; each person carries their own reserve and return supply, the model has no shared tanks.',
+                )}
               </p>
             )}
             <p className="planner-note">
-              Значения даны коридором: расход у каждого человека свой, это видно по расхождению прогнозов и фактов Apollo.
-              На пеших траверсах раньше кислорода кончается вода на охлаждение.
+              {t(
+                'Значения даны коридором: расход у каждого человека свой, это видно по расхождению прогнозов и фактов Apollo. На пеших траверсах раньше кислорода кончается вода на охлаждение.',
+                'Values are given as a corridor: consumption differs from person to person, as the gap between Apollo forecasts and actuals shows. On walking traverses, cooling water runs out before oxygen.',
+              )}
             </p>
             <p className="planner-note">{data.provenance.time_note}</p>
             {[data.provenance.speed, data.provenance.terrain, data.provenance.power, data.provenance.oxygen].map((p) => (
@@ -278,10 +285,10 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
       </Status>
 
       <h3 className="eva-heading">
-        Возврат <Badge kind="rule" />
+        {t('Возврат', 'Return')} <Badge kind="rule" />
       </h3>
       <label className="eva-field">
-        <span>Запас кислорода на человека, л</span>
+        <span>{t('Запас кислорода на человека, л', 'Oxygen reserve per person, L')}</span>
         <input
           type="number"
           min="1"
@@ -294,18 +301,21 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
       <Status load={walkback}>
         {(data) =>
           data == null ? (
-            <p className="dim">Введите запас кислорода.</p>
+            <p className="dim">{t('Введите запас кислорода.', 'Enter the oxygen reserve.')}</p>
           ) : (
             <>
               {data.farthest_allowed_m == null ? (
-                <p className="warn">Возврат не обеспечен ни для одной точки.</p>
+                <p className="warn">{t('Возврат не обеспечен ни для одной точки.', 'Return is not assured for any point.')}</p>
               ) : (
                 <p>
-                  Возврат обеспечен до <strong>{km(data.farthest_allowed_m)} от базы</strong> (длина маршрута{' '}
-                  {km(routeLengthM)}).
+                  {t('Возврат обеспечен до', 'Return is assured up to')}{' '}
+                  <strong>
+                    {km(data.farthest_allowed_m)} {t('от базы', 'from base')}
+                  </strong>{' '}
+                  ({t('длина маршрута', 'route length')} {km(routeLengthM)}).
                 </p>
               )}
-              <p className="planner-note">Принцип: возврат при любом одиночном отказе.</p>
+              <p className="planner-note">{t('Принцип: возврат при любом одиночном отказе.', 'Principle: return after any single failure.')}</p>
               <ProvenanceNote provenance={data.provenance} />
             </>
           )
@@ -313,26 +323,26 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
       </Status>
 
       <h3 className="eva-heading">
-        Уклоны <Badge kind="rule" />
+        {t('Уклоны', 'Slopes')} <Badge kind="rule" />
       </h3>
-      <div className="eva-strip" role="img" aria-label="Уклоны по сегментам маршрута">
+      <div className="eva-strip" role="img" aria-label={t('Уклоны по сегментам маршрута', 'Slopes by route segment')}>
         {strip.map((seg, index) => (
           <span key={index} className={`eva-seg eva-${seg.level}`} style={{ flexGrow: seg.length }} title={seg.title} />
         ))}
       </div>
       <p className="planner-note">
         <span className="eva-badge eva-ok">&lt; 15°</span> <span className="eva-badge eva-warn">15–20°</span>{' '}
-        <span className="eva-badge eva-limit">&gt; 20°: вне области модели</span>
+        <span className="eva-badge eva-limit">&gt; 20°: {t('вне области модели', 'outside the model range')}</span>
       </p>
       <Status load={slopes}>
         {(data) => (
           <>
             <ul className="eva-list">
-              {data.thresholds.map((t) => (
-                <li key={t.key}>
-                  <strong>±{t.high_deg}°</strong>: {t.label}{' '}
+              {data.thresholds.map((th) => (
+                <li key={th.key}>
+                  <strong>±{th.high_deg}°</strong>: {th.label}{' '}
                   <span className="planner-note">
-                    ({t.nature === 'operational_rule' ? 'правило, не требование стандарта' : t.nature})
+                    ({th.nature === 'operational_rule' ? t('правило, не требование стандарта', 'a rule, not a standard requirement') : th.nature})
                   </span>
                 </li>
               ))}
@@ -343,7 +353,7 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
       </Status>
 
       <h3 className="eva-heading">
-        Радиация <Badge kind="model" />
+        {t('Радиация', 'Radiation')} <Badge kind="model" />
       </h3>
       <Status load={radiation}>
         {(data) => (
@@ -352,16 +362,17 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
               {formatCorridor(data.dose_corridor.low, data.dose_corridor.high, data.dose_corridor.units)}
             </p>
             <p className="planner-note">
-              Средняя оценка {data.dose_corridor.mid.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}{' '}
-              {data.dose_corridor.units}; по солнечному циклу{' '}
+              {t('Средняя оценка', 'Mean estimate')} {data.dose_corridor.mid.toLocaleString(locale(), { maximumFractionDigits: 2 })}{' '}
+              {data.dose_corridor.units}; {t('по солнечному циклу', 'over the solar cycle')}{' '}
               {formatCorridor(data.dose_corridor.range_low, data.dose_corridor.range_high, data.dose_corridor.units)}.
             </p>
             <ProvenanceNote provenance={data.dose_corridor.provenance} />
             {data.elevation_correction && (
               <p className="planner-note">
-                Подъём по профилю {Math.round(deltaH).toLocaleString('ru-RU')} м: поправка{' '}
-                {data.elevation_correction.delta_ugy_per_sol.toLocaleString('ru-RU', { maximumFractionDigits: 1 })}{' '}
-                мкГр/сол ({data.elevation_correction.status}).
+                {t('Подъём по профилю', 'Profile climb')} {Math.round(deltaH).toLocaleString(locale())} {t('м', 'm')}:{' '}
+                {t('поправка', 'correction')}{' '}
+                {data.elevation_correction.delta_ugy_per_sol.toLocaleString(locale(), { maximumFractionDigits: 1 })}{' '}
+                {t('мкГр/сол', 'µGy/sol')} ({data.elevation_correction.status}).
               </p>
             )}
             <ProvenanceNote provenance={data.elevation_correction?.provenance} />
@@ -370,23 +381,27 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
         )}
       </Status>
       <h4 className="eva-sub">
-        Доза за этот выход <Badge kind="model" />
+        {t('Доза за этот выход', 'Dose for this EVA')} <Badge kind="model" />
       </h4>
       <Status load={routeDose}>
         {(data) =>
           data == null ? (
-            <p className="dim">Появится после расчёта времени выхода.</p>
+            <p className="dim">{t('Появится после расчёта времени выхода.', 'Appears once the EVA time is computed.')}</p>
           ) : (
             <>
               <p className="eva-corridor">
-                {data.dose_msv.low.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}–
-                {data.dose_msv.high.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} мЗв
+                {data.dose_msv.low.toLocaleString(locale(), { maximumFractionDigits: 2 })}–
+                {data.dose_msv.high.toLocaleString(locale(), { maximumFractionDigits: 2 })} {t('мЗв', 'mSv')}
               </p>
               <p className="planner-note">
-                Средняя {data.dose_msv.mid.toLocaleString('ru-RU', { maximumFractionDigits: 3 })} мЗв за{' '}
-                {(data.fraction_of_sol * 100).toLocaleString('ru-RU', { maximumFractionDigits: 0 })}% сола в пути
+                {t('Средняя', 'Mean')} {data.dose_msv.mid.toLocaleString(locale(), { maximumFractionDigits: 3 })} {t('мЗв за', 'mSv over')}{' '}
+                {(data.fraction_of_sol * 100).toLocaleString(locale(), { maximumFractionDigits: 0 })}
+                {t('% сола в пути', '% of a sol on the move')}
                 {data.elevation_correction
-                  ? `; учтён перепад высоты ${Math.round(data.elevation_correction.delta_h_m).toLocaleString('ru-RU')} м`
+                  ? t(
+                      `; учтён перепад высоты ${Math.round(data.elevation_correction.delta_h_m).toLocaleString(locale())} м`,
+                      `; includes an elevation change of ${Math.round(data.elevation_correction.delta_h_m).toLocaleString(locale())} m`,
+                    )
                   : ''}
                 .
               </p>
@@ -397,13 +412,17 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
       </Status>
 
       <h4 className="eva-sub">
-        Космическая погода сейчас <Badge kind="measurement" />
+        {t('Космическая погода сейчас', 'Space weather now')} <Badge kind="measurement" />
       </h4>
       <Status load={spaceWeather}>
         {(data) => {
           const level = data.advisory.level;
           const levelClass = { calm: 'eva-ok', elevated: 'eva-limit', event_at_earth: 'eva-warn' }[level];
-          const levelLabel = { calm: 'спокойно', elevated: 'фон повышен', event_at_earth: 'событие у Земли' }[level];
+          const levelLabel = {
+            calm: t('спокойно', 'quiet'),
+            elevated: t('фон повышен', 'elevated background'),
+            event_at_earth: t('событие у Земли', 'event at Earth'),
+          }[level];
           const mars = data.mars_measured;
           const earth = data.earth_measured;
           return (
@@ -414,8 +433,9 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
               <Notes lines={data.advisory.reasons} />
               {mars.status === 'ok' ? (
                 <p className="planner-note">
-                  RAD на Марсе: {mars.latest_ugy_per_sol.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} мкГр/сол,{' '}
-                  {mars.ratio_to_median.toLocaleString('ru-RU', { maximumFractionDigits: 2 })}× медианы 30 солов ·{' '}
+                  {t('RAD на Марсе', 'RAD on Mars')}: {mars.latest_ugy_per_sol.toLocaleString(locale(), { maximumFractionDigits: 0 })}{' '}
+                  {t('мкГр/сол', 'µGy/sol')},{' '}
+                  {mars.ratio_to_median.toLocaleString(locale(), { maximumFractionDigits: 2 })}× {t('медианы 30 солов', 'the 30-sol median')} ·{' '}
                   {mars.latest_time}
                 </p>
               ) : (
@@ -424,9 +444,10 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
               {earth.status === 'ok' ? (
                 <>
                   <p className="planner-note">
-                    У Земли (GOES): протоны ≥10 МэВ{' '}
-                    {earth.proton_flux_10mev_pfu.toLocaleString('ru-RU', { maximumFractionDigits: 1 })} pfu — S
-                    {earth.s_scale_now} (за сутки до S{earth.s_scale_max24h}), рентген {earth.xray_class}, шкалы NOAA R
+                    {t('У Земли (GOES): протоны ≥10 МэВ', 'At Earth (GOES): protons ≥10 MeV')}{' '}
+                    {earth.proton_flux_10mev_pfu.toLocaleString(locale(), { maximumFractionDigits: 1 })} pfu — S
+                    {earth.s_scale_now} ({t('за сутки до', 'up to')} S{earth.s_scale_max24h}
+                    {t('', ' in 24 h')}), {t('рентген', 'X-ray')} {earth.xray_class}, {t('шкалы NOAA', 'NOAA scales')} R
                     {earth.noaa_scales_now.R ?? '—'}/S{earth.noaa_scales_now.S ?? '—'}/G{earth.noaa_scales_now.G ?? '—'}
                   </p>
                   <Notes lines={[earth.caveat]} />
@@ -441,7 +462,7 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
       </Status>
 
       <h4 className="eva-sub">
-        Фон RAD, 30 дней <Badge kind="measurement" />
+        {t('Фон RAD, 30 дней', 'RAD background, 30 days')} <Badge kind="measurement" />
       </h4>
       <Status load={radLive}>
         {(data) => {
@@ -452,18 +473,18 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
               <Sparkline values={data.series.map((s) => s.dose_ugy_per_sol)} />
               {last && (
                 <p className="planner-note">
-                  Последнее: {last.dose_msv_per_sol.toLocaleString('ru-RU', { maximumFractionDigits: 3 })} мЗв/сол (
-                  {formatCorridor(last.dose_msv_low, last.dose_msv_high, 'мЗв/сол')};{' '}
-                  {last.dose_ugy_per_sol.toLocaleString('ru-RU')} мкГр/сол) · {last.time.slice(0, 10)}
+                  {t('Последнее', 'Latest')}: {last.dose_msv_per_sol.toLocaleString(locale(), { maximumFractionDigits: 3 })}{' '}
+                  {t('мЗв/сол', 'mSv/sol')} ({formatCorridor(last.dose_msv_low, last.dose_msv_high, t('мЗв/сол', 'mSv/sol'))};{' '}
+                  {last.dose_ugy_per_sol.toLocaleString(locale())} {t('мкГр/сол', 'µGy/sol')}) · {last.time.slice(0, 10)}
                 </p>
               )}
-              <Notes lines={[data.caveat, `Коэффициент качества ${data.quality_factor}: ${data.quality_factor_status}`]} />
+              <Notes lines={[data.caveat, `${t('Коэффициент качества', 'Quality factor')} ${data.quality_factor}: ${data.quality_factor_status}`]} />
             </>
           );
         }}
       </Status>
       <h4 className="eva-sub">
-        Солнечные события DONKI <Badge kind="measurement" />
+        {t('Солнечные события DONKI', 'DONKI solar events')} <Badge kind="measurement" />
       </h4>
       <Status load={solar}>
         {(data) =>
@@ -471,11 +492,11 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
             <Unavailable detail={data.detail} />
           ) : (
             <>
-              {data.events.length === 0 && <p className="dim">За период событий нет.</p>}
+              {data.events.length === 0 && <p className="dim">{t('За период событий нет.', 'No events in this period.')}</p>}
               <ul className="eva-list">
                 {data.events.map((event, index) => (
                   <li key={index}>
-                    {[event.time, event.type, event.class, event.speed_km_s ? `${event.speed_km_s} км/с` : '']
+                    {[event.time, event.type, event.class, event.speed_km_s ? `${event.speed_km_s} ${t('км/с', 'km/s')}` : '']
                       .filter(Boolean)
                       .join(' · ')}
                     {event.link && (
@@ -496,7 +517,7 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
       </Status>
 
       <h3 className="eva-heading">
-        Сейчас в Гейле <Badge kind="measurement" />
+        {t('Сейчас в Гейле', 'Now in Gale')} <Badge kind="measurement" />
       </h3>
       <Status load={conditions}>
         {(data) =>
@@ -506,25 +527,27 @@ export function EvaPanel({ profile, surface: surfaceProp, crewKg = DEFAULT_CREW_
             <>
               <dl className="route-stats">
                 <div>
-                  <dt>Сол</dt>
+                  <dt>{t('Сол', 'Sol')}</dt>
                   <dd>{data.latest.sol}</dd>
                 </div>
                 <div>
-                  <dt>Температура</dt>
+                  <dt>{t('Температура', 'Temperature')}</dt>
                   <dd>
                     {data.latest.min_temp_c}…{data.latest.max_temp_c} °C
                   </dd>
                 </div>
                 <div>
-                  <dt>Давление</dt>
-                  <dd>{data.latest.pressure_pa.toLocaleString('ru-RU')} Па</dd>
+                  <dt>{t('Давление', 'Pressure')}</dt>
+                  <dd>
+                    {data.latest.pressure_pa.toLocaleString(locale())} {t('Па', 'Pa')}
+                  </dd>
                 </div>
                 <div>
-                  <dt>Прозрачность</dt>
+                  <dt>{t('Прозрачность', 'Opacity')}</dt>
                   <dd>{data.latest.atmo_opacity}</dd>
                 </div>
                 <div>
-                  <dt>Восход / закат</dt>
+                  <dt>{t('Восход / закат', 'Sunrise / sunset')}</dt>
                   <dd>
                     {data.latest.sunrise} / {data.latest.sunset}
                   </dd>

@@ -56,6 +56,13 @@ TRN_HIRISE_CREDIT = ("NASA/JPL/University of Arizona (HiRISE); Mars 2020 TRN HiR
                      "ортомозаика USGS Astrogeology (Fergason et al., 2020), doi:10.5066/P9REJ9JN")
 TRN_CTX_CREDIT = ("NASA/JPL/MSSS (CTX); Mars 2020 TRN CTX DTM и ортомозаика "
                   "USGS Astrogeology, doi:10.5066/P906QQT8")
+# Английские подписи для интерфейса (поле credit_en рядом с credit).
+CREDIT_EN = {
+    TRN_HIRISE_CREDIT: "NASA/JPL/University of Arizona (HiRISE); Mars 2020 TRN HiRISE DTM and "
+                       "orthomosaic, USGS Astrogeology (Fergason et al., 2020), doi:10.5066/P9REJ9JN",
+    TRN_CTX_CREDIT: "NASA/JPL/MSSS (CTX); Mars 2020 TRN CTX DTM and orthomosaic, "
+                    "USGS Astrogeology, doi:10.5066/P906QQT8",
+}
 SRC_HIRISE, SRC_FILL, SRC_BLEND = 0, 1, 2
 SRC_NAMES = {SRC_HIRISE: "hirise", SRC_FILL: "fill", SRC_BLEND: "blend"}
 OUT_ROOT = Path(__file__).resolve().parents[2] / "frontend" / "public" / "data" / "local"
@@ -68,6 +75,8 @@ class Poi:
     lat: float
     lon_east: float
     note: str
+    title_en: str = ""
+    note_en: str = ""
 
 
 @dataclass(frozen=True)
@@ -83,6 +92,7 @@ class Fill:
 class Site:
     id: str
     title: str
+    title_en: str
     dtm_product: str
     dtm_url: str
     ortho_product: str
@@ -91,6 +101,7 @@ class Site:
     center_lon_east: float
     size_m: tuple[float, float]  # ширина (W-E), высота (S-N)
     note: str
+    note_en: str
     pois: tuple[Poi, ...] = field(default_factory=tuple)
     track_url: str | None = None
     track_mission: str | None = None
@@ -103,6 +114,7 @@ class Site:
     ortho_fill: Fill | None = None
     feather_m: float = 40.0
     quality_note: str | None = None
+    quality_note_en: str | None = None
     # Последний сол трека: метка ровера подписана этим солом, новые точки её бы обогнали.
     track_max_sol: int | None = None
 
@@ -111,6 +123,7 @@ SITES = {
     "gale-boxwork": Site(
         id="gale-boxwork",
         title="Гейл, район boxwork на склоне горы Шарп",
+        title_en="Gale, boxwork area on the slope of Mount Sharp",
         dtm_product="DTEEC_019698_1750_019988_1750_U01",
         dtm_url=HIRISE
         + "ESP_019698_1750_ESP_019988_1750/DTEEC_019698_1750_019988_1750_U01.tif",
@@ -121,11 +134,14 @@ SITES = {
         center_lon_east=137.382525,
         size_m=(1800.0, 2400.0),
         note="Демонстрационный выход ТЗ EVA: лагерь A → научная цель Б, 677 м.",
+        note_en="Demo EVA from the EVA spec: camp A → science target B, 677 m.",
         pois=(
             Poi("A", "Лагерь A", -4.797816, 137.385921,
-                "Круговая панорама при первом прибытии Curiosity в boxwork"),
+                "Круговая панорама при первом прибытии Curiosity в boxwork",
+                "Camp A", "360° panorama from Curiosity's first arrival at the boxwork"),
             Poi("B", "Научная цель Б", -4.808271, 137.381270,
-                "Круговая панорама с пика кампании; рядом место бурения"),
+                "Круговая панорама с пика кампании; рядом место бурения",
+                "Science target B", "360° panorama from the campaign high point; drill site nearby"),
         ),
         track_url=MSL_WAYPOINTS,
         track_mission="MSL",
@@ -133,6 +149,7 @@ SITES = {
     "ares3": Site(
         id="ares3",
         title="Ares 3, Acidalia Planitia («Марсианин»)",
+        title_en="Ares 3, Acidalia Planitia (The Martian)",
         dtm_product="DTEEC_041277_2115_040776_2115_A01",
         dtm_url=HIRISE
         + "ESP_041277_2115_ESP_040776_2115/DTEEC_041277_2115_040776_2115_A01.tif",
@@ -143,14 +160,17 @@ SITES = {
         center_lon_east=331.371,
         size_m=(2000.0, 2000.0),
         note="Место посадки Ares 3 из романа Энди Вейра; участок вокруг центра снимка.",
+        note_en="Ares 3 landing site from Andy Weir's novel; the area around the image centre.",
         pois=(
             Poi("ares3", "Ares 3", 31.380, 331.371,
-                "Центр снимка HiRISE ESP_040776_2115 по координатам автора романа"),
+                "Центр снимка HiRISE ESP_040776_2115 по координатам автора романа",
+                "Ares 3", "Centre of HiRISE image ESP_040776_2115, taken at the author's coordinates"),
         ),
     ),
     "jezero": Site(
         id="jezero",
         title="Езеро, западный вал кратера: путь Perseverance к солу 2022",
+        title_en="Jezero, western crater rim: Perseverance's path to sol 2022",
         dtm_product="DTM_MOLAtopography_DeltaGeoid_Jezero_CR_SOUTH_Edited_affine_1m",
         dtm_url=TRN + "HiRISE/DTM_MOLAtopography_DeltaGeoid_Jezero_CR_SOUTH_Edited_affine_1m"
         "_Eqc_latTs0_lon0.tif",
@@ -163,9 +183,14 @@ SITES = {
         note="Подъём Perseverance на западный вал кратера Езеро и текущая позиция на сол 2022. "
         "Рельеф 1 м есть только в восточной части; запад, включая текущую позицию, "
         "покрыт лишь CTX 20 м.",
+        note_en="Perseverance's climb onto the western rim of Jezero crater and its position at sol 2022. "
+        "1 m terrain exists only in the eastern part; the west, including the current position, "
+        "has only CTX 20 m.",
         pois=(
             Poi("rover", "Perseverance, сол 2022", 18.43559434, 77.23322287,
-                "Текущая позиция по M20_waypoints_current.json; вне HiRISE DTM, рельеф CTX 20 м"),
+                "Текущая позиция по M20_waypoints_current.json; вне HiRISE DTM, рельеф CTX 20 м",
+                "Perseverance, sol 2022",
+                "Current position from M20_waypoints_current.json; outside the HiRISE DTM, CTX 20 m terrain"),
         ),
         track_url=M20_WAYPOINTS,
         track_mission="M20",
@@ -185,6 +210,11 @@ SITES = {
         "... users should be cautious when using this area for analysis». Подписывать как "
         "зону пониженного качества. Западнее HiRISE DTM нет ни в TRN, ни в PDS: там высоты "
         "CTX 20 м и ортофото CTX 6 м, мелкий рельеф не виден.",
+        quality_note_en="The HiRISE part of the site is the CR (Crater Rim) stereo pair, the westernmost "
+        "in the TRN mosaic. USGS readme: «several quality issues due to uncompensated y-parallax "
+        "... users should be cautious when using this area for analysis». Label it as a "
+        "lower-quality zone. West of it there is no HiRISE DTM in TRN or PDS: heights are "
+        "CTX 20 m and the orthoimage is CTX 6 m, so small relief is not visible.",
     ),
 }
 
@@ -438,6 +468,8 @@ def build_track(site: Site, z: np.ndarray, bounds: tuple, px: float,
         } if offsets else None,
         "note": "Высота трека — телеметрия ровера (elev_geoid). Линию маршрута класть на "
         "рельеф DTM; разница — смещение вертикального датума, а не ошибка точки.",
+        "note_en": "Track elevation is rover telemetry (elev_geoid). Drape the route line on the "
+        "DTM terrain; the difference is a vertical datum offset, not a point error.",
     }
     if source is not None:
         by_source: dict[str, list] = {}
@@ -717,6 +749,8 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float,
             "channel": "B",
             "values": {str(SRC_HIRISE): "HiRISE DTM 1 м", str(SRC_FILL): "CTX DTM 20 м "
                        "(билинейная интерполяция)", str(SRC_BLEND): "переходная полоса"},
+            "values_en": {str(SRC_HIRISE): "HiRISE DTM 1 m", str(SRC_FILL): "CTX DTM 20 m "
+                          "(bilinear interpolation)", str(SRC_BLEND): "transition band"},
             "hirise_fraction": round(hirise_fraction, 4),
             "fill_fraction": round(float((source == SRC_FILL).mean()), 4),
             **fill_stats,
@@ -728,11 +762,16 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float,
         ortho_meta["hirise_fraction"] = round(ortho_hirise_fraction, 4)
         ortho_meta["fill_note"] = (f"где нет HiRISE — {site.ortho_fill.product}, "
                                    "яркость подогнана к HiRISE")
+    for src in sources:
+        if src.get("credit") in CREDIT_EN:
+            src["credit_en"] = CREDIT_EN[src["credit"]]
     manifest = {
         "schema_version": 1,
         "id": site.id,
         "title": site.title,
+        "title_en": site.title_en,
         "note": site.note,
+        "note_en": site.note_en,
         "crs": crs.to_proj4(),
         "coordinates": "planetocentric latitude, east longitude 0-360",
         "center": {"lat": site.center_lat, "lon_east": site.center_lon_east},
@@ -753,6 +792,8 @@ def build(site: Site, out_root: Path, height_px: float, ortho_px: float,
         ortho_hi_meta["sha256"] = manifest["sha256"]["ortho_hi"]
     if site.quality_note:
         manifest["quality_note"] = site.quality_note
+        if site.quality_note_en:
+            manifest["quality_note_en"] = site.quality_note_en
     # Дальний план (backdrop.glb) собирает Blender-скрипт site_scene.py --backdrop; пересборка
     # пакета его не трогает, поэтому переносим запись из прежнего манифеста.
     previous = out / "manifest.json"

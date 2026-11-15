@@ -4,37 +4,50 @@
 import { makeFrame, type LocalFrame } from './geo';
 import { decodeHeights, type HeightGrid } from './heightGrid';
 import { decodePng } from './png';
+import { pick, tr } from '@/shared/i18n/lang';
 
 export interface SiteIndexEntry {
   id: string;
   title: string;
+  title_en?: string;
   center: { lat: number; lon_east: number };
   /** Каким маршрутом идти на участке. */
   route?: string;
+  route_en?: string;
   /** Почему выбран этот участок: научная цель, данные, ограничения. */
   why?: string[];
+  why_en?: string[];
 }
 
 export interface ManifestPoi {
   id: string;
   title: string;
+  title_en?: string;
   lat: number;
   lon_east: number;
   note?: string;
+  note_en?: string;
 }
 
 export interface SiteBackdrop {
   file: string;
   pixel_m: number;
   label: string;
+  label_en?: string;
   credit?: string;
+  credit_en?: string;
   note?: string;
+  note_en?: string;
 }
 
 export interface SiteManifest {
   id: string;
   title: string;
+  title_en?: string;
   note?: string;
+  note_en?: string;
+  quality_note?: string;
+  quality_note_en?: string;
   center: { lat: number; lon_east: number };
   bounds_eqc_m: [number, number, number, number];
   /** Географические границы участка; долготы восточные. */
@@ -50,8 +63,9 @@ export interface SiteManifest {
     max_m: number;
     /** Готовая подпись уровня данных, если это не HiRISE DTM (например, процедурная модель). */
     data_label?: string;
+    data_label_en?: string;
     /** Если высоты собраны из нескольких моделей: подписи кодов канала B. */
-    source_channel?: { channel: 'B'; values: Record<string, string> };
+    source_channel?: { channel: 'B'; values: Record<string, string>; values_en?: Record<string, string> };
   };
   ortho: { file: string; width: number; height: number; pixel_m: number };
   /**
@@ -67,7 +81,7 @@ export interface SiteManifest {
     product?: string;
     blend_m?: number;
   };
-  sources?: { role: string; product: string; credit?: string }[];
+  sources?: { role: string; product: string; credit?: string; credit_en?: string }[];
   pois?: ManifestPoi[];
   track: null | { mission: string; dtm_minus_rover_m?: { median: number } | null; note?: string };
   /** Дальний план вокруг участка (обзорный рельеф в тех же осях и нулевом уровне). */
@@ -139,13 +153,13 @@ export function siteBaseUrl(site: string): string {
 
 export async function fetchSiteIndex(): Promise<SiteIndexEntry[]> {
   const res = await fetch(`${import.meta.env.BASE_URL}data/local/index.json`);
-  if (!res.ok) throw new Error(`Список участков недоступен (${res.status})`);
+  if (!res.ok) throw new Error(tr(`Список участков недоступен (${res.status})`, `Site list unavailable (${res.status})`));
   return res.json();
 }
 
 export async function fetchManifest(site: string): Promise<SiteManifest> {
   const res = await fetch(`${siteBaseUrl(site)}manifest.json`);
-  if (!res.ok) throw new Error(`Паспорт участка недоступен (${res.status})`);
+  if (!res.ok) throw new Error(tr(`Паспорт участка недоступен (${res.status})`, `Site manifest unavailable (${res.status})`));
   return res.json();
 }
 
@@ -165,7 +179,7 @@ async function loadOrthoHi(base: string, manifest: SiteManifest, signal?: AbortS
     const bitmap = await decodeOrtho(await r.blob());
     if (bitmap.width !== hi.width || bitmap.height !== hi.height) {
       bitmap.close();
-      throw new Error('размер не совпадает с паспортом');
+      throw new Error(tr('размер не совпадает с паспортом', 'size does not match the manifest'));
     }
     return bitmap;
   } catch (e) {
@@ -180,11 +194,11 @@ export async function loadSitePackage(site: string, signal?: AbortSignal): Promi
   const manifest = await fetchManifest(site);
   const [heightBuf, orthoBlob, trackJson, orthoHi] = await Promise.all([
     fetch(base + manifest.height.file, { signal }).then((r) => {
-      if (!r.ok) throw new Error(`Высоты недоступны (${r.status})`);
+      if (!r.ok) throw new Error(tr(`Высоты недоступны (${r.status})`, `Heights unavailable (${r.status})`));
       return r.arrayBuffer();
     }),
     fetch(base + manifest.ortho.file, { signal }).then((r) => {
-      if (!r.ok) throw new Error(`Ортофото недоступно (${r.status})`);
+      if (!r.ok) throw new Error(tr(`Ортофото недоступно (${r.status})`, `Orthoimage unavailable (${r.status})`));
       return r.blob();
     }),
     manifest.track
@@ -196,7 +210,7 @@ export async function loadSitePackage(site: string, signal?: AbortSignal): Promi
   const h = manifest.height;
   if (png.width !== h.width || png.height !== h.height) {
     orthoHi?.close();
-    throw new Error('Размер height.png не совпадает с паспортом');
+    throw new Error(tr('Размер height.png не совпадает с паспортом', 'height.png size does not match the manifest'));
   }
   const grid = decodeHeights(png.data, png.channels, png.width, png.height, h.base_m, h.step_m);
   const ortho = await decodeOrtho(orthoBlob);
@@ -207,8 +221,9 @@ export async function loadSitePackage(site: string, signal?: AbortSignal): Promi
 
 /** Подпись уровня данных под ногами: по каналу источника, если высоты собраны из разных моделей. */
 export function dataLevelLabel(manifest: SiteManifest, code: number): string {
-  const grid = `сетка сцены ${manifest.height.pixel_m} м`;
-  if (manifest.height.data_label) return manifest.height.data_label;
-  const label = manifest.height.source_channel?.values[String(code)];
+  const grid = tr(`сетка сцены ${manifest.height.pixel_m} м`, `scene grid ${manifest.height.pixel_m} m`);
+  if (manifest.height.data_label) return pick(manifest.height.data_label, manifest.height.data_label_en);
+  const channel = manifest.height.source_channel;
+  const label = channel && pick(channel.values[String(code)] ?? '', channel.values_en?.[String(code)]);
   return label ? `${label}, ${grid}` : `HiRISE DTM, ${grid}`;
 }

@@ -1,6 +1,8 @@
 // Профиль высот маршрута Уотни по MOLA: SVG без библиотек, метки остановок и подсказка.
 import { useMemo, useState } from 'react';
 
+import { locale, pick, useT } from '@/shared/i18n/lang';
+
 import { nearestProfileIndex, profileGeometry, type RouteStop } from './data';
 
 interface RouteProfileProps {
@@ -12,9 +14,10 @@ interface RouteProfileProps {
 const WIDTH = 320;
 const HEIGHT = 150;
 
-const fmt = (v: number) => Math.round(v).toLocaleString('ru-RU');
+const fmt = (v: number) => Math.round(v).toLocaleString(locale());
 
 export function RouteProfile({ points, stops, activeStopId }: RouteProfileProps) {
+  const t = useT();
   const geo = useMemo(() => profileGeometry(points, WIDTH, HEIGHT), [points]);
   const [hover, setHover] = useState<number | null>(null);
   const hovered = hover === null ? null : points[hover];
@@ -32,21 +35,21 @@ export function RouteProfile({ points, stops, activeStopId }: RouteProfileProps)
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
-        aria-label="Профиль высот маршрута по MOLA"
+        aria-label={t('Профиль высот маршрута по MOLA', 'Route elevation profile from MOLA')}
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
       >
-        {geo.yTicks.map(t => (
-          <g key={`y${t}`}>
-            <line className="mt-grid" x1={geo.x(0)} x2={WIDTH - 8} y1={geo.y(t)} y2={geo.y(t)} />
-            <text className="mt-tick" x={geo.x(0) - 6} y={geo.y(t) + 3} textAnchor="end">
-              {fmt(t)}
+        {geo.yTicks.map(v => (
+          <g key={`y${v}`}>
+            <line className="mt-grid" x1={geo.x(0)} x2={WIDTH - 8} y1={geo.y(v)} y2={geo.y(v)} />
+            <text className="mt-tick" x={geo.x(0) - 6} y={geo.y(v) + 3} textAnchor="end">
+              {fmt(v)}
             </text>
           </g>
         ))}
-        {geo.xTicks.map(t => (
-          <text key={`x${t}`} className="mt-tick" x={geo.x(t)} y={HEIGHT - 6} textAnchor="middle">
-            {fmt(t)}
+        {geo.xTicks.map(v => (
+          <text key={`x${v}`} className="mt-tick" x={geo.x(v)} y={HEIGHT - 6} textAnchor="middle">
+            {fmt(v)}
           </text>
         ))}
         <path className="mt-area" d={geo.area} />
@@ -60,7 +63,7 @@ export function RouteProfile({ points, stops, activeStopId }: RouteProfileProps)
               cy={geo.y(stop.elevation_m)}
               r={stop.id === activeStopId ? 4.5 : 3}
             >
-              <title>{stop.name}</title>
+              <title>{pick(stop.name, stop.name_en)}</title>
             </circle>
           ),
         )}
@@ -73,8 +76,8 @@ export function RouteProfile({ points, stops, activeStopId }: RouteProfileProps)
       </svg>
       <figcaption className="mt-dim">
         {hovered
-          ? `${fmt(hovered[0])} км от Ares 3 · ${fmt(hovered[1])} м`
-          : 'Высота, м над ареоидом · расстояние от Ares 3, км'}
+          ? t(`${fmt(hovered[0])} км от Ares 3 · ${fmt(hovered[1])} м`, `${fmt(hovered[0])} km from Ares 3 · ${fmt(hovered[1])} m`)
+          : t('Высота, м над ареоидом · расстояние от Ares 3, км', 'Elevation, m above the areoid · distance from Ares 3, km')}
       </figcaption>
     </figure>
   );

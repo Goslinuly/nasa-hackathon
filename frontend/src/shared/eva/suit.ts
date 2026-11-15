@@ -1,6 +1,8 @@
 // Модель выхода в скафандре: скорость, время возврата, расходники, точка невозврата.
 // Числа — из docs/TZ_EVA_Safety.md, разделы 9.1 и 9.2. Всё здесь — модель, не измерение.
 
+import { tr } from '@/shared/i18n/lang';
+
 import { walkSpeed as modelSpeed } from './traverse';
 
 /** Скорость на ровном по модели 9.1, м/с. */
@@ -85,14 +87,14 @@ export function formatDuration(seconds: number): string {
   const s = Math.abs(Math.round(seconds));
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
-  if (h > 0) return `${sign}${h} ч ${String(m).padStart(2, '0')} мин`;
-  if (m > 0) return `${sign}${m} мин`;
-  return `${sign}${s} с`;
+  if (h > 0) return `${sign}${h} ${tr('ч', 'h')} ${String(m).padStart(2, '0')} ${tr('мин', 'min')}`;
+  if (m > 0) return `${sign}${m} ${tr('мин', 'min')}`;
+  return `${sign}${s} ${tr('с', 's')}`;
 }
 
 /** «680 м», «1,2 км». */
 export function formatDistance(m: number): string {
   if (!Number.isFinite(m)) return '—';
-  if (Math.abs(m) < 1000) return `${Math.round(m)} м`;
-  return `${(m / 1000).toFixed(1).replace('.', ',')} км`;
+  if (Math.abs(m) < 1000) return `${Math.round(m)} ${tr('м', 'm')}`;
+  return tr(`${(m / 1000).toFixed(1).replace('.', ',')} км`, `${(m / 1000).toFixed(1)} km`);
 }
