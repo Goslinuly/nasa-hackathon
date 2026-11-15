@@ -44,6 +44,9 @@ export function CoverageCard({ point }: { point: MarsPoint | null }) {
     };
   }, [point]);
 
+  // Сначала подробные продукты участка, затем обзорные: порядок совпадает с уровнем данных.
+  const served = coverage ? [...coverage.published_local, ...coverage.published_overview] : [];
+
   if (!point) {
     return (
       <div className="coverage-card coverage-empty">
@@ -77,6 +80,60 @@ export function CoverageCard({ point }: { point: MarsPoint | null }) {
       {coverage && !loading && (
         <>
           <p className="dim">{coverage.explanation}</p>
+
+          {coverage.local_package && (
+            <div className="local-package">
+              <strong>{coverage.local_package.title}</strong>
+              {coverage.local_package.best_dtm_resolution_m != null && (
+                <span className="mono">
+                  {' · '}
+                  {coverage.local_package.best_dtm_resolution_m} {t('м/пикс', 'm/px')}
+                </span>
+              )}
+              {coverage.local_package.hirise_fraction != null && (
+                <p className="served-note">
+                  {t('Исходный HiRISE покрывает', 'The source HiRISE covers')}{' '}
+                  {Math.round(coverage.local_package.hirise_fraction * 100)}%{' '}
+                  {t('площади участка', 'of the area')}
+                  {coverage.local_package.note ? `. ${coverage.local_package.note}` : '.'}
+                </p>
+              )}
+              {coverage.local_package.walk_url && (
+                <p className="served-note">
+                  <a href={coverage.local_package.walk_url}>
+                    {t('Пройти здесь от первого лица', 'Walk here in first person')}
+                  </a>
+                </p>
+              )}
+            </div>
+          )}
+
+          {served.length > 0 && (
+            <>
+              <span className="micro-label">
+                {t('Данные, которые приложение отдаёт здесь', 'Data the application serves here')}
+              </span>
+              <ul className="data-list served-list">
+                {served.map((product) => (
+                  <li key={product.product_id ?? product.title}>
+                    <div className="served-row">
+                      <span>{product.title}</span>
+                      <span className="mono">
+                        {product.resolution_m != null
+                          ? `${product.resolution_m} ${t('м/пикс', 'm/px')}`
+                          : '—'}
+                      </span>
+                    </div>
+                    <p className="served-note">
+                      <span className="served-status">{product.verification_status}</span>
+                      {product.note ? ` · ${product.note}` : ''}
+                      {product.credit ? ` · ${product.credit}` : ''}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
 
           <span className="micro-label">{t('Обзорные продукты · кандидаты', 'Overview products · candidates')}</span>
           <ul className="data-list">

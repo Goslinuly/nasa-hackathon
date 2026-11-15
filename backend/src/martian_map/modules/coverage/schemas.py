@@ -15,6 +15,25 @@ class CoverageProduct(BaseModel):
     verification_status: str
     license: str | None = None
     credit: str | None = None
+    note: str | None = Field(
+        default=None, description="Чем продукт полезен в точке и чего по нему сказать нельзя"
+    )
+
+
+class ServedPackageOut(BaseModel):
+    """Подробный пакет участка, который приложение отдаёт в прогулку."""
+
+    slug: str
+    title: str
+    walk_url: str | None = None
+    best_dtm_resolution_m: float | None = None
+    hirise_fraction: float | None = Field(
+        default=None, description="Доля площади с исходным HiRISE, если пакет собран из двух DTM"
+    )
+    note: str | None = None
+    bounds: list[float] = Field(
+        default=[], description="Границы участка: запад, юг, восток, север; долготы восточные"
+    )
 
 
 class RegionCoverageCandidate(BaseModel):
@@ -44,3 +63,7 @@ class CoverageResponse(BaseModel):
         ),
     )
     published_local: list[CoverageProduct] = []
+    local_package: ServedPackageOut | None = Field(
+        default=None,
+        description="Подробный пакет, в границы которого попала точка; иначе null",
+    )

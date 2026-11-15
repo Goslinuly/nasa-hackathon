@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+from martian_map.i18n import Text
 from martian_map.modules.eva_sources import cache
 
 MMGIS = "https://mars.nasa.gov/mmgis-maps"
@@ -11,6 +12,17 @@ SOURCES = {
 }
 CREDIT = "NASA/JPL-Caltech, MMGIS"
 TTL_S = 3600
+
+NOTE = Text(
+    "Последняя точка файла локализаций миссии;"
+    " обновляется NASA с задержкой до нескольких солов",
+    "The last point of the mission localization file;"
+    " NASA updates it with a delay of up to a few sols",
+)
+UNAVAILABLE = Text(
+    "файлы локализаций MMGIS недоступны",
+    "the MMGIS localization files are unavailable",
+)
 
 
 def parse_current(payload: object) -> dict | None:
@@ -31,7 +43,7 @@ def parse_current(payload: object) -> dict | None:
     return {
         "lon": lon,
         "lat": lat,
-        "sol": int(sol) if isinstance(sol, (int, float)) else None,
+        "sol": int(sol) if isinstance(sol, int | float) else None,
         "elevation_m": float(coords[2]) if len(coords) > 2 else None,
         "dist_total_m": props.get("dist_total_m") or props.get("dist_total"),
     }
@@ -51,14 +63,13 @@ async def fetch_positions() -> dict:
         if parsed is not None:
             rovers[rover] = {**parsed, "source_url": url}
     if not rovers:
-        return cache.unavailable("файлы локализаций MMGIS недоступны")
+        return cache.unavailable(UNAVAILABLE)
     result = {
         "status": "ok",
         "fetched_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "rovers": rovers,
         "credit": CREDIT,
-        "note": "Последняя точка файла локализаций миссии;"
-        " обновляется NASA с задержкой до нескольких солов",
+        "note": NOTE,
     }
     cache.cache_put(key, result)
     return result

@@ -263,13 +263,15 @@ def test_coverage_in_english(client: TestClient) -> None:
     client.app.dependency_overrides[get_session] = session
     en = client.get("/api/v1/coverage", params={"lat": 18.4, "lon": 77.5, **EN}).json()
     ru = client.get("/api/v1/coverage", params={"lat": 18.4, "lon": 77.5}).json()
-    assert en["explanation"].startswith("There is no published data for this point")
+    assert en["explanation"].startswith("An overview base is available for this point")
     assert en["local_candidates"][0]["note"].startswith("Footprints and valid-data masks")
     assert en["overview_candidates"][0]["title"] == "MGS MOLA DEM 463 m/px"
+    assert en["published_overview"][0]["title"] == "MOLA MEGDR, overview relief of the globe"
     assert en["local_candidates"][0]["name_ru"] == "Кратер Езеро"  # имя на обоих языках
     assert not has_cyrillic({k: v for k, v in en.items() if k != "local_candidates"})
-    assert ru["explanation"].startswith("Опубликованных данных для этой точки нет")
+    assert ru["explanation"].startswith("Для этой точки есть обзорная основа")
     assert ru["overview_candidates"][0]["title"] == "MGS MOLA DEM 463 м/пикс"
+    assert ru["published_overview"][0]["title"] == "MOLA MEGDR, обзорный рельеф шара"
 
 
 class ResearchSession:

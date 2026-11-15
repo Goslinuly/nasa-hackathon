@@ -95,6 +95,8 @@ Used by [`backend/scripts/build_martian_obj.py`](backend/scripts/build_martian_o
 
 Sources for features that are not connected yet (for example weather archives) are added here when they are connected. The full research catalogue with checks and limitations is in [docs/RESOURCES.md](docs/RESOURCES.md).
 
+Two registries keep these apart. [`backend/data/product_registry.json`](backend/data/product_registry.json) lists **candidates**: the product page and its documentation were checked, the raster was never downloaded. [`backend/data/served_products.json`](backend/data/served_products.json) lists what the build **actually serves** — the global MOLA grid, the hazard layers and the three detailed packages, each with its footprint, resolution, credit and limits. The point coverage answer (`/api/v1/coverage`) is decided by the second file, so a point is called detailed or overview only where data is really shipped.
+
 ## Структура репозитория
 
 - `backend/` — FastAPI + PostgreSQL/PostGIS + Celery: каталог продуктов, покрытие, маршруты ([инструкция запуска](backend/README.md)).

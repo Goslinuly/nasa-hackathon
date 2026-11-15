@@ -60,7 +60,7 @@ def localize(value: Any, lang: Lang | None = None) -> Any:
         return value.pick(lang)
     if isinstance(value, dict):
         return {key: localize(item, lang) for key, item in value.items()}
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return [localize(item, lang) for item in value]
     return value
 

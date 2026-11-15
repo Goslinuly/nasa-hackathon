@@ -106,6 +106,15 @@ export function matchUnit(legend: GeologyLegend, r: number, g: number, b: number
   return best;
 }
 
+function sampleUnit(geo: GeologySampler, lon: number, lat: number): RegionInfo['geology'] {
+  const east = ((lon % 360) + 360) % 360;
+  const signed = east > 180 ? east - 360 : east;
+  const px = geologyPixel(signed, lat, geo.legend.extent, geo.width, geo.height);
+  if (!px.inside) return null;
+  const data = geo.ctx.getImageData(Math.floor(px.x), Math.floor(px.y), 1, 1).data;
+  return data[3] > 0 ? matchUnit(geo.legend, data[0], data[1], data[2]) : null;
+}
+
 /** Регион IAU и геологический юнит под точкой; долгота в любом соглашении. */
 export async function regionAt(lon: number, lat: number): Promise<RegionInfo> {
   const east = ((lon % 360) + 360) % 360;
@@ -116,16 +125,16 @@ export async function regionAt(lon: number, lat: number): Promise<RegionInfo> {
   for (const h of hits) {
     if (h.dKm >= PROVINCE_MIN_D_KM && h.name !== specific?.name) province = h;
   }
-  let geology: RegionInfo['geology'] = null;
-  if (geo) {
-    const signed = east > 180 ? east - 360 : east;
-    const px = geologyPixel(signed, lat, geo.legend.extent, geo.width, geo.height);
-    if (px.inside) {
-      const data = geo.ctx.getImageData(Math.floor(px.x), Math.floor(px.y), 1, 1).data;
-      if (data[3] > 0) geology = matchUnit(geo.legend, data[0], data[1], data[2]);
-    }
-  }
-  return { specific, province, geology };
+  return { specific, province, geology: geo ? sampleUnit(geo, east, lat) : null };
+}
+
+/** Геологический юнит под каждой точкой ломаной; null там, где растр ничего не даёт. */
+export async function geologyAlong(
+  points: { lon: number; lat: number }[],
+): Promise<(RegionInfo['geology'])[]> {
+  const geo = await loadSampler();
+  if (!geo) return points.map(() => null);
+  return points.map((point) => sampleUnit(geo, point.lon, point.lat));
 }
 
 const TYPE_RU: Record<string, string> = {

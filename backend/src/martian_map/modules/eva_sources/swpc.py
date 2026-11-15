@@ -42,7 +42,7 @@ def xray_class_of(flux_wm2: float) -> str:
 
 def _series_latest_and_max(rows: list, energy: str) -> tuple[float, float, str] | None:
     picked = [r for r in rows if isinstance(r, dict) and r.get("energy") == energy]
-    values = [float(r["flux"]) for r in picked if isinstance(r.get("flux"), (int, float))]
+    values = [float(r["flux"]) for r in picked if isinstance(r.get("flux"), int | float)]
     if not values:
         return None
     return values[-1], max(values), str(picked[-1].get("time_tag") or "")

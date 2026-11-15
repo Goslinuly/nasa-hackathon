@@ -32,6 +32,6 @@ def to_plain(value: Any) -> Any:
         return {f.name: to_plain(getattr(value, f.name)) for f in fields(value)}
     if isinstance(value, dict):
         return {str(k): to_plain(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return [to_plain(v) for v in value]
     return value

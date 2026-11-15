@@ -12,7 +12,8 @@ import { regionsAlong, regionTypeLabel, type NamedRegion } from '@/shared/region
 
 const MAX_POINTS = 50;
 
-export function sampleRoute(points: LonLat[], limit = MAX_POINTS): LonLat[] {
+/** Равномерная выборка точек ломаной: концы сохраняются, середина прореживается. */
+export function sampleRoute<T>(points: T[], limit = MAX_POINTS): T[] {
   if (points.length <= limit) return points;
   const step = (points.length - 1) / (limit - 1);
   return Array.from({ length: limit }, (_, index) => points[Math.round(index * step)]);

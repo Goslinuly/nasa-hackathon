@@ -23,7 +23,7 @@ def parse_hapi(payload: object) -> list[dict]:
         if not isinstance(row, list) or len(row) < 2 or not isinstance(row[0], str):
             raise ValueError("строка HAPI имеет неожиданный формат")
         value = row[1]
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, int | float):
             continue
         if not math.isfinite(value) or value < 0:
             continue

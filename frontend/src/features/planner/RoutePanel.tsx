@@ -6,6 +6,7 @@ import { useGlobeState, useValue } from '@/app/globeState';
 import type { GlobeApi, LonLat, ModeContext } from '@/app/modeContract';
 import { EvaPanel } from '@/features/eva/EvaPanel';
 import { ResearchAlongRoute } from '@/features/science/ResearchAlongRoute';
+import { ScienceTargets } from '@/features/science/ScienceTargets';
 import { getLang, locale, pick as pickLang, tr, useLang, useT } from '@/shared/i18n/lang';
 
 import { DEMO_MISSION } from './demoMission';
@@ -906,6 +907,14 @@ export default function RoutePanel({ globe }: ModeContext) {
         <RoverCard globe={globe} points={route.points} model={roverModel} />
       )}
       {route?.status === 'ok' && <SurfacePhotos points={route.points} />}
+
+      <ScienceTargets
+        route={route}
+        hazard={hazard}
+        sandBelow={hazard?.sandBelowTiu ?? 150}
+        onAddStop={addStop}
+        onFocus={(point) => void globe.flyTo({ lon: point.lon, lat: point.lat, altitude: 0.05 }, 1200)}
+      />
 
       <ResearchAlongRoute
         endpoints={endpoints}

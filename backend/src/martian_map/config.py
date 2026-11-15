@@ -33,7 +33,14 @@ def _to_asyncpg(url: str) -> str:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_prefix="MARTIAN_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="MARTIAN_",
+        extra="ignore",
+        # Поля с validation_alias иначе не принимают значение по собственному имени:
+        # Settings(database_url=...) в тестах и скриптах молча брал бы значение по умолчанию.
+        populate_by_name=True,
+    )
 
     env: str = "dev"
     science_data_dir: Path = Path(__file__).resolve().parents[2] / "data" / "science"

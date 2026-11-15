@@ -12,6 +12,21 @@ export interface CoverageProduct {
   verification_status: string;
   license: string | null;
   credit: string | null;
+  /** Чем продукт полезен в точке и чего по нему сказать нельзя. */
+  note?: string | null;
+}
+
+/** Подробный пакет участка, который приложение отдаёт в прогулку. */
+export interface ServedPackage {
+  slug: string;
+  title: string;
+  walk_url: string | null;
+  best_dtm_resolution_m: number | null;
+  /** Доля площади с исходным HiRISE, если пакет собран из двух DTM. */
+  hirise_fraction: number | null;
+  note: string | null;
+  /** Запад, юг, восток, север; долготы восточные. */
+  bounds: number[];
 }
 
 export interface RegionCoverageCandidate {
@@ -33,6 +48,8 @@ export interface CoverageResponse {
   published_overview: CoverageProduct[];
   local_candidates: RegionCoverageCandidate[];
   published_local: CoverageProduct[];
+  /** Пакет, в границы которого попала точка; null — точка вне подробных участков. */
+  local_package?: ServedPackage | null;
 }
 
 export interface RegionOut {

@@ -29,8 +29,9 @@ Martian Map is a web map for planning a Marswalk. It starts from a 3D globe of M
 **Current state** (works on the live site, checked on 14 November 2026):
 
 - **Main screen.** A 3D Mars globe sits in the background of the landing page. «Explore Mars» flies the camera in, and mode buttons appear on the globe: build a route, first-person walk, rover routes, The Martian route, memorial, 2D atlas, layers. Every mode has its own link (`#rovers`, `#walk/gale-boxwork`, …).
-- **Layered globe and atlas.** Natural colour (Viking MDIM 2.1), relief and hypsometry (HRSC + MOLA), THEMIS day and night infrared, CTX 5 m and HiRISE 0.25 m imagery, the USGS geologic map (SIM 3292) with a legend, and 1897 official feature names. For any point the map says what data exists there.
+- **Layered globe and atlas.** Natural colour (Viking MDIM 2.1), relief and hypsometry (HRSC + MOLA), THEMIS day and night infrared, CTX 5 m and HiRISE 0.25 m imagery, the USGS geologic map (SIM 3292) with a legend, and 1897 official feature names. For any point the map says what data exists there: the point coverage panel answers from the products the build actually serves — the global MOLA grid and the three detailed packages, each with its resolution, credit and limits — and separately lists the catalog entries that are still candidates. Inside a detailed package the panel names it and links to the walk.
 - **Route planner A → B.** Works for any two points on Mars. Overview routing on MOLA, and on detailed terrain where it exists. Edge cost is the oxygen the astronaut spends: suit walking speed and metabolic cost depend on slope, ground type comes from TES thermal inertia, and very rough ground is excluded. The planner can route through science stops. It shows an elevation profile, time and oxygen corridors, the return rule with a 30 min reserve, slope thresholds with their origin, and the data level of each part of the route. Its EVA panel adds live radiation: Curiosity RAD at Gale (ISWA), GOES protons and X-rays with NOAA scales, and DONKI events, with the note that they describe conditions near Earth. A Perseverance 3D model drives the planned route on the globe.
+- **Science targets along the path.** For any route the app reads the layers under it and says where it is worth stopping: contacts between geologic units (SIM 3292), rock exposures and sand fields from TES thermal inertia, the steepest scarp where layers are exposed in cross-section, and vantage points on the profile. Each target names the layer it came from and its resolution, and can be turned into a stop in one click, so the route is rebuilt through it. These are signs derived from orbital data, not measurements and not confirmed finds; the separate catalog search alongside it shows published studies near the path and says plainly when there are none.
 - **First-person walk** on real HiRISE terrain in three places:
   - Gale crater, boxwork area on Mount Sharp, where Curiosity studied boxwork in 2025. The terrain is 1 m with 0.25 m imagery, and Curiosity's real track lies on it.
   - Ares 3, Acidalia Planitia: the site from The Martian, imaged by HiRISE at the coordinates Andy Weir sent to the HiRISE team.
@@ -50,7 +51,9 @@ Martian Map is a web map for planning a Marswalk. It starts from a 3D globe of M
 **Not done or limited** (stated on the site where relevant):
 
 - Terrain shielding from the real horizon, dust storm probability, pressure for any point (Mars Climate Database).
-- Rover positions are a snapshot from the last data update, not live tracking.
+- Rover positions are requested from NASA MMGIS at runtime, but MMGIS itself publishes them with a delay of up to a few sols, and the traverse lines come from a stored snapshot.
+- Science targets on an overview route are derived from global-scale layers: the geologic map is simplified to 0.02° (about 1.2 km) and TES thermal inertia is about 3 km per cell, so a target marks a place to look, not an outcrop found on the ground.
+- The catalog of published studies holds 15 entries, so a search along an arbitrary route usually finds nothing nearby; the panel says so instead of leaving the user to guess.
 - Frame rate is checked on an Apple M4 laptop (60 FPS); slower laptops are not measured yet.
 
 ### How it addresses the challenge

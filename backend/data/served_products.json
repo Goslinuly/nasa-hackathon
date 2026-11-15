@@ -1,0 +1,181 @@
+{
+  "meta": {
+    "title": "Продукты, которые приложение действительно отдаёт пользователю",
+    "title_en": "Products the application actually serves to the user",
+    "note": "product_registry.json описывает кандидатов: метаданные проверены, растры не скачивались. Этот файл — вторая половина картины: продукты, которые скачаны, пересчитаны, сверены по SHA-256 и входят в сборку. Уровень данных в точке оценивается по ним, а не по каталогу кандидатов.",
+    "note_en": "product_registry.json lists candidates: metadata checked, rasters never downloaded. This file is the other half of the picture: products that were downloaded, reprocessed, checked against SHA-256 and shipped in the build. The data level of a point is assessed from these, not from the candidate catalog.",
+    "longitude": "east, 0-360",
+    "checked": "2026-11-15"
+  },
+  "global": [
+    {
+      "product_id": "MEGT90N000EB.IMG",
+      "title": "MOLA MEGDR, обзорный рельеф шара",
+      "title_en": "MOLA MEGDR, overview relief of the globe",
+      "kind": "global_dem",
+      "role": "elevation",
+      "resolution_m": 7395,
+      "source_resolution_m": 3700,
+      "bounds": { "west": 0, "south": -90, "east": 360, "north": 90 },
+      "verification_status": "published",
+      "license": null,
+      "credit": "NASA/GSFC, MOLA Science Team; PDS Geosciences Node",
+      "served_file": "frontend/public/data/globe/mola_megdr_8ppd_height.png",
+      "sha256": "2caa4714797156935ad5e7df241dd09b8fd12a6ed8275d7aeefd111a2b74d401",
+      "note": "Рельеф всего Марса: на нём строится маршрут A → Б вне подробных участков. В ячейке 7,4 км не видно отдельных камней, обрывов и кратеров меньше ячейки.",
+      "note_en": "Relief of the whole planet: the A → B route is built on it outside the detailed areas. A 7.4 km cell does not show individual rocks, scarps or craters smaller than the cell."
+    },
+    {
+      "product_id": "mola_hrsc_blend_slope_200m_8ppd",
+      "title": "Уклон на масштабе 200 м (MOLA + HRSC)",
+      "title_en": "Slope at the 200 m scale (MOLA + HRSC)",
+      "kind": "global_slope",
+      "role": "ruggedness",
+      "resolution_m": 7395,
+      "source_resolution_m": 200,
+      "bounds": { "west": 0, "south": -90, "east": 360, "north": 90 },
+      "verification_status": "processed",
+      "license": null,
+      "credit": "NASA/GSFC (MOLA); ESA/DLR/FU Berlin (HRSC)",
+      "served_file": "frontend/public/data/hazard/slope.png",
+      "sha256": null,
+      "note": "Признак изрезанности участка: в ячейке 7,4 км хранится уклон, посчитанный на масштабе 200 м. Это не уклон под ногами. Планировщик запрещает по нему ячейки.",
+      "note_en": "A ruggedness indicator: a 7.4 km cell stores the slope computed at the 200 m scale. It is not the slope underfoot. The planner uses it to block cells."
+    },
+    {
+      "product_id": "tes_ti_putzig_day_8ppd",
+      "title": "Тепловая инерция TES, день",
+      "title_en": "TES thermal inertia, daytime",
+      "kind": "global_thermal_inertia",
+      "role": "surface",
+      "resolution_m": 7395,
+      "source_resolution_m": 2960,
+      "bounds": { "west": 0, "south": -90, "east": 360, "north": 90 },
+      "verification_status": "processed",
+      "license": null,
+      "credit": "NASA/JPL/ASU, MGS TES; Putzig et al. (2005)",
+      "served_file": "frontend/public/data/hazard/thermal_inertia.png",
+      "sha256": null,
+      "note": "Тип грунта для цены маршрута: ниже 150 трактуется как рыхлый песок. Примерно у 3 % ячеек данных нет, в основном у полюсов.",
+      "note_en": "Ground type for the route cost: below 150 it is treated as loose sand. About 3% of cells have no data, mostly near the poles."
+    }
+  ],
+  "local": [
+    {
+      "package": "gale-boxwork",
+      "package_title": "Гейл, район boxwork на склоне горы Шарп",
+      "package_title_en": "Gale, boxwork area on the slope of Mount Sharp",
+      "bounds": { "west": 137.367341, "south": -4.824455, "east": 137.397709, "north": -4.783965 },
+      "walk_url": "#walk/gale-boxwork",
+      "products": [
+        {
+          "product_id": "DTEEC_019698_1750_019988_1750_U01",
+          "title": "HiRISE DTM, рельеф участка",
+          "title_en": "HiRISE DTM, terrain of the area",
+          "kind": "dtm",
+          "resolution_m": 1.0,
+          "verification_status": "published",
+          "license": "CC0-1.0 по STAC item",
+          "credit": "NASA/JPL/University of Arizona (HiRISE); DTM USGS Astrogeology",
+          "note": "Сетка 1 м на всю площадь участка, без пропусков.",
+          "note_en": "A 1 m grid over the whole area, with no gaps."
+        },
+        {
+          "product_id": "ESP_019698_1750_RED_A_01_ORTHO",
+          "title": "HiRISE ортоизображение",
+          "title_en": "HiRISE orthoimage",
+          "kind": "ortho",
+          "resolution_m": 0.5,
+          "verification_status": "published",
+          "license": "CC0-1.0 по STAC item",
+          "credit": "NASA/JPL/University of Arizona (HiRISE); USGS Astrogeology",
+          "note": "Участок отдаётся в 0,5 м, окно 1 × 1 км у места старта — в родных 0,25 м.",
+          "note_en": "The area is served at 0.5 m; a 1 × 1 km window at the start point is served at the native 0.25 m."
+        }
+      ]
+    },
+    {
+      "package": "ares3",
+      "package_title": "Ares 3, Acidalia Planitia («Марсианин»)",
+      "package_title_en": "Ares 3, Acidalia Planitia (The Martian)",
+      "bounds": { "west": 331.354129, "south": 31.363129, "east": 331.387871, "north": 31.396871 },
+      "walk_url": "#walk/ares3",
+      "products": [
+        {
+          "product_id": "DTEEC_041277_2115_040776_2115_A01",
+          "title": "HiRISE DTM, рельеф участка",
+          "title_en": "HiRISE DTM, terrain of the area",
+          "kind": "dtm",
+          "resolution_m": 1.0,
+          "verification_status": "published",
+          "license": "CC0-1.0 по STAC item",
+          "credit": "NASA/JPL/University of Arizona (HiRISE); DTM USGS Astrogeology",
+          "note": "Снимок сделан по координатам, которые автор романа прислал команде HiRISE. Научных измерений и трека ровера здесь нет.",
+          "note_en": "The image was taken at the coordinates the novel's author sent to the HiRISE team. There are no science measurements and no rover track here."
+        },
+        {
+          "product_id": "ESP_040776_2115_RED_A_01_ORTHO",
+          "title": "HiRISE ортоизображение",
+          "title_en": "HiRISE orthoimage",
+          "kind": "ortho",
+          "resolution_m": 0.5,
+          "verification_status": "published",
+          "license": "CC0-1.0 по STAC item",
+          "credit": "NASA/JPL/University of Arizona (HiRISE); USGS Astrogeology",
+          "note": "Участок отдаётся в 0,5 м, окно 1 × 1 км у места старта — в родных 0,25 м.",
+          "note_en": "The area is served at 0.5 m; a 1 × 1 km window at the start point is served at the native 0.25 m."
+        }
+      ]
+    },
+    {
+      "package": "jezero",
+      "package_title": "Езеро, западный борт кратера: путь Perseverance",
+      "package_title_en": "Jezero, western crater rim: Perseverance's path",
+      "bounds": { "west": 77.214694, "south": 18.418129, "east": 77.265306, "north": 18.451871 },
+      "walk_url": "#walk/jezero",
+      "source_mix": {
+        "hirise_fraction": 0.2552,
+        "note": "HiRISE DTM 1 м покрывает 26 % участка; остальное — CTX DTM 20 м, растянутый до той же сетки. Подпись под ногами меняется по месту.",
+        "note_en": "The HiRISE DTM at 1 m covers 26% of the area; the rest is the CTX DTM at 20 m stretched to the same grid. The label underfoot changes with the place."
+      },
+      "products": [
+        {
+          "product_id": "DTM_MOLAtopography_DeltaGeoid_Jezero_CR_SOUTH_Edited_affine_1m",
+          "title": "HiRISE DTM, рельеф участка",
+          "title_en": "HiRISE DTM, terrain of the area",
+          "kind": "dtm",
+          "resolution_m": 1.0,
+          "verification_status": "published",
+          "license": "USGS, общественное достояние",
+          "credit": "NASA/JPL/University of Arizona; Mars 2020 TRN, USGS Astrogeology (Fergason et al., 2020), doi:10.5066/P9REJ9JN",
+          "note": "Стереопара CR (борт кратера), самая западная в мозаике TRN. USGS предупреждает о непогашенном y-параллаксе в этой зоне.",
+          "note_en": "The CR (crater rim) stereo pair, the westernmost in the TRN mosaic. USGS warns about uncompensated y-parallax in this zone."
+        },
+        {
+          "product_id": "JEZ_ctx_B_soc_008_DTM_MOLAtopography_DeltaGeoid_20m",
+          "title": "CTX DTM, заполнение вне HiRISE",
+          "title_en": "CTX DTM, fill outside HiRISE",
+          "kind": "dtm",
+          "resolution_m": 20.0,
+          "verification_status": "published",
+          "license": "USGS, общественное достояние",
+          "credit": "NASA/JPL/MSSS (CTX); Mars 2020 TRN, USGS Astrogeology, doi:10.5066/P906QQT8",
+          "note": "Текущая позиция ровера лежит именно здесь: подробного рельефа под ней нет.",
+          "note_en": "The rover's current position falls here: there is no detailed terrain under it."
+        },
+        {
+          "product_id": "JEZ_hirise_soc_007_orthoMosaic_25cm_Ortho_blend120",
+          "title": "HiRISE ортомозаика",
+          "title_en": "HiRISE orthomosaic",
+          "kind": "ortho",
+          "resolution_m": 0.5,
+          "verification_status": "published",
+          "license": "USGS, общественное достояние",
+          "credit": "NASA/JPL/University of Arizona; Mars 2020 TRN, USGS Astrogeology, doi:10.5066/P9REJ9JN",
+          "note": "Там, где HiRISE нет, снимок берётся из мозаики CTX 6 м с подгонкой яркости.",
+          "note_en": "Where HiRISE is missing, the image comes from the 6 m CTX mosaic with brightness matched."
+        }
+      ]
+    }
+  ]
+}
