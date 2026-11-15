@@ -92,3 +92,11 @@
     display: grid;
   }
 }
+
+/* Кнопка «Пройти от первого лица» под итогами маршрута. */
+.route-panel .walk-it {
+  width: 100%;
+  margin: 8px 0;
+  border-color: var(--accent);
+  color: var(--accent);
+}
