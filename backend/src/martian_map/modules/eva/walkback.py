@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from martian_map.i18n import Text
 from martian_map.modules.eva.mobility import WATTS_PER_LPM_O2
 from martian_map.modules.eva.provenance import ALGORITHM_VERSION, Provenance, to_plain
 
@@ -11,29 +12,49 @@ RESERVE_MIN = 30
 APOLLO_ROVER_LIMIT_KM = 7.6
 APOLLO_WALK_LIMIT_KM = 3.1
 APOLLO_LIMITS: tuple[dict[str, object], ...] = (
-    {"km": APOLLO_ROVER_LIMIT_KM, "label": "Предел Apollo на транспорте (не пеший радиус)"},
+    {
+        "km": APOLLO_ROVER_LIMIT_KM,
+        "label": Text(
+            "Предел Apollo на транспорте (не пеший радиус)",
+            "Apollo limit with the rover (not the walking radius)",
+        ),
+    },
     {
         "km": APOLLO_WALK_LIMIT_KM,
-        "label": "Пеший радиус Apollo (не путать с пределом на транспорте)",
+        "label": Text(
+            "Пеший радиус Apollo (не путать с пределом на транспорте)",
+            "Apollo walking radius (not to be confused with the rover limit)",
+        ),
     },
 )
-LIMITING_RESOURCE_FACT = (
-    "Для пеших траверсов ограничивающий ресурс обычно вода на охлаждение, а не кислород"
+LIMITING_RESOURCE_FACT = Text(
+    "Для пеших траверсов ограничивающий ресурс обычно вода на охлаждение, а не кислород",
+    "On walking traverses the limiting consumable is usually cooling water, not oxygen",
 )
 
 PROVENANCE = Provenance(
-    source=(
+    source=Text(
         "Правило возврата: путь назад на 3.3 км/ч при 422 Вт (с надбавкой 20%) "
-        "и резерв 30 минут"
+        "и резерв 30 минут",
+        "Walkback rule: the return trip at 3.3 km/h and 422 W (with a 20% margin) "
+        "plus a 30-minute reserve",
     ),
     status="operational_rule",
-    units="кислород в литрах, время в минутах, расстояние в метрах",
-    note=(
+    units=Text(
+        "кислород в литрах, время в минутах, расстояние в метрах",
+        "oxygen in liters, time in minutes, distance in meters",
+    ),
+    note=Text(
         "Принцип: возврат при любом одиночном отказе; двойной отказ не планируется. "
         "Выходы выполняются парой: напарник — живой резерв на этот отказ "
         "(помощь при падении, общий ориентир, подстраховка расходников), "
         "а запас каждого считается на одного. "
-        + LIMITING_RESOURCE_FACT
+        + LIMITING_RESOURCE_FACT,
+        "Principle: return after any single failure; a double failure is not planned for. "
+        "EVAs are done in pairs: the partner is the live backup for that failure "
+        "(help after a fall, a shared reference point, backup consumables), "
+        "while each person's supply is counted for one. "
+        + LIMITING_RESOURCE_FACT.en,
     ),
 )
 

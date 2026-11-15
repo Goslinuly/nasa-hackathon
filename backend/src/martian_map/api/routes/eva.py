@@ -5,12 +5,13 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 
+from martian_map.api.lang import LocalizedRoute
+from martian_map.i18n import Text
 from martian_map.modules.eva import mobility, radiation, shielding, slopes, walkback
 from martian_map.modules.eva_sources import gale_weather, rad_live, solar_events, swpc
 from martian_map.modules.space_weather.donki import DonkiUnavailable, get_donki_service
 
-router = APIRouter(prefix="/eva", tags=["eva"])
-
+router = APIRouter(route_class=LocalizedRoute, prefix="/eva", tags=["eva"])
 
 
 class ProfilePoint(BaseModel):
@@ -82,7 +83,10 @@ def mobility_profile(query: MobilityProfileInput) -> dict:
             "terrain": mobility.TERRAIN_PROVENANCE.to_dict(),
             "power": mobility.CORRIDOR_PROVENANCE.to_dict(),
             "oxygen": mobility.OXYGEN_PROVENANCE.to_dict(),
-            "time_note": "Время = сумма длина/скорость; коридор времени не строится.",
+            "time_note": Text(
+                "Время = сумма длина/скорость; коридор времени не строится.",
+                "Time = sum of length/speed; no time corridor is built.",
+            ),
         },
     }
 
@@ -157,7 +161,10 @@ async def rad_live_route(days: int = Query(default=30, ge=1, le=rad_live.MAX_DAY
         **result,
         "series": series,
         "quality_factor": radiation.DEFAULT_QUALITY,
-        "quality_factor_status": "по умолчанию (QUALITY_VARIANTS модуля radiation)",
+        "quality_factor_status": Text(
+            "по умолчанию (QUALITY_VARIANTS модуля radiation)",
+            "default (QUALITY_VARIANTS of the radiation module)",
+        ),
         "dose_msv_unit": "mSv/sol",
     }
 
@@ -191,7 +198,7 @@ def route_dose(query: RouteDoseInput) -> dict:
         "low": max((corridor.low + shift_msv_per_sol) * fraction, 0.0),
         "mid": max((corridor.mid + shift_msv_per_sol) * fraction, 0.0),
         "high": max((corridor.high + shift_msv_per_sol) * fraction, 0.0),
-        "units": "мЗв за выход",
+        "units": Text("мЗв за выход", "mSv per EVA"),
     }
     return {
         "dose_msv": dose,
@@ -199,11 +206,18 @@ def route_dose(query: RouteDoseInput) -> dict:
         "rate_corridor": corridor.to_dict(),
         "elevation_correction": elevation,
         "provenance": {
-            "source": "Коридор типичной дозы RAD, поправка высоты и время выхода по модели",
+            "source": Text(
+                "Коридор типичной дозы RAD, поправка высоты и время выхода по модели",
+                "Typical RAD dose corridor, elevation correction and modeled EVA time",
+            ),
             "status": "model",
-            "units": "мЗв",
-            "note": "Доза = скорость набора, умноженная на долю сола в пути;"
-            " расход у людей и фон меняются",
+            "units": Text("мЗв", "mSv"),
+            "note": Text(
+                "Доза = скорость набора, умноженная на долю сола в пути;"
+                " расход у людей и фон меняются",
+                "Dose = dose rate times the fraction of a sol spent on the route;"
+                " individual consumption and the background vary",
+            ),
         },
     }
 
@@ -213,7 +227,10 @@ ADVISORY_RAD_RATIO = 1.3
 
 @router.get("/space-weather")
 async def eva_space_weather() -> dict:
-    mars: dict = {"status": "source_unavailable", "detail": "фон RAD не получен"}
+    mars: dict = {
+        "status": "source_unavailable",
+        "detail": Text("фон RAD не получен", "RAD background not received"),
+    }
     rad = await rad_live.fetch_rad(30)
     if rad.get("status") == "ok" and rad.get("series"):
         rates = sorted(row["dose_ugy_per_sol"] for row in rad["series"])
@@ -227,33 +244,51 @@ async def eva_space_weather() -> dict:
             "median_30d_ugy_per_sol": median,
             "ratio_to_median": ratio,
             "source": rad.get("source"),
-            "note": "Единственное прямое измерение фона на поверхности Марса;"
-            " обновляется с задержкой до пары суток",
+            "note": Text(
+                "Единственное прямое измерение фона на поверхности Марса;"
+                " обновляется с задержкой до пары суток",
+                "The only direct measurement of the background at the Martian surface;"
+                " updated with a delay of up to a couple of days",
+            ),
         }
     earth = await swpc.fetch_conditions()
-    events: dict = {"status": "source_unavailable", "detail": "DONKI не отвечает"}
+    donki_silent = Text("DONKI не отвечает", "DONKI is not responding")
+    events: dict = {"status": "source_unavailable", "detail": donki_silent}
     try:
         donki = await get_donki_service().events(7)
         events = {"status": "ok", **donki, "events": donki.get("events", [])[:6]}
     except DonkiUnavailable as error:
-        events = {"status": "source_unavailable", "detail": str(error) or "DONKI не отвечает"}
+        # str() отбросил бы английский вариант у Text; берём исходный аргумент.
+        detail = error.args[0] if error.args and isinstance(error.args[0], str) else ""
+        events = {"status": "source_unavailable", "detail": detail or donki_silent}
 
     reasons: list[str] = []
     level = "calm"
     if mars.get("status") == "ok" and mars["ratio_to_median"] > ADVISORY_RAD_RATIO:
         level = "elevated"
+        ratio = mars["ratio_to_median"]
         reasons.append(
-            f"фон RAD на Марсе в {mars['ratio_to_median']:.2f} раза"
-            " выше медианы 30 солов (измерение)"
+            Text(
+                f"фон RAD на Марсе в {ratio:.2f} раза выше медианы 30 солов (измерение)",
+                f"RAD background on Mars is {ratio:.2f} times the 30-sol median (measurement)",
+            )
         )
     if earth.get("status") == "ok" and earth.get("s_scale_max24h", 0) >= 1:
         level = "event_at_earth" if level == "calm" else level
+        storm = earth["s_scale_max24h"]
         reasons.append(
-            f"у Земли радиационная буря S{earth['s_scale_max24h']}"
-            " за последние сутки (к Марсу — оценка)"
+            Text(
+                f"у Земли радиационная буря S{storm} за последние сутки (к Марсу — оценка)",
+                f"S{storm} radiation storm at Earth in the last 24 hours (for Mars, an estimate)",
+            )
         )
     if not reasons:
-        reasons.append("фон в пределах обычного; прямых признаков события нет")
+        reasons.append(
+            Text(
+                "фон в пределах обычного; прямых признаков события нет",
+                "background within the usual range; no direct signs of an event",
+            )
+        )
 
     return {
         "mars_measured": mars,
@@ -263,12 +298,23 @@ async def eva_space_weather() -> dict:
             "level": level,
             "reasons": reasons,
             "provenance": {
-                "source": "Сводка: RAD на Марсе как главный признак,"
-                " GOES и DONKI у Земли как ранний",
+                "source": Text(
+                    "Сводка: RAD на Марсе как главный признак,"
+                    " GOES и DONKI у Земли как ранний",
+                    "Summary: RAD on Mars as the main signal,"
+                    " GOES and DONKI at Earth as the early one",
+                ),
                 "status": "model",
-                "units": "уровни calm, elevated, event_at_earth",
-                "note": f"Порог повышенного фона: {ADVISORY_RAD_RATIO} медианы;"
-                " порог события: S1 у Земли",
+                "units": Text(
+                    "уровни calm, elevated, event_at_earth",
+                    "levels calm, elevated, event_at_earth",
+                ),
+                "note": Text(
+                    f"Порог повышенного фона: {ADVISORY_RAD_RATIO} медианы;"
+                    " порог события: S1 у Земли",
+                    f"Elevated background threshold: {ADVISORY_RAD_RATIO} × median;"
+                    " event threshold: S1 at Earth",
+                ),
             },
         },
     }

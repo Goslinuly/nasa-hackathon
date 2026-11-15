@@ -2,27 +2,38 @@
 
 from dataclasses import dataclass
 
+from martian_map.i18n import Text
 from martian_map.modules.eva.provenance import ALGORITHM_VERSION, Provenance, to_plain
 
 DEFAULT_ALBEDO_SHARE = (0.18, 0.24)
 DEFAULT_ANGULAR_EXPONENT = 2.0
 
 PROVENANCE = Provenance(
-    source=(
+    source=Text(
         "Линейное взвешивание по доле неба: доля = (1 - a)*sky^(n/2) + a, "
-        "a - вклад отражённого грунтом"
+        "a - вклад отражённого грунтом",
+        "Linear weighting by sky fraction: fraction = (1 - a)*sky^(n/2) + a, "
+        "a - the ground-reflected contribution",
     ),
     status="model",
-    units="доля открытой дозы; доза в единицах входа",
-    note=(
+    units=Text(
+        "доля открытой дозы; доза в единицах входа",
+        "fraction of the open-sky dose; dose in input units",
+    ),
+    note=Text(
         "Показатель углового распределения n уточняется по первоисточнику; "
-        "нужен локальный DTM, в приложении пока подключён не везде"
+        "нужен локальный DTM, в приложении пока подключён не везде",
+        "The angular distribution exponent n is still being checked against the primary "
+        "source; a local DTM is needed, and the app does not have one everywhere yet",
     ),
 )
 VALIDATION_PROVENANCE = Provenance(
-    source="Шесть точек в кратере Гейл: измеренное снижение дозы рельефом",
+    source=Text(
+        "Шесть точек в кратере Гейл: измеренное снижение дозы рельефом",
+        "Six points in Gale crater: measured dose reduction by terrain",
+    ),
     status="measurement",
-    units="процент снижения",
+    units=Text("процент снижения", "percent reduction"),
 )
 
 VALIDATION_FACTS: tuple[dict[str, object], ...] = (
@@ -30,17 +41,21 @@ VALIDATION_FACTS: tuple[dict[str, object], ...] = (
         "key": "gale_points",
         "count": 6,
         "reduction_pct_range": (2, 19),
-        "label": (
+        "label": Text(
             "Шесть точек в кратере Гейл: снижение от 2% (пологие формы) "
-            "до 19% (узкая долина под утёсом)"
+            "до 19% (узкая долина под утёсом)",
+            "Six points in Gale crater: reduction from 2% (gentle landforms) "
+            "to 19% (a narrow valley below a cliff)",
         ),
     },
     {
         "key": "ground_albedo",
         "share_range": (0.18, 0.24),
-        "label": (
+        "label": Text(
             "Отражённый грунтом вклад 18-24% полной дозы, "
-            "поэтому реальное снижение всегда меньше наивного"
+            "поэтому реальное снижение всегда меньше наивного",
+            "Ground-reflected radiation is 18-24% of the total dose, "
+            "so the real reduction is always smaller than the naive one",
         ),
     },
 )

@@ -1,4 +1,5 @@
 // Космическая погода: события NASA DONKI через наш backend. Каталог описывает обстановку у Земли.
+import { apiUrl } from '@/shared/api/client';
 
 export type DonkiType = 'FLR' | 'CME' | 'SEP' | 'GST';
 
@@ -38,17 +39,19 @@ export function latestRelevantEvent(sw: SpaceWeather | null): DonkiEvent | null 
   return valid[0];
 }
 
-const API_BASE: string = import.meta.env.VITE_API_BASE ?? '/api/v1';
+const loading = new Map<string, Promise<SpaceWeather | null>>();
 
-let loading: Promise<SpaceWeather | null> | null = null;
-
-/** Один запрос; 404/503/сеть → null, HUD показывает «нет данных». */
+/** Один запрос на язык; 404/503/сеть → null, HUD показывает «нет данных». */
 export function loadSpaceWeather(days = 7): Promise<SpaceWeather | null> {
-  if (!loading) {
-    loading = fetch(`${API_BASE}/space-weather/events?days=${days}`)
+  const url = apiUrl('/space-weather/events', { days });
+  const key = url.toString();
+  let pending = loading.get(key);
+  if (!pending) {
+    pending = fetch(url)
       .then(r => (r.ok ? (r.json() as Promise<SpaceWeather>) : null))
       .then(sw => (sw && Array.isArray(sw.events) ? sw : null))
       .catch(() => null);
+    loading.set(key, pending);
   }
-  return loading;
+  return pending;
 }

@@ -3,7 +3,9 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from martian_map.i18n import t
 from martian_map.modules.catalog.models import Asset, AssetVersion, Region
+from martian_map.modules.catalog.translations import registry_text
 from martian_map.modules.common.enums import DataLevel, VerificationStatus
 from martian_map.modules.coordinates import MarsPoint
 from martian_map.modules.coverage.schemas import (
@@ -28,7 +30,7 @@ async def assess_point_coverage(session: AsyncSession, point: MarsPoint) -> Cove
     published_overview: list[CoverageProduct] = []
     for version, asset in overview_rows:
         product = CoverageProduct(
-            title=asset.title,
+            title=registry_text(asset.title),
             product_id=version.product_id,
             kind=asset.kind,
             resolution_m=version.resolution_m,
@@ -66,8 +68,12 @@ async def assess_point_coverage(session: AsyncSession, point: MarsPoint) -> Cove
             footprints_verified=region.bounds is not None,
             verification_status=region.coverage_status,
             note=(
-                "Границы и валидные маски не проверены; запись означает кандидатные "
-                "продукты в каталоге, а не подтверждённое покрытие этой точки."
+                t(
+                    "Границы и валидные маски не проверены; запись означает кандидатные "
+                    "продукты в каталоге, а не подтверждённое покрытие этой точки.",
+                    "Footprints and valid-data masks are not verified; the entry means "
+                    "candidate products in the catalog, not confirmed coverage of this point.",
+                )
                 if region.bounds is None
                 else None
             ),
@@ -77,16 +83,21 @@ async def assess_point_coverage(session: AsyncSession, point: MarsPoint) -> Cove
 
     if published_overview:
         data_level = DataLevel.ORBITAL_OVERVIEW
-        explanation = (
+        explanation = t(
             "Доступна опубликованная обзорная основа. Обзорный уровень не "
-            "подтверждает локальную проходимость."
+            "подтверждает локальную проходимость.",
+            "A published overview base is available. The overview level does not "
+            "confirm local trafficability.",
         )
     else:
         data_level = DataLevel.UNASSESSED
-        explanation = (
+        explanation = t(
             "Опубликованных данных для этой точки нет: каталог содержит только "
             "кандидатные продукты (статусы candidate/metadata_verified). "
-            "Маршрут в этой точке пока нельзя оценить."
+            "Маршрут в этой точке пока нельзя оценить.",
+            "There is no published data for this point: the catalog holds only "
+            "candidate products (statuses candidate/metadata_verified). "
+            "A route at this point cannot be assessed yet.",
         )
 
     return CoverageResponse(

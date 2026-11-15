@@ -4,6 +4,8 @@ import logging
 from fastapi import APIRouter, Depends, Query
 
 from martian_map.api.errors import ApiError
+from martian_map.api.lang import LocalizedRoute
+from martian_map.i18n import Text
 from martian_map.modules.space_weather.donki import (
     DonkiService,
     DonkiUnavailable,
@@ -11,7 +13,7 @@ from martian_map.modules.space_weather.donki import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(route_class=LocalizedRoute)
 
 
 @router.get("/space-weather/events")
@@ -27,5 +29,9 @@ async def space_weather_events(
         raise ApiError(
             503,
             "space_weather_unavailable",
-            "Каталог солнечных событий NASA DONKI временно не отвечает. Попробуйте позже.",
+            Text(
+                "Каталог солнечных событий NASA DONKI временно не отвечает. Попробуйте позже.",
+                "The NASA DONKI solar event catalog is temporarily not responding. "
+                "Please try again later.",
+            ),
         ) from exc

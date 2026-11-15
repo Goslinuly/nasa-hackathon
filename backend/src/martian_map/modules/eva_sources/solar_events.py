@@ -2,15 +2,18 @@
 import os
 from datetime import UTC, datetime, timedelta
 
+from martian_map.i18n import Text
 from martian_map.modules.eva_sources import cache
 
 DEFAULT_URL = "https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get"
 EVENT_KINDS = ("FLR", "CMEAnalysis", "SEP")
 TIME_KEYS = {"FLR": "peakTime", "CMEAnalysis": "time21_5", "SEP": "eventTime"}
 MAX_DAYS = 90
-CAVEAT = (
+CAVEAT = Text(
     "каталог описывает обстановку преимущественно по наблюдениям у Земли; "
-    "для Марса нужны время распространения и магнитная связность"
+    "для Марса нужны время распространения и магнитная связность",
+    "the catalog describes conditions mostly from observations near Earth; "
+    "for Mars, propagation time and magnetic connectivity are needed",
 )
 
 
@@ -50,7 +53,10 @@ async def fetch_events(days: int = 14) -> dict:
             events.extend(compact_event(kind, item) for item in payload if isinstance(item, dict))
     except Exception as exc:
         return cache.unavailable(
-            f"DONKI недоступен или вернул неожиданный ответ: {type(exc).__name__}"
+            Text(
+                f"DONKI недоступен или вернул неожиданный ответ: {type(exc).__name__}",
+                f"DONKI unavailable or returned an unexpected response: {type(exc).__name__}",
+            )
         )
     events.sort(key=lambda e: e["time"] or "", reverse=True)
     result = {

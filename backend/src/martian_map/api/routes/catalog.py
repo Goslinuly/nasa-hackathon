@@ -2,11 +2,12 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from martian_map.api.lang import LocalizedRoute
 from martian_map.infrastructure.db import get_session
 from martian_map.modules.catalog.schemas import ProductOut, RegionOut
 from martian_map.modules.catalog.service import list_products, list_regions
 
-router = APIRouter()
+router = APIRouter(route_class=LocalizedRoute)
 
 
 @router.get("/regions", response_model=list[RegionOut])

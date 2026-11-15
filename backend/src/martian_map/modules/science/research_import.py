@@ -102,7 +102,10 @@ async def import_rad_database(session: AsyncSession, dataset: dict, intake: dict
 async def import_research_catalog(session: AsyncSession, records: list[ResearchInput]) -> int:
     source = await source_id(session)
     for record in records:
-        values = record.model_dump(exclude={"point", "source_url"})
+        # Английские варианты в БД не пишутся: их подставляет API из того же файла.
+        values = record.model_dump(
+            exclude={"point", "source_url", "title_en", "summary_en", "position_evidence_en"}
+        )
         values.update(
             source_id=source,
             source_url=str(record.source_url),

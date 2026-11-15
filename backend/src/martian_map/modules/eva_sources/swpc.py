@@ -3,14 +3,17 @@
 import math
 import os
 
+from martian_map.i18n import Text
 from martian_map.modules.eva_sources import cache
 
 DEFAULT_URL = "https://services.swpc.noaa.gov"
 MAX_AGE_S = 10 * 60
 
-EARTH_CAVEAT = (
+EARTH_CAVEAT = Text(
     "Измерено аппаратами GOES на орбите Земли. Марс находится на другой гелиодолготе: "
-    "поток частиц там может отличаться, а возмущение доходит от часов до суток"
+    "поток частиц там может отличаться, а возмущение доходит от часов до суток",
+    "Measured by GOES spacecraft in Earth orbit. Mars is at a different heliolongitude: "
+    "the particle flux there may differ, and a disturbance takes hours to days to arrive",
 )
 
 S_SCALE_THRESHOLDS_PFU = ((5, 1e5), (4, 1e4), (3, 1e3), (2, 1e2), (1, 1e1))
@@ -56,13 +59,23 @@ async def fetch_conditions() -> dict:
         xrays = await cache.fetch_json(f"{base}/json/goes/primary/xrays-1-day.json")
         scales = await cache.fetch_json(f"{base}/products/noaa-scales.json")
     except Exception as error:  # noqa: BLE001
-        return cache.unavailable(f"NOAA SWPC недоступен: {type(error).__name__}")
+        return cache.unavailable(
+            Text(
+                f"NOAA SWPC недоступен: {type(error).__name__}",
+                f"NOAA SWPC unavailable: {type(error).__name__}",
+            )
+        )
 
     proton = _series_latest_and_max(protons if isinstance(protons, list) else [], ">=10 MeV")
     xray = _series_latest_and_max(xrays if isinstance(xrays, list) else [], "0.1-0.8nm")
     current = scales.get("0", {}) if isinstance(scales, dict) else {}
     if proton is None or xray is None:
-        return cache.unavailable("NOAA SWPC вернул ряды без ожидаемых каналов")
+        return cache.unavailable(
+            Text(
+                "NOAA SWPC вернул ряды без ожидаемых каналов",
+                "NOAA SWPC returned series without the expected channels",
+            )
+        )
 
     result = {
         "status": "ok",
@@ -81,7 +94,12 @@ async def fetch_conditions() -> dict:
             "S": (current.get("S") or {}).get("Scale"),
             "G": (current.get("G") or {}).get("Scale"),
         },
-        "units": {"proton_flux": "частиц/(см^2 с ср), >=10 МэВ", "xray_flux": "Вт/м^2, 0.1-0.8 нм"},
+        "units": {
+            "proton_flux": Text(
+                "частиц/(см^2 с ср), >=10 МэВ", "particles/(cm^2 s sr), >=10 MeV"
+            ),
+            "xray_flux": Text("Вт/м^2, 0.1-0.8 нм", "W/m^2, 0.1-0.8 nm"),
+        },
     }
     cache.cache_put(key, result)
     return result
