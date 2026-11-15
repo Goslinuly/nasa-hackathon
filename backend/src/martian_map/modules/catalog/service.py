@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from martian_map.modules.catalog.models import Asset, AssetVersion, Region
 from martian_map.modules.catalog.schemas import ProductOut, RegionOut
+from martian_map.modules.catalog.translations import registry_text
 
 
 async def list_regions(session: AsyncSession) -> list[RegionOut]:
@@ -14,7 +15,7 @@ async def list_regions(session: AsyncSession) -> list[RegionOut]:
             slug=r.slug,
             name_ru=r.name_ru,
             name_en=r.name_en,
-            description=r.description,
+            description=registry_text(r.description),
             coverage_status=r.coverage_status,
             bounds_verified=r.bounds is not None,
         )
@@ -42,7 +43,7 @@ async def list_products(
     return [
         ProductOut(
             product_id=version.product_id,
-            title=asset.title,
+            title=registry_text(asset.title),
             kind=asset.kind,
             mission=asset.mission,
             instrument=asset.instrument,
@@ -60,7 +61,7 @@ async def list_products(
             license=version.license,
             credit=version.credit,
             verification_status=version.verification_status,
-            verification_notes=version.verification_notes,
+            verification_notes=registry_text(version.verification_notes),
             registered_at=version.registered_at,
         )
         for version, asset, region in rows

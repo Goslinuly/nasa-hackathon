@@ -20,6 +20,16 @@
     "Пропуски не интерполируются. Частичный интервал использует среднюю скорость наблюдения.",
     "Показания детекторов не переводятся в дозу для человека или оценку безопасности Marswalk."
   ],
+  "limitations_en": [
+    "Archival RAD series from the team's file; all 87 rows checked against the primary PDS PPI product MSL-M-RAD-3-RDR-V1.0 (RAD_RDR_2021_311_00_43_3290_V00), see backend/data/science/README.md.",
+    "The file has no coordinates: the data are not tied to the selected point or route.",
+    "These are historical measurements, not current conditions and not a forecast.",
+    "Dose is computed separately for B and E: rate × duration / 3600, in µGy. The channels are not summed.",
+    "Columns H:K are not used: the source has formula errors and a wrong E label.",
+    "By default only QC=00000000 is used; the meaning of the bits requires the product documentation.",
+    "Gaps are not interpolated. A partial interval uses the observation's mean rate.",
+    "Detector readings are not converted into a human dose or a Marswalk safety assessment."
+  ],
   "derived_source_formulas": {
     "H2": "E2*D2/3600",
     "I2": "F2*E2/3600",

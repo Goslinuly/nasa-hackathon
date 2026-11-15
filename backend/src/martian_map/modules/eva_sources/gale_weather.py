@@ -2,13 +2,16 @@
 import math
 import os
 
+from martian_map.i18n import Text
 from martian_map.modules.eva_sources import cache
 
 DEFAULT_URL = "https://mars.nasa.gov/rss/api/?feed=weather&category=msl&feedtype=json"
 MAX_HISTORY = 60
-CAVEAT = (
+CAVEAT = Text(
     "источник научно-популярный (прямая оговорка издателя); "
-    "для научной точности — архив прибора в PDS (давление ~3.5 Па точности)"
+    "для научной точности — архив прибора в PDS (давление ~3.5 Па точности)",
+    "a public-outreach source (the publisher says so explicitly); "
+    "for scientific accuracy use the instrument archive in PDS (pressure accurate to ~3.5 Pa)",
 )
 
 
@@ -64,11 +67,17 @@ async def fetch_conditions(history: int = 7) -> dict:
             raise ValueError("лента пуста")
     except Exception as exc:
         return cache.unavailable(
-            f"лента погоды недоступна или вернула неожиданный ответ: {type(exc).__name__}"
+            Text(
+                f"лента погоды недоступна или вернула неожиданный ответ: {type(exc).__name__}",
+                f"weather feed unavailable or returned an unexpected response: "
+                f"{type(exc).__name__}",
+            )
         )
     result = {
         "status": "ok",
-        "source": "NASA/JPL mars.nasa.gov, лента MSL REMS",
+        "source": Text(
+            "NASA/JPL mars.nasa.gov, лента MSL REMS", "NASA/JPL mars.nasa.gov, MSL REMS feed"
+        ),
         "url": url,
         "units": {"temperature": "°C", "pressure": "Pa", "ls": "deg"},
         "latest": rows[0],

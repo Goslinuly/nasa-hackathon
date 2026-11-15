@@ -41,6 +41,8 @@ server {
     add_header Cache-Control "public, max-age=86400, must-revalidate";
   }
 
+  # API не кэшируется (нет proxy_cache). Язык ответа задаёт ?lang= в URL, а backend
+  # ставит Vary: Accept-Language — внешний кэш не отдаст ответ на чужом языке.
   location /api/ {
     set $api_upstream ${API_SCHEME}://${API_HOST};
     proxy_pass $api_upstream;

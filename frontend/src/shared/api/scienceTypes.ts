@@ -12,7 +12,9 @@ export interface RadAnalysisResponse {
     source_sheet: string;
     source_columns: string;
     source_sha256: string;
+    /** На языке запроса (?lang=); limitations_en — английский вариант всегда. */
     limitations: string[];
+    limitations_en?: string[];
   };
   analysis: {
     status: 'observations_available' | 'no_observations';
@@ -40,14 +42,17 @@ export interface RadAnalysisResponse {
 }
 
 export interface ScienceIntake {
-  sources: { filename: string; reason: string; duplicate_of?: string }[];
+  sources: { filename: string; reason: string; reason_en?: string; duplicate_of?: string }[];
 }
 
+/** title/summary/position_evidence — на языке запроса; *_en — английский вариант, если есть. */
 export interface ResearchStudy {
   id: number; external_id: string; title: string; summary: string;
+  title_en?: string | null; summary_en?: string | null;
   mission: string | null; instrument: string | null; source_url: string | null;
   latitude_deg: number | null; longitude_deg: number | null;
   position_evidence: string | null; position_uncertainty_m: number | null;
+  position_evidence_en?: string | null;
   verification_status: string;
 }
 

@@ -1,4 +1,5 @@
 // Радиация на выходе: модель эквивалентной дозы (ТЗ EVA 9.4) и архив RAD Curiosity из backend.
+import { apiUrl } from '@/shared/api/client';
 import { greatCircleKm } from '@/shared/time/mars24';
 
 /** Типичная эквивалентная доза на поверхности, мЗв/сут (земные сутки), ТЗ EVA 9.4. */
@@ -75,17 +76,19 @@ export function parseRad(body: RadApiResponse | null): RadSummary | null {
   };
 }
 
-const API_BASE: string = import.meta.env.VITE_API_BASE ?? '/api/v1';
+const radLoading = new Map<string, Promise<RadSummary | null>>();
 
-let radLoading: Promise<RadSummary | null> | null = null;
-
-/** Один запрос за сессию; ошибки → null («нет данных»). */
+/** Один запрос за сессию на язык (ограничения набора приходят на языке интерфейса); ошибки → null. */
 export function loadRad(): Promise<RadSummary | null> {
-  if (!radLoading) {
-    radLoading = fetch(`${API_BASE}/science/rad`)
+  const url = apiUrl('/science/rad');
+  const key = url.toString();
+  let pending = radLoading.get(key);
+  if (!pending) {
+    pending = fetch(url)
       .then(r => (r.ok ? (r.json() as Promise<RadApiResponse>) : null))
       .then(parseRad)
       .catch(() => null);
+    radLoading.set(key, pending);
   }
-  return radLoading;
+  return pending;
 }

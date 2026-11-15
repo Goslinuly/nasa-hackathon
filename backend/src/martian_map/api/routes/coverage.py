@@ -2,12 +2,13 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from martian_map.api.lang import LocalizedRoute
 from martian_map.infrastructure.db import get_session
 from martian_map.modules.coordinates import MarsPoint
 from martian_map.modules.coverage.schemas import CoverageResponse
 from martian_map.modules.coverage.service import assess_point_coverage
 
-router = APIRouter()
+router = APIRouter(route_class=LocalizedRoute)
 
 
 @router.get("/coverage", response_model=CoverageResponse)

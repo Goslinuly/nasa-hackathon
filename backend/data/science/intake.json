@@ -6,6 +6,7 @@
       "size_bytes": 19614,
       "status": "imported_unverified",
       "reason": "RAD: исходные A:G импортированы; H:K пересчитываются кодом.",
+      "reason_en": "RAD: source columns A:G imported; H:K are recomputed by code.",
       "dataset_id": "rad-acf565348545c690",
       "records": 87
     },
@@ -16,7 +17,8 @@
       "status": "needs_source_table",
       "cached_points": 0,
       "embedded_workbooks": 0,
-      "reason": "Шаблон диаграммы; нужен исходный CSV/XLSX с координатами, высотами, единицами и источником MOLA."
+      "reason": "Шаблон диаграммы; нужен исходный CSV/XLSX с координатами, высотами, единицами и источником MOLA.",
+      "reason_en": "A chart template; needs the source CSV/XLSX with coordinates, elevations, units and the MOLA source."
     },
     {
       "filename": "MOLA Ground Track — Orbit 1582 (1).crtx",
@@ -24,6 +26,7 @@
       "size_bytes": 7809,
       "status": "duplicate",
       "reason": "Побайтовая копия другого файла.",
+      "reason_en": "A byte-for-byte copy of another file.",
       "duplicate_of": "MOLA Ground Track — Orbit 1582.crtx"
     },
     {
@@ -33,7 +36,8 @@
       "status": "needs_source_table",
       "cached_points": 0,
       "embedded_workbooks": 0,
-      "reason": "Шаблон диаграммы; нужен исходный CSV/XLSX с координатами, высотами, единицами и источником MOLA."
+      "reason": "Шаблон диаграммы; нужен исходный CSV/XLSX с координатами, высотами, единицами и источником MOLA.",
+      "reason_en": "A chart template; needs the source CSV/XLSX with coordinates, elevations, units and the MOLA source."
     },
     {
       "filename": "TZ_Mikrolinzirovanie_Ekzoplanety_v1_0.docx",
@@ -41,7 +45,8 @@
       "size_bytes": 66259,
       "status": "reference_only",
       "title": "",
-      "reason": "Текстовый документ «»; марсианские измерения не импортированы."
+      "reason": "Текстовый документ «»; марсианские измерения не импортированы.",
+      "reason_en": "Text document “”; no Mars measurements were imported."
     }
   ]
 }

@@ -1,5 +1,6 @@
 """Сырые снимки Perseverance и Curiosity по солу: официальные ленты mars.nasa.gov, без ключей."""
 
+from martian_map.i18n import Text
 from martian_map.modules.eva_sources import cache
 
 M2020_URL = (
@@ -15,9 +16,11 @@ ROVERS = {
     "curiosity": {"max_sol": 5200, "credit": "NASA/JPL-Caltech/MSSS"},
 }
 PREFERRED = ("NAV", "MCZ", "MAST")
-CAVEAT = (
+CAVEAT = Text(
     "Снимок сделан ровером из точки его трека, а не с вашего маршрута: "
-    "это представление о характере местности, не вид из вашей точки"
+    "это представление о характере местности, не вид из вашей точки",
+    "The image was taken by the rover from a point on its own track, not from your route: "
+    "it shows what the terrain is like, not the view from your point",
 )
 TTL_S = 24 * 3600
 
@@ -72,7 +75,7 @@ def parse_msl(payload: object, limit: int) -> list[dict]:
 async def fetch_photos(rover: str, sol: int, limit: int = 6) -> dict:
     meta = ROVERS.get(rover)
     if meta is None:
-        return cache.unavailable(f"неизвестный ровер {rover}")
+        return cache.unavailable(Text(f"неизвестный ровер {rover}", f"unknown rover {rover}"))
     sol = max(0, min(int(sol), meta["max_sol"]))
     limit = max(1, min(int(limit), 12))
     key = f"rover-photos:{rover}:{sol}:{limit}"
@@ -84,14 +87,22 @@ async def fetch_photos(rover: str, sol: int, limit: int = 6) -> dict:
         payload = await cache.fetch_json(url)
         photos = (parse_m2020 if rover == "perseverance" else parse_msl)(payload, limit)
     except Exception as error:  # noqa: BLE001
-        return cache.unavailable(f"лента снимков NASA недоступна: {type(error).__name__}")
+        return cache.unavailable(
+            Text(
+                f"лента снимков NASA недоступна: {type(error).__name__}",
+                f"NASA image feed unavailable: {type(error).__name__}",
+            )
+        )
     result = {
         "status": "ok",
         "rover": rover,
         "sol": sol,
         "count": len(photos),
         "photos": photos,
-        "source": "mars.nasa.gov, официальная лента сырых снимков миссии",
+        "source": Text(
+            "mars.nasa.gov, официальная лента сырых снимков миссии",
+            "mars.nasa.gov, the mission's official raw image feed",
+        ),
         "credit": meta["credit"],
         "caveat": CAVEAT,
     }
