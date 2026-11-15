@@ -4,7 +4,6 @@ import type { MarsPoint } from '@/shared/coordinates/mars';
 import type {
   RadAnalysisResponse,
   ResearchRoute,
-  ResearchStudy,
   ScienceIntake,
 } from './scienceTypes';
 import type {
@@ -21,7 +20,7 @@ import type {
   WalkbackRequest,
   WalkbackResponse,
 } from './evaTypes';
-import type { CoverageResponse, RegionOut } from './types';
+import type { CoverageResponse } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api/v1';
 
@@ -59,10 +58,6 @@ export function fetchCoverage(latDeg: number, lonDeg: number): Promise<CoverageR
   return getJson<CoverageResponse>('/coverage', { lat: latDeg, lon: lonDeg });
 }
 
-export function fetchRegions(): Promise<RegionOut[]> {
-  return getJson<RegionOut[]>('/regions');
-}
-
 export function fetchRadAnalysis(params: {
   start?: string;
   end?: string;
@@ -76,14 +71,6 @@ export function fetchRadAnalysis(params: {
 
 export function fetchScienceIntake(): Promise<ScienceIntake> {
   return getJson<ScienceIntake>('/science/intake');
-}
-
-export function fetchResearchCatalog(): Promise<{
-  total: number;
-  measurement_count: number;
-  studies: ResearchStudy[];
-}> {
-  return getJson('/science/research');
 }
 
 export async function fetchResearchRoute(

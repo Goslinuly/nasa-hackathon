@@ -4,7 +4,6 @@ export const FLAT_SPEED_MS = 0.75;
 export const SLOPE_DOMAIN_DEG: [number, number] = [-20, 20];
 export const MARS_GRAVITY_FACTOR = 0.38;
 export const WATTS_PER_LPM_O2 = 348.3;
-export const TREADMILL_LIMIT_MS = 1.74;
 
 export type Surface = 'firm' | 'sand';
 export type GravityMode = 'nasa_tool' | 'inertial_kept';

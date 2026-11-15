@@ -1,4 +1,4 @@
-// Режим прогулки от первого лица по рельефу HiRISE (docs/TZ_First_Person.md, разделы 2–5).
+// Режим прогулки от первого лица по рельефу HiRISE (ТЗ первого лица, разделы 2–5).
 import { lazy } from 'react';
 import type { ModeDefinition } from '@/app/modeContract';
 

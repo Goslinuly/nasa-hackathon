@@ -47,12 +47,9 @@ def test_route_through_gale_finds_curiosity(records: list[ResearchInput]) -> Non
     assert distance < 5_000
 
 
-def test_route_over_olympus_mons_finds_nothing(records: list[ResearchInput]) -> None:
-    corridor_m = 5_000
-    assert all(
-        _distance_to_route(record, (18.65, 226.2), (18.65, 230.0)) > corridor_m
-        for record in records
-    )
+def test_route_over_olympus_mons_finds_volcano_study(records: list[ResearchInput]) -> None:
+    olympus = next(r for r in records if r.external_id == "olympus-hrsc-young-activity")
+    assert _distance_to_route(olympus, (18.65, 226.2), (18.65, 230.0)) < 5_000
 
 
 def _offset(record: ResearchInput, *corners: tuple[float, float]):
@@ -70,7 +67,7 @@ def test_side_follows_the_direction_of_travel(records: list[ResearchInput]) -> N
 
 def test_empty_corridor_still_knows_what_lies_around(records: list[ResearchInput]) -> None:
     corridor_m = 5_000
-    route = ((18.65, 226.2), (18.65, 230.0))
+    route = ((-55.0, 30.0), (-55.0, 33.0))
     offsets = sorted(
         ((_offset(record, *route), record) for record in records),
         key=lambda pair: pair[0].distance_m,

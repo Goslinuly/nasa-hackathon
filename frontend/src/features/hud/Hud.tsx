@@ -19,6 +19,7 @@ import {
   formatDuration,
   slopeLevel,
 } from '@/shared/eva/suit';
+import { regionAt, regionTypeRu, type RegionInfo } from '@/shared/regions/regionAt';
 import { formatLightTime, interpolateLightTime, loadLightTimeTable, type LightTimeTable } from '@/shared/time/lightTime';
 import {
   formatHours,
@@ -44,6 +45,7 @@ export interface HudExternal {
   lightTable?: LightTimeTable | null;
   rad?: RadSummary | null;
   spaceWeather?: SpaceWeather | null;
+  region?: RegionInfo | null;
 }
 
 export interface HudProps {
@@ -66,6 +68,19 @@ export function Hud({ state }: HudProps) {
       alive = false;
     };
   }, []);
+
+  const regionLat = Math.round(state.lat * 50);
+  const regionLon = Math.round(state.lonEast * 50);
+  useEffect(() => {
+    let alive = true;
+    regionAt(regionLon / 50, regionLat / 50).then(
+      region => alive && setExt(e => ({ ...e, region })),
+      () => alive && setExt(e => ({ ...e, region: null })),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [regionLat, regionLon]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -104,6 +119,25 @@ function fmtViewer(ms: number): string {
 }
 
 const dateOnly = (iso: string) => (iso ? iso.slice(0, 10) : '');
+
+function regionLine(region: RegionInfo | null | undefined): string {
+  if (region === undefined) return '…';
+  if (!region || (!region.specific && !region.province)) return 'вне именованных структур';
+  const parts: string[] = [];
+  if (region.specific) {
+    const kind = regionTypeRu(region.specific.type);
+    parts.push(kind ? `${kind} ${region.specific.name}` : region.specific.name);
+  }
+  if (region.province) parts.push(region.province.name);
+  return parts.join(' · ');
+}
+
+function regionTip(region: RegionInfo | null | undefined): string {
+  const base =
+    'Названия из газеттира планетной номенклатуры IAU/USGS; попадание считается по окружности диаметра объекта, это грубая граница.';
+  const geo = region?.geology ? ` Геологический юнит по карте USGS SIM 3292: ${region.geology.label}.` : '';
+  return base + geo;
+}
 
 // --- вид --------------------------------------------------------------------------------
 
@@ -178,6 +212,12 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
           value={`${fmtNum(Math.round(s.heightM), 0)} м`}
           prov="data"
           tip={`Высота поверхности под ногами из DTM, м относительно ареоида. Продукт: ${s.dataLevel}.`}
+        />
+        <Row
+          label="Регион"
+          value={regionLine(ext.region)}
+          prov={ext.region?.specific ? 'data' : 'nodata'}
+          tip={regionTip(ext.region)}
         />
         {full && (
           <>

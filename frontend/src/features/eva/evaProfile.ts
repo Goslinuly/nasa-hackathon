@@ -46,10 +46,6 @@ export function formatDuration(seconds: number): string {
   return minutes === 0 ? `${hours} ч` : `${hours} ч ${minutes} мин`;
 }
 
-export function formatLiters(liters: number): string {
-  return `${liters.toLocaleString('ru-RU', { maximumFractionDigits: liters < 10 ? 2 : 0 })} л`;
-}
-
 export function formatCorridor(low: number, high: number, unit: string): string {
   const fmt = (v: number) => v.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
   return `${fmt(low)}–${fmt(high)} ${unit}`;

@@ -1,7 +1,7 @@
 // Тесты чистых функций EVA: уклоны профиля, прореживание, подписи и уровни уклона.
 import { describe, expect, it } from 'vitest';
 
-import { buildEvaPoints, levelBadge, formatCorridor, formatDuration, formatLiters, slopeBadge } from './evaProfile';
+import { buildEvaPoints, levelBadge, formatCorridor, formatDuration, slopeBadge } from './evaProfile';
 
 const thresholds = [
   { key: 'conservative_plan', low_deg: -15, high_deg: 15, nature: 'a', label: 'a' },
@@ -38,10 +38,9 @@ describe('подписи', () => {
     expect(formatCorridor(4.2, 5.1, 'ч')).toBe('4,2–5,1 ч');
   });
 
-  it('форматирует время и литры', () => {
+  it('форматирует время', () => {
     expect(formatDuration(3600 * 4 + 60 * 12)).toBe('4 ч 12 мин');
     expect(formatDuration(1800)).toBe('30 мин');
-    expect(formatLiters(120)).toContain('л');
   });
 });
 

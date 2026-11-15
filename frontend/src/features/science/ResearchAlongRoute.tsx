@@ -7,6 +7,7 @@ import type { RouteResult } from '@/features/planner/routing';
 import { fetchResearchRoute } from '@/shared/api/client';
 import type { PlacedStudy, ResearchRoute, RouteSide } from '@/shared/api/scienceTypes';
 import { makeMarsPoint } from '@/shared/coordinates/mars';
+import { regionsAlong, regionTypeRu, type NamedRegion } from '@/shared/regions/regionAt';
 
 const MAX_POINTS = 50;
 
@@ -52,6 +53,23 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
   useEffect(() => {
     setResult(null);
     setError('');
+  }, [route, endpoints.a, endpoints.b]);
+
+  const [crossed, setCrossed] = useState<NamedRegion[]>([]);
+  useEffect(() => {
+    if (!path || path.length === 0) {
+      setCrossed([]);
+      return;
+    }
+    let alive = true;
+    void regionsAlong(path).then((regions) => {
+      if (alive) setCrossed(regions);
+    });
+    return () => {
+      alive = false;
+    };
+    // path пересчитывается из route и endpoints, поэтому зависимости — они.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route, endpoints.a, endpoints.b]);
 
   async function search() {
@@ -100,6 +118,15 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
           {busy ? 'Поиск…' : 'Найти исследования'}
         </button>
       </div>
+      {crossed.length > 0 && (
+        <p className="planner-note">
+          Маршрут проходит через:{' '}
+          {crossed
+            .map((r) => `${r.name}${regionTypeRu(r.type) ? ` (${regionTypeRu(r.type)})` : ''}`)
+            .join(', ')}{' '}
+          · газеттир IAU, USGS
+        </p>
+      )}
       {!path && <p className="dim">Поставьте точки A и Б, чтобы искать исследования по пути.</p>}
       {path && route?.status !== 'ok' && (
         <p className="dim">Маршрут ещё не рассчитан, поэтому поиск пойдёт по прямой между A и Б.</p>
