@@ -4,6 +4,10 @@ Project for the NASA Space Apps Challenge 2026, challenge **Interplanetary Survi
 
 Live site: https://web-production-58753ec9.up.railway.app
 
+<img src="docs/qr/martian-map-qr.svg" alt="QR code: Martian Map live site" width="160">
+
+Scan to open the site on a phone. PNG and SVG for slides and print: [docs/qr/](docs/qr/).
+
 ## Challenge
 
 NASA has explored Mars robotically for decades, studying its extreme environment, mapping its surface, and collecting many types of data. Far from home, the first astronauts to set foot on Mars will want the best map possible, with information on the details of their routes and destinations, updates on current conditions, and the data needed to complete their mission quickly and safely.
