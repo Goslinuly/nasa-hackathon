@@ -26,6 +26,7 @@ import {
   type SpectrumLayer,
   type TrekSource,
 } from './layers';
+import { NO_DATA_GLSL } from './noData';
 import { densifyPath } from './paths';
 import { buildRouteCurve } from './routeCurve';
 import { RoverTrack } from './rover';
@@ -355,6 +356,7 @@ export class MarsGlobeEngine {
     uCoverCount: { value: 0 },
   };
   private whiteTexture: THREE.DataTexture;
+  private noDataTexture: THREE.DataTexture;
   private detailGeneration = 0;
   private currentDetailKey = '';
   private overlayLift = 0;
@@ -389,6 +391,9 @@ export class MarsGlobeEngine {
     this.textures = new TextureStore(Math.min(4, this.renderer.capabilities.getMaxAnisotropy()));
     this.whiteTexture = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
     this.whiteTexture.needsUpdate = true;
+    // Прозрачный тайл: весь тайл без данных, виден запасной слой.
+    this.noDataTexture = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1);
+    this.noDataTexture.needsUpdate = true;
 
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.001, 50);
     this.camera.position.set(0, 0.6, 3.2);
@@ -938,6 +943,7 @@ export class MarsGlobeEngine {
     (this.placeholder.material as THREE.Material).dispose();
     (this.pickSphere.material as THREE.Material).dispose();
     this.whiteTexture.dispose();
+    this.noDataTexture.dispose();
     this.textures.dispose();
     this.renderer.dispose();
   }
@@ -1150,10 +1156,14 @@ export class MarsGlobeEngine {
 
   private patchMaterial(
     material: THREE.MeshLambertMaterial,
-    options: { cover: boolean; shadeUniforms?: Record<string, THREE.IUniform> },
+    options: {
+      cover: boolean;
+      shadeUniforms?: Record<string, THREE.IUniform>;
+      fallbackUniforms?: Record<string, THREE.IUniform>;
+    },
   ): void {
-    const { cover, shadeUniforms } = options;
-    if (!cover && !shadeUniforms) return;
+    const { cover, shadeUniforms, fallbackUniforms } = options;
+    if (!cover && !shadeUniforms && !fallbackUniforms) return;
     material.onBeforeCompile = (shader) => {
       let vertexHead = '';
       let vertexBody = '';
@@ -1178,11 +1188,19 @@ export class MarsGlobeEngine {
     }
   }`;
       }
-      if (shadeUniforms) {
-        Object.assign(shader.uniforms, shadeUniforms);
+      if (shadeUniforms || fallbackUniforms) {
         vertexHead += 'varying vec2 vTileUv;\n';
         vertexBody += '\n  vTileUv = uv;';
-        fragmentHead += 'varying vec2 vTileUv;\nuniform sampler2D uShadeMap;\nuniform vec3 uShadeRect;\nuniform float uShadeStrength;\n';
+        fragmentHead += 'varying vec2 vTileUv;\n';
+      }
+      if (fallbackUniforms) {
+        Object.assign(shader.uniforms, fallbackUniforms);
+        fragmentHead += 'uniform sampler2D uFallbackMap;\nuniform vec3 uFallbackRect;\nuniform float uFallbackStrength;\n';
+        fragmentAfterMap += NO_DATA_GLSL;
+      }
+      if (shadeUniforms) {
+        Object.assign(shader.uniforms, shadeUniforms);
+        fragmentHead += 'uniform sampler2D uShadeMap;\nuniform vec3 uShadeRect;\nuniform float uShadeStrength;\n';
         fragmentAfterMap += `
   {
     float shade = texture2D(uShadeMap, vTileUv * uShadeRect.z + uShadeRect.xy).r;
@@ -1197,7 +1215,7 @@ export class MarsGlobeEngine {
           .replace('void main() {', `void main() {${fragmentStart}`)
           .replace('#include <map_fragment>', `#include <map_fragment>${fragmentAfterMap}`);
     };
-    material.customProgramCacheKey = () => `mars-${cover ? 'c' : ''}${shadeUniforms ? 's' : ''}`;
+    material.customProgramCacheKey = () => `mars-${cover ? 'c' : ''}${shadeUniforms ? 's' : ''}${fallbackUniforms ? 'f' : ''}`;
   }
 
   private loadSourceTile(
@@ -1213,13 +1231,23 @@ export class MarsGlobeEngine {
     return this.textures.load(trekTileUrl(source, zs, rect.x, rect.y), srgb, (texture) => done(texture, rect));
   }
 
-  private cachedAncestor(source: TrekSource, z: number, x: number, y: number): THREE.Texture | null {
+  private cachedAncestorTile(
+    source: TrekSource,
+    z: number,
+    x: number,
+    y: number,
+  ): { texture: THREE.Texture; rect: ReturnType<typeof ancestorRect> } | null {
     for (let zs = Math.min(z, source.maxZoom + 1) - 1; zs >= 0; zs--) {
       const rect = ancestorRect(z, x, y, zs);
       const cached = this.textures.get(trekTileUrl(source, zs, rect.x, rect.y));
-      if (cached) return this.textures.view(cached, rect);
+      if (cached) return { texture: cached, rect };
     }
     return null;
+  }
+
+  private cachedAncestor(source: TrekSource, z: number, x: number, y: number): THREE.Texture | null {
+    const found = this.cachedAncestorTile(source, z, x, y);
+    return found ? this.textures.view(found.texture, found.rect) : null;
   }
 
   private spectrumMaterial(z: number, x: number, y: number, cover: boolean, onShown?: () => void): THREE.MeshLambertMaterial {
@@ -1234,7 +1262,15 @@ export class MarsGlobeEngine {
           uShadeStrength: { value: 0 },
         }
       : undefined;
-    this.patchMaterial(material, { cover, shadeUniforms });
+    const fallback = layer.fallback ? SPECTRA[layer.fallback] : null;
+    const fallbackUniforms = fallback
+      ? {
+          uFallbackMap: { value: this.whiteTexture as THREE.Texture },
+          uFallbackRect: { value: new THREE.Vector3(0, 0, 1) },
+          uFallbackStrength: { value: 0 },
+        }
+      : undefined;
+    this.patchMaterial(material, { cover, shadeUniforms, fallbackUniforms });
 
     let shown = false;
     let final = false;
@@ -1255,16 +1291,30 @@ export class MarsGlobeEngine {
     const ancestor = this.cachedAncestor(layer.color, z, x, y);
     if (ancestor) show(ancestor, false);
 
-    const loadColor = (source: TrekSource, onMissing?: () => void) => {
+    state.cancels.push(
+      this.loadSourceTile(layer.color, z, x, y, true, (texture, rect) => {
+        if (texture) show(this.textures.view(texture, rect), true);
+        // Тайла нет совсем: весь тайл без данных, его закроет запасной слой.
+        else if (fallback) show(this.textures.view(this.noDataTexture), true);
+      }),
+    );
+
+    // Где у слоя нет данных (прозрачные пиксели), показываем приглушённый запасной слой, а не чёрное.
+    if (fallback && fallbackUniforms) {
+      const setFallback = (texture: THREE.Texture, rect: ReturnType<typeof ancestorRect>) => {
+        fallbackUniforms.uFallbackMap.value = texture;
+        fallbackUniforms.uFallbackRect.value.set(rect.offsetX, rect.offsetY, rect.repeat);
+        fallbackUniforms.uFallbackStrength.value = 1;
+      };
+      // Пока грузится свой тайл, берём уже загруженного предка: без чёрных вспышек.
+      const cachedFallback = this.cachedAncestorTile(fallback.color, z, x, y);
+      if (cachedFallback) setFallback(cachedFallback.texture, cachedFallback.rect);
       state.cancels.push(
-        this.loadSourceTile(source, z, x, y, true, (texture, rect) => {
-          if (texture) show(this.textures.view(texture, rect), true);
-          else if (!state.disposed) onMissing?.();
+        this.loadSourceTile(fallback.color, z, x, y, true, (texture, rect) => {
+          if (texture && !state.disposed) setFallback(texture, rect);
         }),
       );
-    };
-    const fallback = layer.fallback ? SPECTRA[layer.fallback] : null;
-    loadColor(layer.color, fallback ? () => loadColor(fallback.color) : undefined);
+    }
 
     if (layer.shade && shadeUniforms) {
       state.cancels.push(
