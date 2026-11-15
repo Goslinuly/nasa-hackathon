@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Облёт участка — Martian Map</title>
+<style>
+  :root {
+    --bg: #0b0806;
+    --panel: rgba(18, 13, 10, 0.86);
+    --line: rgba(220, 180, 140, 0.22);
+    --text: #f0e2d4;
+    --dim: #b09880;
+    --accent: #e8a864;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: var(--mono); font-size: 12px; overflow: hidden; }
+  canvas { display: block; }
+  #app { position: fixed; inset: 0; }
+
+  .panel { position: fixed; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; backdrop-filter: blur(8px); line-height: 1.5;
+    max-height: calc(100vh - 24px); overflow: auto; }
+  .panel h2 { margin: 0 0 7px; font-size: 11px; font-weight: 600; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--accent); }
+  .panel h3 { margin: 9px 0 4px; font-size: 10px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--dim); border-top: 1px solid var(--line); padding-top: 7px; }
+  .row { display: flex; justify-content: space-between; gap: 14px; white-space: nowrap; }
+  .row span:first-child { color: var(--dim); }
+  .row span:last-child { font-variant-numeric: tabular-nums; }
+
+  #left  { top: 12px; left: 12px; width: 300px; }
+  #right { top: 12px; right: 12px; width: 285px; }
+  #bottom { left: 12px; bottom: 12px; width: 300px; }
+  #ctl { right: 12px; bottom: 12px; width: 285px; }
+
+  .btns { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 2px; }
+  button { font: inherit; color: var(--text); background: rgba(255,255,255,.06);
+    border: 1px solid var(--line); border-radius: 5px; padding: 4px 9px; cursor: pointer; }
+  button:hover { background: rgba(255,255,255,.12); }
+  button[aria-pressed="true"] { background: var(--accent); color: #2a1708; border-color: var(--accent); }
+  label.slider { display: block; margin: 7px 0 2px; color: var(--dim); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+
+  #loading { position: fixed; inset: 0; display: grid; place-content: center; gap: 10px;
+    justify-items: center; background: var(--bg); z-index: 20; text-align: center; }
+  /* display:grid перебивает атрибут hidden, поэтому гасим заставку явно */
+  #loading[hidden] { display: none; }
+  #bar { width: 280px; height: 3px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+  #bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+  #err { color: #ff9a8a; max-width: 540px; line-height: 1.6; }
+
+  #credit { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px;
+    color: var(--dim); font-size: 10px; text-align: center; pointer-events: none;
+    text-shadow: 0 1px 3px #000; max-width: 44vw; line-height: 1.5; }
+  .warn { color: #ffcf8a; }
+  .lvl-detail { color: #9fe0a8; }
+  .lvl-overview { color: #e8c074; }
+  @media (max-width: 1200px) {
+    .panel { font-size: 11px; }
+    #left, #right, #bottom, #ctl { width: 235px; }
+    #credit { display: none; }
+  }
+  /* Узкое окно (панель в приложении): панели не должны закрывать вид. */
+  @media (max-width: 920px) {
+    .panel { font-size: 10px; padding: 7px 9px; }
+    #left, #right, #bottom, #ctl { width: 45vw; max-width: 215px; max-height: 45vh; }
+    .panel h3 { margin: 6px 0 3px; padding-top: 5px; }
+    .row { gap: 8px; }
+    button { padding: 3px 7px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="loading">
+  <div id="load-what">Загрузка…</div>
+  <div id="bar"><i></i></div>
+  <div id="pct" style="color:var(--dim)">—</div>
+  <div id="err"></div>
+</div>
+
+<section class="panel" id="left" hidden>
+  <h2>Участок</h2>
+  <div class="btns" id="scene-btns"></div>
+  <div class="row"><span>название</span><span id="m-title">—</span></div>
+  <div class="row"><span>центр</span><span id="m-center">—</span></div>
+  <div class="row"><span>охват</span><span id="m-size">—</span></div>
+  <div class="row"><span>перепад высот</span><span id="m-relief">—</span></div>
+  <div class="row"><span>высоты</span><span id="m-abs">—</span></div>
+  <h3>Уровень данных</h3>
+  <div id="m-levels"></div>
+  <h3>Геометрия сцены</h3>
+  <div class="row"><span>вершин</span><span id="m-verts">—</span></div>
+  <div class="row"><span>треугольников</span><span id="m-tris">—</span></div>
+  <div class="row"><span>вертикальный масштаб</span><span>×1</span></div>
+</section>
+
+<section class="panel" id="right" hidden>
+  <h2>Время и Солнце</h2>
+  <div class="row"><span>фаза</span><span id="s-phase">—</span></div>
+  <div class="row"><span>LTST</span><span id="s-ltst">—</span></div>
+  <div class="row"><span>LMST</span><span id="s-lmst">—</span></div>
+  <div class="row"><span>сольная дата</span><span id="s-msd">—</span></div>
+  <div class="row"><span>UTC</span><span id="s-utc">—</span></div>
+  <h3>Сезон</h3>
+  <div class="row"><span>L<sub>s</sub></span><span id="s-ls">—</span></div>
+  <div class="row"><span>сезон</span><span id="s-season">—</span></div>
+  <div class="row"><span>склонение</span><span id="s-dec">—</span></div>
+  <div class="row"><span>уравнение времени</span><span id="s-eot">—</span></div>
+  <h3>Положение Солнца</h3>
+  <div class="row"><span>высота</span><span id="s-el">—</span></div>
+  <div class="row"><span>азимут</span><span id="s-az">—</span></div>
+  <div class="row"><span>расстояние</span><span id="s-au">—</span></div>
+  <div class="row"><span>угловой диаметр</span><span id="s-ang">—</span></div>
+  <h3>Поток</h3>
+  <div class="row"><span>на границе атмосферы</span><span id="s-toa">—</span></div>
+  <div class="row"><span>у поверхности</span><span id="s-surf">—</span></div>
+  <div class="row"><span>воздушная масса</span><span id="s-am">—</span></div>
+  <div class="row"><span>оптическая толща τ</span><span id="s-tau">—</span></div>
+</section>
+
+<section class="panel" id="bottom" hidden>
+  <h2>Камера</h2>
+  <div class="row"><span>режим</span><span id="c-mode">облёт</span></div>
+  <div class="row"><span>над рельефом</span><span id="c-agl">—</span></div>
+  <div class="row"><span>высота по ареоиду</span><span id="c-alt">—</span></div>
+  <div class="row"><span>широта</span><span id="c-lat">—</span></div>
+  <div class="row"><span>долгота</span><span id="c-lon">—</span></div>
+  <div class="row"><span>рельеф под камерой</span><span id="c-ground">—</span></div>
+  <div class="row"><span>источник высоты</span><span id="c-src">—</span></div>
+  <div class="row"><span>курс</span><span id="c-head">—</span></div>
+  <div class="row"><span>скорость полёта</span><span id="c-speed">—</span></div>
+  <div class="row"><span>до границы облёта</span><span id="c-fence">—</span></div>
+  <div id="c-hint" style="color:var(--dim); margin-top:6px; white-space:normal"></div>
+</section>
+
+<section class="panel" id="ctl" hidden>
+  <h2>Управление</h2>
+  <div class="btns">
+    <button id="b-orbit" aria-pressed="true">Облёт</button>
+    <button id="b-fly" aria-pressed="false">Полёт</button>
+    <button id="b-reset">Сброс</button>
+  </div>
+  <h3>Ход времени</h3>
+  <div class="btns">
+    <button data-rate="0" aria-pressed="false">пауза</button>
+    <button data-rate="1" aria-pressed="true">×1</button>
+    <button data-rate="60" aria-pressed="false">×60</button>
+    <button data-rate="600" aria-pressed="false">×600</button>
+    <button data-rate="3600" aria-pressed="false">×3600</button>
+  </div>
+  <label class="slider">Местное истинное солнечное время: <span id="l-ltst">—</span></label>
+  <input type="range" id="r-ltst" min="0" max="24" step="0.01" value="12">
+  <label class="slider">Оптическая толща пыли τ = <span id="l-tau">0.50</span></label>
+  <input type="range" id="r-tau" min="0.05" max="5" step="0.05" value="0.5">
+  <label class="slider">Выдержка: <span id="l-exp">1.50</span></label>
+  <input type="range" id="r-exp" min="0.2" max="6" step="0.05" value="1.5">
+  <div class="btns" style="margin-top:8px">
+    <button id="b-wire" aria-pressed="false">Сетка</button>
+    <button id="b-fence" aria-pressed="true">Границы</button>
+    <button id="b-panels" aria-pressed="true">Панели</button>
+  </div>
+  <div id="notice" class="warn" style="margin-top:8px; white-space:normal" hidden></div>
+</section>
+
+<div id="credit" hidden></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+const MARS_R = 3396190;   // радиус в CRS участков (+proj=eqc ... +R=3396190)
+
+// ───────────────────────── Сцены ─────────────────────────
+// kind: 'glb'  — готовые модели из проекта;
+//       'mola' — сетка строится в браузере из глобальной карты высот MOLA MEGDR 8 пикс/градус.
+const SCENES = {
+  gale: {
+    title: 'Гейл: boxwork и кратер',
+    short: 'Гейл',
+    kind: 'glb',
+    lat: -4.80421, lonEast: 137.382525, baseM: -3860.0,
+    lonScale: 1,            // CRS участка: eqc с lat_ts=0, то есть x = R·Δλ без косинуса
+    parts: [
+      { url: '../../sites/galecode2.glb', label: 'участок HiRISE' },
+      { url: '../../frontend/public/data/local/gale-boxwork/backdrop.glb', label: 'кратер вокруг' },
+    ],
+    heightUrl: '../../frontend/public/data/local/gale-boxwork/height.png',
+    heightStepM: 0.01,
+    levels: [
+      ['участок 1,8 × 2,4 км', 'HiRISE DTM 2 м + снимок', 'detail'],
+      ['вокруг, 250 × 250 км', 'обзорный рельеф ~200 м/пикс', 'overview'],
+    ],
+    credit: 'Гейл, район boxwork · DTEEC_019698_1750_019988_1750_U01 · ESP_019698_1750_RED_A_01_ORTHO · ' +
+      'NASA/JPL/University of Arizona (HiRISE); DTM USGS Astrogeology · ' +
+      'дальний план — обзорный рельеф кратера ~200 м/пикс по MOLA/HRSC, без снимка · рельеф ×1 · снимок тонирован',
+  },
+  olympus: {
+    title: 'Олимп',
+    short: 'Олимп',
+    kind: 'mola',
+    lat: 18.65, lonEast: 226.20, halfLatDeg: 6.0, halfLonDeg: 6.5,
+    levels: [['730 × 711 км', 'MOLA ~7,0 км/пикс, цвет по высоте', 'overview']],
+    credit: 'Олимп · MGS MOLA MEGDR 8 пикс/градус (MEGT90N000EB.IMG) · ' +
+      'NASA/GSFC MOLA Science Team, PDS Geosciences Node · рельеф ×1 · цвет по высоте, это не снимок',
+  },
+  marineris: {
+    title: 'Долины Маринера',
+    short: 'Маринер',
+    kind: 'mola',
+    lat: -8.0, lonEast: 290.0, halfLatDeg: 7.0, halfLonDeg: 14.0,
+    levels: [['1644 × 830 км', 'MOLA ~7,3 км/пикс, цвет по высоте', 'overview']],
+    credit: 'Долины Маринера · MGS MOLA MEGDR 8 пикс/градус · ' +
+      'NASA/GSFC MOLA Science Team, PDS Geosciences Node · рельеф ×1 · цвет по высоте, это не снимок',
+  },
+  hellas: {
+    title: 'Равнина Эллада',
+    short: 'Эллада',
+    kind: 'mola',
+    lat: -42.4, lonEast: 70.5, halfLatDeg: 12.0, halfLonDeg: 14.0,
+    levels: [['1226 × 1423 км', 'MOLA ~5,5 км/пикс, цвет по высоте', 'overview']],
+    credit: 'Равнина Эллада · MGS MOLA MEGDR 8 пикс/градус · ' +
+      'NASA/GSFC MOLA Science Team, PDS Geosciences Node · рельеф ×1 · цвет по высоте, это не снимок',
+  },
+};
+
+const MOLA = {
+  png: '../../frontend/public/data/globe/mola_megdr_8ppd_height.png',
+  json: '../../frontend/public/data/globe/mola_megdr_8ppd_height.json',
+};
+const SKY_BASE = '../../frontend/public/data/sky/';
+
+// ───────────────────────── Mars24 (Allison & McEwen) ─────────────────────────
+// Порт frontend/src/features/sky/marsTime.ts — формулы без изменений.
+const SOLAR_CONSTANT_WM2 = 1361;
+const TT_MINUS_UTC_S = 69.184;
+const PERTURBERS = [
+  [0.0071, 2.2353, 49.409], [0.0057, 2.7543, 168.173], [0.0039, 1.1177, 191.837],
+  [0.0037, 15.7866, 21.736], [0.0021, 2.1354, 15.704], [0.002, 2.4694, 95.528],
+  [0.0018, 32.8493, 49.095],
+];
+const daysSinceJ2000 = (ms) => 2440587.5 + ms / 86400000 + TT_MINUS_UTC_S / 86400 - 2451545.0;
+const marsSolDate = (ms) => (daysSinceJ2000(ms) - 4.5) / 1.027491252 + 44796.0 - 0.00096;
+const unixMsFromMsd = (msd) =>
+  ((msd - 44796.0 + 0.00096) * 1.027491252 + 4.5 + 2451545.0 - 2440587.5) * 86400000 - TT_MINUS_UTC_S * 1000;
+
+function equationOfCentre(dt, meanAnomalyDeg) {
+  const m = meanAnomalyDeg * D2R;
+  const pbs = PERTURBERS.reduce((s, [a, tau, ph]) => s + a * Math.cos(((0.985626 * dt) / tau + ph) * D2R), 0);
+  return (10.691 + 3.0e-7 * dt) * Math.sin(m) + 0.623 * Math.sin(2 * m) + 0.05 * Math.sin(3 * m)
+       + 0.005 * Math.sin(4 * m) + 0.0005 * Math.sin(5 * m) + pbs;
+}
+
+function solarGeometry(ms, latDeg, lonEastDeg) {
+  const dt = daysSinceJ2000(ms);
+  const meanAnomaly = 19.3871 + 0.52402073 * dt;
+  const fms = 270.3871 + 0.524038496 * dt;
+  const nuMinusM = equationOfCentre(dt, meanAnomaly);
+  const ls = (((fms + nuMinusM) % 360) + 360) % 360;
+  const eotDeg = 2.861 * Math.sin(2 * ls * D2R) - 0.071 * Math.sin(4 * ls * D2R)
+               + 0.002 * Math.sin(6 * ls * D2R) - nuMinusM;
+  const msd = marsSolDate(ms);
+  const mtc = (((24 * msd) % 24) + 24) % 24;
+  const westLon = (((360 - lonEastDeg) % 360) + 360) % 360;
+  const lmst = (((mtc - (westLon * 24) / 360) % 24) + 24) % 24;
+  const ltst = (((lmst + (eotDeg * 24) / 360) % 24) + 24) % 24;
+  const decDeg = Math.asin(0.42565 * Math.sin(ls * D2R)) * R2D + 0.25 * Math.sin(ls * D2R);
+  const haDeg = 15 * (ltst - 12);
+  const phi = latDeg * D2R, dec = decDeg * D2R, h = haDeg * D2R;
+  const east = -Math.cos(dec) * Math.sin(h);
+  const north = Math.sin(dec) * Math.cos(phi) - Math.cos(dec) * Math.sin(phi) * Math.cos(h);
+  const up = Math.sin(dec) * Math.sin(phi) + Math.cos(dec) * Math.cos(phi) * Math.cos(h);
+  const elevationDeg = Math.asin(Math.max(-1, Math.min(1, up))) * R2D;
+  const azimuthDeg = (((Math.atan2(east, north) * R2D) % 360) + 360) % 360;
+  const m = meanAnomaly * D2R;
+  const distanceAu = 1.52367934 * (1.00436 - 0.09309 * Math.cos(m) - 0.004336 * Math.cos(2 * m)
+                   - 0.00031 * Math.cos(3 * m) - 0.00003 * Math.cos(4 * m));
+  return { msd, lmst, ltst, ls, eotDeg, declinationDeg: decDeg, elevationDeg, azimuthDeg,
+    enu: [east, north, up], distanceAu,
+    irradianceWm2: SOLAR_CONSTANT_WM2 / (distanceAu * distanceAu),
+    angularDiameterDeg: 2 * Math.atan(0.00465047 / distanceAu) * R2D };
+}
+
+function unixMsForLtst(nearMs, latDeg, lonEastDeg, ltstHours) {
+  const wrap = (h) => ((((h + 12) % 24) + 24) % 24) - 12;
+  let msd = marsSolDate(nearMs);
+  for (let i = 0; i < 4; i += 1) {
+    const g = solarGeometry(unixMsFromMsd(msd), latDeg, lonEastDeg);
+    msd += wrap(ltstHours - g.ltst) / 24;
+  }
+  return unixMsFromMsd(msd);
+}
+
+// ───────────────────────── Модель вращения IAU ─────────────────────────
+// Порт frontend/src/features/sky/marsSky.ts.
+const mul3 = (a, b) => {
+  const o = new Array(9).fill(0);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++)
+    o[r * 3 + c] = a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c];
+  return o;
+};
+const rotZ = (a) => { const c = Math.cos(a), s = Math.sin(a); return [c, s, 0, -s, c, 0, 0, 0, 1]; };
+const rotX = (a) => { const c = Math.cos(a), s = Math.sin(a); return [1, 0, 0, 0, c, s, 0, -s, c]; };
+
+function icrfToLocalEnu(d, latDeg, lonEastDeg) {
+  const T = d / 36525;
+  const ra = (317.68143 - 0.1061 * T) * D2R;
+  const dec = (52.8865 - 0.0609 * T) * D2R;
+  const w = ((((176.63 + 350.89198226 * d) % 360) + 360) % 360) * D2R;
+  const body = mul3(mul3(rotZ(w), rotX(Math.PI / 2 - dec)), rotZ(Math.PI / 2 + ra));
+  const phi = latDeg * D2R, lam = lonEastDeg * D2R;
+  const rows = [
+    [-Math.sin(lam), Math.cos(lam), 0],
+    [-Math.sin(phi) * Math.cos(lam), -Math.sin(phi) * Math.sin(lam), Math.cos(phi)],
+    [Math.cos(phi) * Math.cos(lam), Math.cos(phi) * Math.sin(lam), Math.sin(phi)],
+  ];
+  const o = new Array(9).fill(0);
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++)
+    o[r * 3 + c] = rows[r][0] * body[c] + rows[r][1] * body[3 + c] + rows[r][2] * body[6 + c];
+  return o;
+}
+
+// ───────────────────────── Сумерки ─────────────────────────
+// Порт frontend/src/features/sky/skyMath.ts.
+const TWILIGHT_TOP_DEG = 5, TWILIGHT_BOTTOM_DEG = -18;
+const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const daylightWeight = (e) => smoothstep(TWILIGHT_BOTTOM_DEG, TWILIGHT_TOP_DEG, e);
+const starWeight = (e) => 1 - smoothstep(TWILIGHT_BOTTOM_DEG, TWILIGHT_TOP_DEG - 5, e);
+const dayPhase = (e) => (e > TWILIGHT_TOP_DEG ? 'день' : e > TWILIGHT_BOTTOM_DEG ? 'сумерки' : 'ночь');
+const enuToScene = (v) => [v[0], v[2], -v[1]];   // оси сцены: x восток, y вверх, z юг
+
+// ───────────────────────── Купол неба ─────────────────────────
+// Шейдер из frontend/src/features/sky/skyDome.ts.
+const STAR_EXPOSURE = 3;
+const VERTEX = `varying vec3 vDir;
+void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`;
+const FRAGMENT = `uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir;
+uniform float sunRadiusRad; uniform float sunElevationDeg; uniform float dayWeight;
+uniform float starWeight; uniform float tau; uniform float starGain; uniform float gamma;
+uniform mat3 icrfToEnu; uniform sampler2D milkyWay; varying vec3 vDir;
+const float PI = 3.14159265359;
+void main(){
+  vec3 dir = normalize(vDir);
+  float h = clamp(dir.y, 0.0, 1.0);
+  float tauGain = clamp(0.55 + 0.9 * tau, 0.6, 1.6);
+  vec3 sky = mix(horizon, top, pow(h, 0.6)) * (0.05 + 0.95 * dayWeight) * tauGain;
+  float chord = length(dir - sunDir);
+  float sunVisible = smoothstep(-2.0, 1.0, sunElevationDeg);
+  float broad = pow(max(1.0 - chord * chord * 0.5, 0.0), 12.0);
+  float narrow = pow(max(1.0 - chord * chord * 0.5, 0.0), 400.0);
+  float scatter = clamp(tau / 0.5, 0.2, 3.0);
+  vec3 halo = (vec3(0.25,0.22,0.2) * broad + vec3(0.55,0.6,0.65) * narrow * scatter) * sunVisible;
+  float disc = (1.0 - smoothstep(sunRadiusRad * 0.9, sunRadiusRad * 1.15, chord)) * sunVisible;
+  vec3 color = sky + halo * (0.3 + 0.7 * dayWeight) + vec3(1.0,0.96,0.88) * disc * 12.0;
+  vec3 enu = vec3(dir.x, -dir.z, dir.y);
+  vec3 icrf = enu * icrfToEnu;
+  float ra = atan(icrf.y, icrf.x);
+  float dec = asin(clamp(icrf.z, -1.0, 1.0));
+  vec2 uv = vec2(fract(ra / (2.0 * PI)), 0.5 - dec / PI);
+  vec3 radiance = pow(texture2D(milkyWay, uv).rgb, vec3(gamma)) * starGain;
+  float aboveHorizon = smoothstep(-0.02, 0.08, dir.y);
+  vec3 night = radiance * starWeight * aboveHorizon * (1.0 - disc);
+  vec3 dustGlow = vec3(0.045,0.028,0.02) * pow(1.0 - h, 3.0) * starWeight * tauGain;
+  gl_FragColor = vec4(color + night + dustGlow, 1.0);
+  #include <colorspace_fragment>
+}`;
+
+// ───────────────────────── Рендерер ─────────────────────────
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;   // как в прогулке проекта; AgX душит тёмное, звёзды пропадают
+renderer.toneMappingExposure = 1.5;                   // WALK_EXPOSURE прогулки
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+let skyRadius = 60000;
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 1, skyRadius * 2.4);
+
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, depthTest: false,
+  uniforms: {
+    top: { value: new THREE.Color('#b98a63') }, horizon: { value: new THREE.Color('#cfa47e') },
+    sunDir: { value: new THREE.Vector3(0, 1, 0) },
+    sunRadiusRad: { value: THREE.MathUtils.degToRad(0.33 / 2) },
+    sunElevationDeg: { value: 35 }, dayWeight: { value: 1 }, starWeight: { value: 0 },
+    tau: { value: 0.5 }, starGain: { value: 0.95 * STAR_EXPOSURE }, gamma: { value: 2.6 },
+    icrfToEnu: { value: new THREE.Matrix3() },
+    milkyWay: { value: new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1) },
+  },
+  vertexShader: VERTEX, fragmentShader: FRAGMENT,
+});
+skyMat.uniforms.milkyWay.value.needsUpdate = true;
+let skyMesh = new THREE.Mesh(new THREE.SphereGeometry(skyRadius, 64, 32), skyMat);
+skyMesh.frustumCulled = false;
+skyMesh.renderOrder = -1;
+scene.add(skyMesh);
+
+const sun = new THREE.DirectionalLight(0xfff0dd, 3);
+scene.add(sun);
+const hemi = new THREE.HemisphereLight(0xd9a877, 0x40291c, 0.5);
+scene.add(hemi);
+
+const fenceMat = new THREE.LineBasicMaterial({ color: 0xe8a864, transparent: true, opacity: 0.4 });
+let fenceRing = null;
+
+function resizeSky(radius) {
+  skyRadius = radius;
+  scene.remove(skyMesh);
+  skyMesh.geometry.dispose();
+  skyMesh = new THREE.Mesh(new THREE.SphereGeometry(skyRadius, 64, 32), skyMat);
+  skyMesh.frustumCulled = false;
+  skyMesh.renderOrder = -1;
+  scene.add(skyMesh);
+  camera.far = skyRadius * 2.4;
+  camera.updateProjectionMatrix();
+}
+
+// ───────────────────────── Загрузка данных ─────────────────────────
+const el = (id) => document.getElementById(id);
+const loading = el('loading'), bar = el('bar').firstElementChild, pct = el('pct'), errBox = el('err');
+const say = (what) => { el('load-what').textContent = what; };
+
+async function decodePng(url) {
+  const img = new Image();
+  img.src = url;
+  await img.decode();
+  const cv = document.createElement('canvas');
+  cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+  const ctx = cv.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  return { px: ctx.getImageData(0, 0, cv.width, cv.height).data, width: cv.width, height: cv.height };
+}
+
+let mola = null;
+async function loadMola() {
+  const meta = await (await fetch(MOLA.json)).json();
+  const { px, width, height } = await decodePng(MOLA.png);
+  const data = new Float32Array(width * height);
+  for (let i = 0; i < data.length; i += 1) {
+    const units = (px[i * 4] << 8) | px[i * 4 + 1];
+    data[i] = (units - meta.offset_units) * meta.step_m;
+  }
+  return { data, width, height, ppd: meta.pixels_per_degree };
+}
+
+// Высота MOLA по широте и восточной долготе, билинейно.
+function molaHeightAt(latDeg, lonEastDeg) {
+  if (!mola) return NaN;
+  const { data, width, height, ppd } = mola;
+  const fc = (((lonEastDeg % 360) + 360) % 360) * ppd;
+  const fr = (90 - latDeg) * ppd;
+  if (fr < 0 || fr > height - 1) return NaN;
+  const c0 = Math.floor(fc), r0 = Math.max(0, Math.min(height - 1, Math.floor(fr)));
+  const c1 = (c0 + 1) % width, r1 = Math.min(height - 1, r0 + 1);
+  const tx = fc - c0, ty = fr - r0;
+  const cc0 = ((c0 % width) + width) % width;
+  const h00 = data[r0 * width + cc0], h10 = data[r0 * width + c1];
+  const h01 = data[r1 * width + cc0], h11 = data[r1 * width + c1];
+  return (h00 * (1 - tx) + h10 * tx) * (1 - ty) + (h01 * (1 - tx) + h11 * tx) * ty;
+}
+
+// Цвет по высоте: гипсометрическая шкала. Это не снимок, и так подписано.
+// Тона марсианские: к вершине не белеет, иначе Олимп читается как заснеженная гора.
+const HYPSO = [
+  [-8200, 0x3a3348], [-5000, 0x53453f], [-2000, 0x6d4f38], [0, 0x8a5f3c],
+  [4000, 0xa8794c], [8000, 0xbe8e5c], [14000, 0xd0a271], [21500, 0xdfb98c],
+];
+function hypsoColor(h) {
+  let i = 0;
+  while (i < HYPSO.length - 2 && h > HYPSO[i + 1][0]) i += 1;
+  const [h0, c0] = HYPSO[i], [h1, c1] = HYPSO[i + 1];
+  const t = Math.min(1, Math.max(0, (h - h0) / (h1 - h0)));
+  return new THREE.Color(c0).lerp(new THREE.Color(c1), t);
+}
+
+// Сетка региона из MOLA. Локальные метры: x на восток с косинусом широты, z на юг.
+function buildMolaRegion(cfg) {
+  const { lat, lonEast, halfLatDeg, halfLonDeg } = cfg;
+  const ppd = mola.ppd;
+  const nLat = Math.round(2 * halfLatDeg * ppd) + 1;
+  const nLon = Math.round(2 * halfLonDeg * ppd) + 1;
+  const cosLat = Math.cos(lat * D2R);
+  const pos = new Float32Array(nLat * nLon * 3);
+  const col = new Float32Array(nLat * nLon * 3);
+  const heights = new Float32Array(nLat * nLon);
+  let minH = Infinity;
+  for (let j = 0; j < nLat; j += 1) {
+    const latJ = lat + halfLatDeg - (j * 2 * halfLatDeg) / (nLat - 1);
+    for (let i = 0; i < nLon; i += 1) {
+      const lonI = lonEast - halfLonDeg + (i * 2 * halfLonDeg) / (nLon - 1);
+      const h = molaHeightAt(latJ, lonI);
+      heights[j * nLon + i] = h;
+      if (h < minH) minH = h;
+    }
+  }
+  for (let j = 0; j < nLat; j += 1) {
+    const latJ = lat + halfLatDeg - (j * 2 * halfLatDeg) / (nLat - 1);
+    for (let i = 0; i < nLon; i += 1) {
+      const lonI = lonEast - halfLonDeg + (i * 2 * halfLonDeg) / (nLon - 1);
+      const k = (j * nLon + i) * 3;
+      pos[k] = (lonI - lonEast) * D2R * MARS_R * cosLat;
+      pos[k + 1] = heights[j * nLon + i] - minH;
+      pos[k + 2] = -(latJ - lat) * D2R * MARS_R;
+      const c = hypsoColor(heights[j * nLon + i]);
+      col[k] = c.r; col[k + 1] = c.g; col[k + 2] = c.b;
+    }
+  }
+  const idx = [];
+  for (let j = 0; j < nLat - 1; j += 1) {
+    for (let i = 0; i < nLon - 1; i += 1) {
+      const a = j * nLon + i, b = a + 1, c = a + nLon, d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 });
+  return { mesh: new THREE.Mesh(geo, mat), baseM: minH };
+}
+
+// Декодер Draco лежит в проекте: подложка кратера сжата им.
+const dracoLoader = new DRACOLoader().setDecoderPath('../../frontend/public/draco/');
+const gltfLoader = new GLTFLoader().setDRACOLoader(dracoLoader);
+
+function loadGlb(url, label) {
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(url,
+      (gltf) => resolve(gltf),
+      (ev) => {
+        const mb = ev.loaded / 1048576;
+        pct.textContent = ev.total ? `${label}: ${mb.toFixed(1)} из ${(ev.total / 1048576).toFixed(1)} МБ`
+                                   : `${label}: ${mb.toFixed(1)} МБ`;
+        if (ev.total) bar.style.width = `${(ev.loaded / ev.total) * 100}%`;
+      },
+      reject);
+  });
+}
+
+async function loadSky() {
+  try {
+    const p = await (await fetch(SKY_BASE + 'sky.json')).json();
+    skyMat.uniforms.gamma.value = p.gamma;
+    skyMat.uniforms.starGain.value = p.peak_radiance * STAR_EXPOSURE;
+    const tex = await new THREE.TextureLoader().loadAsync(SKY_BASE + p.file);
+    tex.colorSpace = THREE.NoColorSpace;
+    tex.flipY = false;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    skyMat.uniforms.milkyWay.value = tex;
+  } catch (e) {
+    skyMat.uniforms.starGain.value = 0;
+    console.warn('Небо не загрузилось:', e);
+  }
+}
+
+// ───────────────────────── Текущая сцена ─────────────────────────
+let cur = null;
+const glbCache = new Map();
+
+async function setScene(key) {
+  const cfg = SCENES[key];
+  loading.hidden = false;
+  errBox.textContent = '';
+  bar.style.width = '0%';
+  say(`Загрузка: ${cfg.title}`);
+  await new Promise((r) => setTimeout(r, 0));
+
+  if (cur) { scene.remove(cur.group); cur = null; }
+
+  const group = new THREE.Group();
+  let baseM, patch = null;
+
+  if (cfg.kind === 'glb') {
+    for (const part of cfg.parts) {
+      let gltf = glbCache.get(part.url);
+      if (!gltf) {
+        try {
+          gltf = await loadGlb(part.url, part.label);
+          glbCache.set(part.url, gltf);
+        } catch (e) {
+          errBox.innerHTML = `Не удалось загрузить <code>${part.url}</code>.<br>` +
+            'Страницу нужно открывать через локальный сервер: из корня репозитория ' +
+            '<code>python -m http.server 8777</code>, затем <code>http://localhost:8777/tools/flyover/</code>.';
+          return;
+        }
+      }
+      group.add(gltf.scene.clone(true));
+    }
+    baseM = cfg.baseM;
+    if (cfg.heightUrl) {
+      try {
+        const { px, width, height } = await decodePng(cfg.heightUrl);
+        const data = new Float32Array(width * height);
+        for (let i = 0; i < data.length; i += 1) {
+          const units = (px[i * 4] << 8) | px[i * 4 + 1];
+          data[i] = units === 0 ? NaN : (units - 1) * cfg.heightStepM;
+        }
+        patch = { data, width, height };
+      } catch (e) { console.warn('Карта высот участка не загрузилась:', e); }
+    }
+  } else {
+    say('Построение рельефа из MOLA');
+    await new Promise((r) => setTimeout(r, 0));
+    const built = buildMolaRegion(cfg);
+    group.add(built.mesh);
+    baseM = built.baseM;
+  }
+
+  scene.add(group);
+  const bbox = new THREE.Box3().setFromObject(group);
+  if (patch) patch.box = new THREE.Box3().setFromObject(group.children[0]);
+
+  const size = bbox.getSize(new THREE.Vector3());
+  const centre = bbox.getCenter(new THREE.Vector3());
+  const radius = Math.max(size.x, size.z) * 0.5;
+
+  // Граница облёта: полтора радиуса сцены по горизонтали, потолок — над верхней точкой.
+  const fence = {
+    centre: new THREE.Vector3(centre.x, 0, centre.z),
+    radius: radius * 1.5,
+    ceilY: bbox.max.y + Math.max(radius * 2.0, 3000),
+    floorClearance: Math.max(2, radius * 0.0015),
+  };
+
+  if (fenceRing) { scene.remove(fenceRing); fenceRing.geometry.dispose(); }
+  const pts = [];
+  for (let i = 0; i <= 160; i += 1) {
+    const a = (i / 160) * Math.PI * 2;
+    pts.push(new THREE.Vector3(fence.centre.x + Math.cos(a) * fence.radius, bbox.min.y,
+                               fence.centre.z + Math.sin(a) * fence.radius));
+  }
+  fenceRing = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), fenceMat);
+  fenceRing.visible = el('b-fence').getAttribute('aria-pressed') === 'true';
+  scene.add(fenceRing);
+
+  resizeSky(Math.max(60000, fence.radius * 4));
+  orbit.maxDistance = fence.radius * 1.4;
+  orbit.minDistance = Math.max(20, radius * 0.004);
+  camera.near = Math.max(0.5, radius * 0.0008);
+
+  cur = { cfg, group, bbox, baseM, lonScale: cfg.lonScale ?? Math.cos(cfg.lat * D2R), patch, fence, centre };
+
+  let verts = 0, tris = 0;
+  group.traverse((o) => {
+    if (!o.isMesh) return;
+    verts += o.geometry.attributes.position.count;
+    tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+  });
+  const nf = new Intl.NumberFormat('ru-RU');
+  el('m-title').textContent = cfg.title;
+  el('m-center').textContent = `${cfg.lat.toFixed(3)}° ш., ${cfg.lonEast.toFixed(3)}° в. д.`;
+  el('m-size').textContent = `${fmtM(size.x)} × ${fmtM(size.z)}`;
+  el('m-relief').textContent = fmtM(size.y);
+  el('m-abs').textContent = `${(bbox.min.y + baseM).toFixed(0)} … ${(bbox.max.y + baseM).toFixed(0)} м`;
+  el('m-verts').textContent = nf.format(verts);
+  el('m-tris').textContent = nf.format(Math.round(tris));
+  el('m-levels').innerHTML = cfg.levels
+    .map(([what, how, lvl]) => `<div class="row"><span>${what}</span><span class="lvl-${lvl}">${how}</span></div>`).join('');
+  el('credit').textContent = cfg.credit;
+  document.querySelectorAll('#scene-btns button').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.scene === key)));
+
+  applyNightRule();
+  resetView();
+  loading.hidden = true;
+}
+
+// ───────────────────────── Камера ─────────────────────────
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping = true;
+orbit.dampingFactor = 0.08;
+orbit.maxPolarAngle = Math.PI * 0.499;
+
+let mode = 'orbit';
+const keys = new Set();
+let flySpeed = 120;
+const yawPitch = { yaw: 0, pitch: -0.25 };
+
+addEventListener('keydown', (e) => {
+  if (e.target instanceof HTMLInputElement) return;
+  keys.add(e.code);
+  if (e.code === 'Escape' && mode === 'fly') setMode('orbit');
+  if (e.code === 'KeyF') setMode(mode === 'fly' ? 'orbit' : 'fly');
+});
+addEventListener('keyup', (e) => keys.delete(e.code));
+renderer.domElement.addEventListener('click', () => {
+  if (mode === 'fly' && document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock();
+});
+addEventListener('mousemove', (e) => {
+  if (mode !== 'fly' || document.pointerLockElement !== renderer.domElement) return;
+  yawPitch.yaw -= e.movementX * 0.0022;
+  yawPitch.pitch = Math.max(-1.5, Math.min(1.5, yawPitch.pitch - e.movementY * 0.0022));
+});
+addEventListener('wheel', (e) => {
+  if (mode !== 'fly') return;
+  flySpeed = Math.max(5, Math.min(20000, flySpeed * (e.deltaY > 0 ? 0.88 : 1.14)));
+}, { passive: true });
+
+function setMode(next) {
+  mode = next;
+  orbit.enabled = next === 'orbit';
+  el('b-orbit').setAttribute('aria-pressed', String(next === 'orbit'));
+  el('b-fly').setAttribute('aria-pressed', String(next === 'fly'));
+  el('c-mode').textContent = next === 'orbit' ? 'облёт' : 'полёт';
+  el('c-hint').textContent = next === 'orbit'
+    ? 'Левая кнопка — вращать, колесо — приближать, правая — сдвигать. F — режим полёта.'
+    : 'Щёлкните, чтобы захватить мышь. WASD — лететь, Q/E — вниз и вверх, Shift — быстрее, колесо — скорость, Esc — выйти.';
+  if (next === 'fly') {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    yawPitch.yaw = Math.atan2(-dir.x, -dir.z);
+    yawPitch.pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+  } else if (document.pointerLockElement === renderer.domElement) {
+    document.exitPointerLock();
+  }
+}
+
+function resetView() {
+  if (!cur) return;
+  const size = cur.bbox.getSize(new THREE.Vector3());
+  const c = cur.centre;
+  orbit.target.copy(c);
+  const d = Math.max(size.x, size.z);
+  // Держим стартовую точку внутри круга облёта: по горизонтали это 0,60·d при границе 0,75·d.
+  camera.position.set(c.x + d * 0.40, c.y + Math.max(size.y * 2.2, d * 0.38), c.z + d * 0.45);
+  camera.lookAt(c);
+  flySpeed = Math.max(40, d * 0.04);
+  setMode('orbit');
+}
+
+// Не улететь: горизонтально — круг, вверх — потолок, вниз — над рельефом.
+let fenceState = { dist: 0, hitWall: false };
+function clampCamera() {
+  if (!cur) return;
+  const f = cur.fence;
+  const dx = camera.position.x - f.centre.x, dz = camera.position.z - f.centre.z;
+  let dist = Math.hypot(dx, dz);
+  let hitWall = false;
+  if (dist > f.radius) {
+    const k = f.radius / dist;
+    camera.position.x = f.centre.x + dx * k;
+    camera.position.z = f.centre.z + dz * k;
+    dist = f.radius;
+    hitWall = true;
+  }
+  if (camera.position.y > f.ceilY) camera.position.y = f.ceilY;
+  const g = groundHeightAt(camera.position.x, camera.position.z);
+  const floor = (g === null ? cur.bbox.min.y : g.y) + f.floorClearance;
+  if (camera.position.y < floor) camera.position.y = floor;
+  fenceState = { dist, hitWall };
+}
+
+// ───────────────────────── Рельеф под камерой ─────────────────────────
+// Внутри участка Гейла — DTM HiRISE, иначе MOLA. Луч по модели не используем:
+// перебор двух миллионов треугольников на кадр останавливает отрисовку.
+function sceneToLatLon(x, z) {
+  const cfg = cur.cfg;
+  return { lat: cfg.lat + (-z / MARS_R) * R2D, lon: cfg.lonEast + (x / (MARS_R * cur.lonScale)) * R2D };
+}
+
+function groundHeightAt(x, z) {
+  if (!cur) return null;
+  const p = cur.patch;
+  if (p && p.box && x >= p.box.min.x && x <= p.box.max.x && z >= p.box.min.z && z <= p.box.max.z) {
+    const u = (x - p.box.min.x) / (p.box.max.x - p.box.min.x);
+    const v = (z - p.box.min.z) / (p.box.max.z - p.box.min.z);
+    const fc = u * (p.width - 1), fr = v * (p.height - 1);
+    const c0 = Math.floor(fc), r0 = Math.floor(fr);
+    const c1 = Math.min(p.width - 1, c0 + 1), r1 = Math.min(p.height - 1, r0 + 1);
+    const tx = fc - c0, ty = fr - r0;
+    const h00 = p.data[r0 * p.width + c0], h10 = p.data[r0 * p.width + c1];
+    const h01 = p.data[r1 * p.width + c0], h11 = p.data[r1 * p.width + c1];
+    if (Number.isFinite(h00) && Number.isFinite(h10) && Number.isFinite(h01) && Number.isFinite(h11)) {
+      return { y: (h00 * (1 - tx) + h10 * tx) * (1 - ty) + (h01 * (1 - tx) + h11 * tx) * ty, src: 'HiRISE DTM 2 м' };
+    }
+    return null;   // NoData: дыру не заполняем
+  }
+  const { lat, lon } = sceneToLatLon(x, z);
+  const h = molaHeightAt(lat, lon);
+  if (!Number.isFinite(h)) return null;
+  return { y: h - cur.baseM, src: 'MOLA ~7 км' };
+}
+
+// ───────────────────────── Время ─────────────────────────
+let simMs = Date.now();
+let rate = 1;
+let tau = 0.5;
+let manualLtst = null;
+
+function pressRate(value) {
+  document.querySelectorAll('[data-rate]').forEach((b) =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.rate) === value)));
+}
+
+function applyNightRule() {
+  // То же правило, что в прогулке проекта (START_LTST_IF_NIGHT): ночью грунт не виден,
+  // поэтому открываем утром и прямо об этом пишем.
+  const g = solarGeometry(simMs, cur.cfg.lat, cur.cfg.lonEast);
+  const n = el('notice');
+  if (dayPhase(g.elevationDeg) !== 'ночь') { n.hidden = true; return; }
+  const clock = fmtClock(g.ltst);
+  simMs = unixMsForLtst(simMs, cur.cfg.lat, cur.cfg.lonEast, 9);
+  rate = 0;
+  pressRate(0);
+  n.hidden = false;
+  n.textContent = `На участке сейчас ночь (${clock} LTST), грунт не виден — показано утро, 09:00. ` +
+    'Ночь со звёздным небом — ползунком времени или кнопками хода времени.';
+}
+
+el('r-ltst').addEventListener('input', (e) => {
+  manualLtst = Number(e.target.value);
+  rate = 0;
+  pressRate(0);
+  simMs = unixMsForLtst(simMs, cur.cfg.lat, cur.cfg.lonEast, manualLtst);
+});
+document.querySelectorAll('[data-rate]').forEach((b) => b.addEventListener('click', () => {
+  rate = Number(b.dataset.rate);
+  manualLtst = null;
+  pressRate(rate);
+}));
+el('r-tau').addEventListener('input', (e) => { tau = Number(e.target.value); el('l-tau').textContent = tau.toFixed(2); });
+el('r-exp').addEventListener('input', (e) => {
+  renderer.toneMappingExposure = Number(e.target.value);
+  el('l-exp').textContent = Number(e.target.value).toFixed(2);
+});
+el('b-orbit').addEventListener('click', () => setMode('orbit'));
+el('b-fly').addEventListener('click', () => setMode('fly'));
+el('b-reset').addEventListener('click', resetView);
+el('b-wire').addEventListener('click', (e) => {
+  const on = e.target.getAttribute('aria-pressed') !== 'true';
+  e.target.setAttribute('aria-pressed', String(on));
+  if (cur) cur.group.traverse((o) => { if (o.isMesh) o.material.wireframe = on; });
+});
+el('b-fence').addEventListener('click', (e) => {
+  const on = e.target.getAttribute('aria-pressed') !== 'true';
+  e.target.setAttribute('aria-pressed', String(on));
+  if (fenceRing) fenceRing.visible = on;
+});
+el('b-panels').addEventListener('click', (e) => {
+  const on = e.target.getAttribute('aria-pressed') !== 'true';
+  e.target.setAttribute('aria-pressed', String(on));
+  ['left', 'right', 'bottom', 'credit'].forEach((id) => { el(id).hidden = !on; });
+});
+
+const fmtClock = (h) => {
+  const t = (((h % 24) + 24) % 24) * 3600;
+  const p = (n) => String(Math.floor(n)).padStart(2, '0');
+  return `${p(t / 3600)}:${p((t % 3600) / 60)}:${p(t % 60)}`;
+};
+const season = (ls) => (ls < 90 ? 'северная весна' : ls < 180 ? 'северное лето'
+                      : ls < 270 ? 'северная осень' : 'северная зима');
+function fmtM(v) {
+  const a = Math.abs(v);
+  if (a >= 100000) return `${(v / 1000).toFixed(0)} км`;
+  if (a >= 1000) return `${(v / 1000).toFixed(2)} км`;
+  return `${v.toFixed(0)} м`;
+}
+
+// ───────────────────────── Цикл ─────────────────────────
+let last = performance.now(), tick = 0;
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  if (!cur) { renderer.render(scene, camera); return; }
+
+  if (rate > 0) simMs += dt * 1000 * rate;
+
+  const g = solarGeometry(simMs, cur.cfg.lat, cur.cfg.lonEast);
+  const [sx, sy, sz] = enuToScene(g.enu);
+  const sunVec = new THREE.Vector3(sx, sy, sz).normalize();
+
+  skyMat.uniforms.sunDir.value.copy(sunVec);
+  skyMat.uniforms.sunRadiusRad.value = THREE.MathUtils.degToRad(g.angularDiameterDeg / 2);
+  skyMat.uniforms.sunElevationDeg.value = g.elevationDeg;
+  skyMat.uniforms.dayWeight.value = daylightWeight(g.elevationDeg);
+  skyMat.uniforms.starWeight.value = starWeight(g.elevationDeg);
+  skyMat.uniforms.tau.value = tau;
+  skyMat.uniforms.icrfToEnu.value.set(...icrfToLocalEnu(daysSinceJ2000(simMs), cur.cfg.lat, cur.cfg.lonEast));
+
+  // Поток у поверхности: закон Бугера, воздушная масса 1/sin(высота).
+  const sinH = Math.sin(Math.max(g.elevationDeg, 0.5) * D2R);
+  const airmass = 1 / sinH;
+  const surfW = g.elevationDeg > 0 ? g.irradianceWm2 * Math.exp(-tau * airmass) : 0;
+  sun.position.copy(sunVec).multiplyScalar(skyRadius * 0.5).add(camera.position);
+  sun.target.position.copy(camera.position);
+  sun.target.updateMatrixWorld();
+  sun.intensity = (surfW / 290) * 3;
+  hemi.intensity = 0.08 + 0.5 * daylightWeight(g.elevationDeg);
+
+  if (mode === 'fly') {
+    const fast = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 4 : 1;
+    const v = flySpeed * fast * dt;
+    const fwd = new THREE.Vector3(
+      -Math.sin(yawPitch.yaw) * Math.cos(yawPitch.pitch),
+      Math.sin(yawPitch.pitch),
+      -Math.cos(yawPitch.yaw) * Math.cos(yawPitch.pitch));
+    const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+    if (keys.has('KeyW')) camera.position.addScaledVector(fwd, v);
+    if (keys.has('KeyS')) camera.position.addScaledVector(fwd, -v);
+    if (keys.has('KeyD')) camera.position.addScaledVector(right, v);
+    if (keys.has('KeyA')) camera.position.addScaledVector(right, -v);
+    if (keys.has('KeyE')) camera.position.y += v;
+    if (keys.has('KeyQ')) camera.position.y -= v;
+    camera.lookAt(camera.position.clone().add(fwd));
+  } else {
+    orbit.update();
+    // Цель облёта тоже держим внутри круга, иначе границу обходится сдвигом.
+    const f = cur.fence;
+    const tdx = orbit.target.x - f.centre.x, tdz = orbit.target.z - f.centre.z;
+    const td = Math.hypot(tdx, tdz);
+    if (td > f.radius) {
+      orbit.target.x = f.centre.x + (tdx / td) * f.radius;
+      orbit.target.z = f.centre.z + (tdz / td) * f.radius;
+    }
+  }
+
+  clampCamera();
+  skyMesh.position.copy(camera.position);
+
+  tick += dt;
+  if (tick > 0.1) {
+    tick = 0;
+    const ground = groundHeightAt(camera.position.x, camera.position.z);
+    const ll = sceneToLatLon(camera.position.x, camera.position.z);
+    el('s-phase').textContent = dayPhase(g.elevationDeg);
+    el('s-ltst').textContent = fmtClock(g.ltst);
+    el('s-lmst').textContent = fmtClock(g.lmst);
+    el('s-msd').textContent = g.msd.toFixed(5);
+    el('s-utc').textContent = new Date(simMs).toISOString().replace('T', ' ').slice(0, 19);
+    el('s-ls').textContent = `${g.ls.toFixed(2)}°`;
+    el('s-season').textContent = season(g.ls);
+    el('s-dec').textContent = `${g.declinationDeg.toFixed(2)}°`;
+    el('s-eot').textContent = `${((g.eotDeg * 24 * 60) / 360).toFixed(1)} мин`;
+    el('s-el').textContent = `${g.elevationDeg.toFixed(2)}°`;
+    el('s-az').textContent = `${g.azimuthDeg.toFixed(2)}°`;
+    el('s-au').textContent = `${g.distanceAu.toFixed(5)} а.е.`;
+    el('s-ang').textContent = `${g.angularDiameterDeg.toFixed(4)}°`;
+    el('s-toa').textContent = `${g.irradianceWm2.toFixed(1)} Вт/м²`;
+    el('s-surf').textContent = g.elevationDeg > 0 ? `${surfW.toFixed(1)} Вт/м²` : '0 (Солнце под горизонтом)';
+    el('s-am').textContent = g.elevationDeg > 0.5 ? airmass.toFixed(3) : '—';
+    el('s-tau').textContent = tau.toFixed(2);
+    el('l-ltst').textContent = fmtClock(g.ltst);
+    if (manualLtst === null) el('r-ltst').value = String(g.ltst);
+
+    el('c-alt').textContent = fmtM(camera.position.y + cur.baseM);
+    el('c-agl').textContent = ground ? fmtM(camera.position.y - ground.y) : 'нет данных';
+    el('c-ground').textContent = ground ? fmtM(ground.y + cur.baseM) : '—';
+    el('c-src').textContent = ground ? ground.src : 'NoData';
+    el('c-lat').textContent = `${ll.lat.toFixed(4)}°`;
+    el('c-lon').textContent = `${(((ll.lon % 360) + 360) % 360).toFixed(4)}° в. д.`;
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    el('c-head').textContent = `${((((Math.atan2(dir.x, -dir.z) * R2D) % 360) + 360) % 360).toFixed(0)}°`;
+    el('c-speed').textContent = mode === 'fly' ? `${flySpeed.toFixed(0)} м/с` : '—';
+    el('c-fence').textContent = fenceState.hitWall ? 'у границы'
+      : fmtM(Math.max(0, cur.fence.radius - fenceState.dist));
+  }
+
+  renderer.render(scene, camera);
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ───────────────────────── Старт ─────────────────────────
+el('scene-btns').innerHTML = Object.entries(SCENES)
+  .map(([k, v]) => `<button data-scene="${k}" aria-pressed="false">${v.short}</button>`).join('');
+document.querySelectorAll('#scene-btns button').forEach((b) =>
+  b.addEventListener('click', () => setScene(b.dataset.scene)));
+
+(async () => {
+  say('Загрузка неба');
+  await loadSky();
+  say('Загрузка глобального рельефа MOLA');
+  try {
+    mola = await loadMola();
+  } catch (e) {
+    errBox.textContent = 'Не удалось загрузить глобальный рельеф MOLA.';
+    console.warn(e);
+  }
+  await setScene('gale');
+  // В узком окне четыре панели закрывают весь вид: показываем только управление,
+  // остальное разворачивается кнопкой «Панели».
+  const roomy = innerWidth >= 700;
+  el('ctl').hidden = false;
+  ['left', 'right', 'bottom', 'credit'].forEach((id) => { el(id).hidden = !roomy; });
+  el('b-panels').setAttribute('aria-pressed', String(roomy));
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
