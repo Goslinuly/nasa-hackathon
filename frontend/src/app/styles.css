@@ -1662,3 +1662,6 @@ ul.section-note {
 .data-level-warn {
   color: var(--warn);
 }
+
+/* Мобильные браузеры в горизонтальном режиме сами увеличивают текст и ломают раскладку. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }

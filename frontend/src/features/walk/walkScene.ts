@@ -605,7 +605,8 @@ export class WalkScene {
     const b = gridToLocal(frame, grid.width - 0.5, grid.height - 0.5);
     const wM = b.x - a.x;
     const hM = b.z - a.z;
-    const size = window.innerWidth <= 760 ? 132 : 200;
+    // Телефон (узкий или боком, низкий экран) — мини-карта меньше.
+    const size = window.innerHeight <= 500 ? 110 : window.innerWidth <= 760 ? 132 : 200;
     this.minimapScale = size / Math.max(wM, hM);
     const dpr = Math.min(window.devicePixelRatio, 2);
     canvas.width = Math.round(wM * this.minimapScale * dpr);

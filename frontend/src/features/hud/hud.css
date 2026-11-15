@@ -250,3 +250,16 @@
     min-height: 40px;
   }
 }
+
+/* Телефон боком: HUD компактнее и заканчивается над джойстиком, чтобы не перекрывать управление. */
+@media (max-height: 500px) {
+  .hud.walk-hud { font-size: 9px; }
+  .walk-hud .hud-stack {
+    top: calc(max(4px, env(safe-area-inset-top)) + 70px); width: min(30vw, 230px); gap: 4px;
+    max-height: calc(100dvh - 70px - 130px);
+  }
+  .walk-hud .hud-stack .hud-panel { padding: 3px 6px; border-radius: 6px; }
+  .walk-hud .hud-stack .hud-value { font-size: 11px; }
+  .walk-hud .hud-tl .hud-value { white-space: nowrap; }
+  .walk-hud .hud-tc { top: 40px; transform: translateX(-50%) scale(0.65); }
+}
