@@ -16,6 +16,7 @@ import { MAST_HEIGHT_M, RoverRig } from './roverRig';
 import { applyGroundDetail, type GroundDetail } from './terrainDetail';
 import { shadowNeedsRefresh } from './shadowPolicy';
 import { TerrainChunks } from './terrainMesh';
+import { buildTrackPath, headingAlong, nearestOnPath, pointAt, TRACK_CORRIDOR_M, type TrackPath } from './trackPath';
 import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
 
 export const EYE_HEIGHT_M = 1.7;
@@ -86,6 +87,13 @@ export interface WalkExtra {
   /** Камера в подъёме/спуске между шаром и сценой. */
   lifting: boolean;
   solar: SolarState;
+  /** Ровер сам едет по треку. */
+  autoDrive: boolean;
+  /** Пройдено по треку при автоуправлении и длина трека, м (NaN — трека нет). */
+  autoS: number;
+  trackLength: number;
+  /** Крутизна выше порога, пропущенная на следе ровера, градусы (NaN — не было). */
+  steepOnTrackDeg: number;
 }
 
 export interface TeleportTarget {
@@ -186,6 +194,12 @@ export class WalkScene {
   // Наложения
   private pois: LocalPoi[] = [];
   private trackPoints: LocalTrackPoint[] = [];
+  /** Трек ровера как путь (trackPath.ts): автоуправление и полоса, где крутизна не запрещает шаг. */
+  private trackPath: TrackPath | null = null;
+  private autoDrive = false;
+  private autoS = 0;
+  private steepOnTrackDeg = NaN;
+  private steepAt = 0;
   private trackLabels: Label[] = [];
   private minimapBase: HTMLCanvasElement | null = null;
   private minimapScale = 1;
@@ -336,6 +350,7 @@ export class WalkScene {
     const frame = this.opts.pkg.frame;
     // Линия кладётся на DTM (высоты ровера смещены по датуму, см. паспорт).
     const pts = track.line.map((p) => lonLatToLocal(frame, p.lonEast, p.lat));
+    this.trackPath = pts.length > 1 ? buildTrackPath(pts) : null;
     const samples: { x: number; z: number; dx: number; dz: number }[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i];
@@ -846,6 +861,7 @@ export class WalkScene {
   /** Ровер или пешком. Ровер ставится туда, где стоит игрок, курсом по взгляду. */
   setVehicle(vehicle: Vehicle): void {
     if (vehicle === this.vehicle || this.liftHold) return;
+    if (vehicle === 'walk') this.autoDrive = false;
     this.vehicle = vehicle;
     this.shadowAt.x = NaN;
     if (vehicle === 'rover') {
@@ -866,6 +882,7 @@ export class WalkScene {
   }
 
   teleport(x: number, z: number): void {
+    this.autoDrive = false;
     const p = this.nearestValid(x, z);
     this.px = p.x;
     this.pz = p.z;
@@ -972,7 +989,14 @@ export class WalkScene {
     const hq = this.sampler.heightAt(qx, qz);
     const sq = this.sampler.slopeDeg(qx, qz);
     const sp = this.sampler.slopeDeg(this.px, this.pz);
-    const reason = stepBlocked(hq, sq, sp, this.maxSlopeDeg);
+    let reason = stepBlocked(hq, sq, sp, this.maxSlopeDeg);
+    // На следе ровера крутизна по модели рельефа шаг не запрещает: Curiosity здесь реально
+    // проехал (его наклон в boxwork до ~24°, модель местами даёт больше из-за ступеней DTM).
+    if (reason === 'slope' && this.trackPath && nearestOnPath(this.trackPath, qx, qz).dist <= TRACK_CORRIDOR_M) {
+      reason = null;
+      this.steepOnTrackDeg = sq;
+      this.steepAt = performance.now();
+    }
     if (reason) {
       this.blocked = reason;
       this.blockedSlopeDeg = sq;
@@ -991,6 +1015,11 @@ export class WalkScene {
     const k = this.keys;
     const f = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) + this.joyY;
     const turn = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0) + this.joyX;
+    if (this.autoDrive) {
+      // Любое ручное управление отключает автоуправление.
+      if (Math.abs(f) > 0.05 || Math.abs(turn) > 0.05) this.setAutoDrive(false);
+      else return this.autoStep(dt);
+    }
     if (Math.abs(turn) > 0.05) {
       const dyaw = -turn * ROVER_TURN_RAD_S * dt * Math.min(this.timeScale, 10);
       this.roverYaw += dyaw;
@@ -1014,6 +1043,71 @@ export class WalkScene {
         break;
       }
     }
+  }
+
+  /** Автоуправление: ровер едет по треку со своей скоростью, курс сглажен по точке впереди. */
+  private autoStep(dt: number): void {
+    const path = this.trackPath;
+    if (!path) return this.setAutoDrive(false);
+    const next = Math.min(path.length, this.autoS + ROVER_SPEED_MS * dt * this.timeScale);
+    const p = pointAt(path, next);
+    const h = this.sampler.heightAt(p.x, p.z);
+    if (!Number.isFinite(h)) {
+      // Трек ушёл за край рельефа: дальше данных нет.
+      this.blocked = 'nodata';
+      this.blockedAt = performance.now();
+      return this.setAutoDrive(false);
+    }
+    const hp = this.sampler.heightAt(this.px, this.pz);
+    this.walkedM += Math.hypot(p.x - this.px, p.z - this.pz, Number.isFinite(hp) ? h - hp : 0);
+    this.px = p.x;
+    this.pz = p.z;
+    this.autoS = next;
+    const yaw = headingAlong(path, next);
+    // Кратчайший поворот: взгляд поворачивается вместе с ровером, мышью можно смотреть по сторонам.
+    const dyaw = Math.atan2(Math.sin(yaw - this.roverYaw), Math.cos(yaw - this.roverYaw));
+    const turnLimit = ROVER_TURN_RAD_S * dt * Math.min(this.timeScale, 10) * 2;
+    const step = Math.max(-turnLimit, Math.min(turnLimit, dyaw));
+    this.roverYaw += step;
+    this.camera.rotation.y += step;
+    this.speedMs = ROVER_SPEED_MS;
+    if (next >= path.length) this.setAutoDrive(false);
+  }
+
+  /** Включить/выключить автоуправление по треку ровера. Включение пересаживает в ровер на трек. */
+  setAutoDrive(on: boolean): void {
+    const path = this.trackPath;
+    if (!on || !path || this.liftHold) {
+      if (this.autoDrive) {
+        this.autoDrive = false;
+        this.speedMs = 0;
+        this.emitState(true);
+      }
+      return;
+    }
+    if (this.vehicle !== 'rover') this.setVehicle('rover');
+    const near = nearestOnPath(path, this.px, this.pz);
+    // В конце трека — начинаем сначала.
+    this.autoS = near.s > path.length - 2 ? 0 : near.s;
+    const p = pointAt(path, this.autoS);
+    this.px = p.x;
+    this.pz = p.z;
+    const yaw = headingAlong(path, this.autoS);
+    this.camera.rotation.y += Math.atan2(Math.sin(yaw - this.roverYaw), Math.cos(yaw - this.roverYaw));
+    this.roverYaw = yaw;
+    this.shadowAt.x = NaN;
+    this.terrain.update(this.px, this.pz, Infinity);
+    this.updateCameraHeight();
+    this.autoDrive = true;
+    this.emitState(true);
+  }
+
+  get autoDriveEnabled(): boolean {
+    return this.autoDrive;
+  }
+
+  get hasTrack(): boolean {
+    return this.trackPath !== null;
   }
 
   private groundAt = (x: number, z: number): number => this.sampler.heightAt(x, z) - this.refY;
@@ -1122,6 +1216,10 @@ export class WalkScene {
       locked: !!this.controls?.isLocked,
       lifting: this.liftHold !== null,
       solar: this.solarState(),
+      autoDrive: this.autoDrive,
+      autoS: this.autoS,
+      trackLength: this.trackPath?.length ?? NaN,
+      steepOnTrackDeg: performance.now() - this.steepAt < 1500 ? this.steepOnTrackDeg : NaN,
     });
   }
 

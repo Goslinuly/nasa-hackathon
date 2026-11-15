@@ -48,6 +48,11 @@
   position: absolute; left: 50%; top: 58%; transform: translateX(-50%); padding: 6px 12px; border-radius: 6px;
   background: rgba(150, 30, 20, 0.8); font-size: 14px; pointer-events: none;
 }
+.walk-blocked--warn { background: rgba(150, 100, 20, 0.85); }
+.walk-note {
+  position: absolute; left: 50%; top: 64%; transform: translateX(-50%); padding: 6px 12px; border-radius: 6px;
+  background: rgba(20, 60, 70, 0.8); font-size: 13px; pointer-events: none; max-width: 90vw; text-align: center;
+}
 .walk-hint {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; gap: 6px;
   align-items: center; text-align: center; max-width: min(460px, 90vw); padding: 14px 18px; border-radius: 8px;

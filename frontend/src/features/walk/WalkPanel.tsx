@@ -297,6 +297,17 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         <div className="walk-timescale" role="group" aria-label="Чем перемещаться">
           <button type="button" className={`walk-btn ${state?.vehicle !== 'walk' ? 'is-on' : ''}`} onClick={() => s?.setVehicle('rover')}>Ровер</button>
           <button type="button" className={`walk-btn ${state?.vehicle === 'walk' ? 'is-on' : ''}`} onClick={() => s?.setVehicle('walk')}>Пешком</button>
+          {s?.hasTrack && (
+            <button
+              type="button"
+              className={`walk-btn ${extra?.autoDrive ? 'is-on' : ''}`}
+              aria-pressed={!!extra?.autoDrive}
+              title={`Ровер сам едет по треку ${pkg.track?.rover ?? 'ровера'}. W/S/A/D — снова вручную`}
+              onClick={() => s?.setAutoDrive(!extra?.autoDrive)}
+            >
+              Автоуправление
+            </button>
+          )}
         </div>
         <button type="button" className={`walk-btn ${menu === 'teleport' ? 'is-on' : ''}`} onClick={() => setMenu(menu === 'teleport' ? 'none' : 'teleport')}>
           Перейти к точке
@@ -371,6 +382,18 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </div>
       </div>
 
+      {extra?.autoDrive && (
+        <div className="walk-note">
+          Автоуправление по треку {pkg.track?.rover ?? 'ровера'}: {fmtKm(extra.autoS)} из {fmtKm(extra.trackLength)} · W/S/A/D — вручную
+        </div>
+      )}
+
+      {!extra?.blocked && extra && Number.isFinite(extra.steepOnTrackDeg) && (
+        <div className="walk-blocked walk-blocked--warn">
+          Круто: {Math.round(extra.steepOnTrackDeg)}° по модели рельефа. Здесь проехал {pkg.track?.rover ?? 'ровер'}, идём по его следу
+        </div>
+      )}
+
       {extra?.blocked && (
         <div className="walk-blocked">
           {extra.blocked === 'nodata'
@@ -396,4 +419,10 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       )}
     </>
   );
+}
+
+/** «0,4 км» или «350 м». */
+function fmtKm(m: number): string {
+  if (!Number.isFinite(m)) return '—';
+  return m >= 1000 ? `${(m / 1000).toFixed(1).replace('.', ',')} км` : `${Math.round(m)} м`;
 }
