@@ -200,3 +200,20 @@
 .walk-rotate-icon { color: #ff9a62; animation: walk-rotate-turn 2.4s ease-in-out infinite; }
 @keyframes walk-rotate-turn { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
 @media (prefers-reduced-motion: reduce) { .walk-rotate-icon { animation: none; transform: rotate(-90deg); } }
+
+/* Телефон горизонтально: лента кнопок не наезжает на «Время», джойстик над панелями HUD,
+   прыжок слева от мини-карты у нижнего края. */
+@media (max-height: 500px) and (min-width: 761px) {
+  .walk-topbar {
+    left: calc(max(8px, env(safe-area-inset-left)) + 200px); max-width: none;
+    flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none;
+  }
+  .walk-topbar::-webkit-scrollbar { display: none; }
+  .walk-topbar > * { flex: none; }
+  .walk-topbar .walk-lang { order: -1; }
+  .walk-joystick { z-index: 12; }
+  .walk-jump { bottom: calc(80px + env(safe-area-inset-bottom)); right: calc(max(12px, env(safe-area-inset-right)) + 190px); }
+}
+@media (max-width: 760px) {
+  .walk-jump { bottom: calc(260px + env(safe-area-inset-bottom)); }
+}

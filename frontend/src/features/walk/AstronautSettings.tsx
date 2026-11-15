@@ -1,7 +1,11 @@
 // Блок «Астронавт» в настройках прогулки: параметры человека и прыжок по модели.
 
 import { useEffect, useState } from 'react';
+// Прыжок — модель «та же работа ног» из crew.ts (tools/crew/README.md, docs/PHYSICS.md §6.6);
+// мощность ходьбы — Santee с коридором марсианской тяжести (docs/PHYSICS.md §6.1, §6.4, §6.5)
+// с массой тела W и грузом L из профиля.
 import { G_MARS, jump } from '@/shared/eva/crew';
+import { FLAT_SPEED_MS, marsPowerCorridorW, oxygenLpm, terrainFactor } from '@/shared/eva/traverse';
 import { PROFILE_LIMITS, setCrewProfile, useCrewProfile, type CrewProfile } from '@/shared/eva/crewProfile';
 import { getLang, useT } from '@/shared/i18n/lang';
 import { eyeHeightM } from './jump';
@@ -56,6 +60,9 @@ export function AstronautSettings() {
   const p = useCrewProfile();
   const r = jump({ bodyKg: p.bodyKg, loadKg: p.loadKg, earthJumpM: p.earthJumpM });
   const rule = r.notes.find((n) => n.kind === 'rule');
+  // Ровный плотный грунт, η = 1,0 (нижняя граница грунта), обе трактовки тяжести.
+  const [eta] = terrainFactor('firm', FLAT_SPEED_MS);
+  const [pLo, pHi] = marsPowerCorridorW(p.bodyKg, p.loadKg, FLAT_SPEED_MS, 0, eta);
   return (
     <div className="walk-astro">
       <strong>{t('Астронавт', 'Astronaut')}</strong>
@@ -69,6 +76,12 @@ export function AstronautSettings() {
         {t(
           `Прыжок на Марсе в скафандре: ${fmtNum(r.heightM, 2)} м, в воздухе ${fmtNum(r.flightS, 1)} с, скорость приземления ${fmtNum(r.landingMs, 1)} м/с (модель «та же работа ног», g = ${fmtNum(G_MARS, 2)} м/с²).`,
           `Jump on Mars in the suit: ${fmtNum(r.heightM, 2)} m, ${fmtNum(r.flightS, 1)} s in the air, landing speed ${fmtNum(r.landingMs, 1)} m/s (equal leg work model, g = ${fmtNum(G_MARS, 2)} m/s²).`,
+        )}
+      </p>
+      <p className="walk-muted">
+        {t(
+          `Мощность на ровном при ${fmtNum(FLAT_SPEED_MS, 2)} м/с: ${Math.round(pLo)}–${Math.round(pHi)} Вт, кислород ${fmtNum(oxygenLpm(pLo), 2)}–${fmtNum(oxygenLpm(pHi), 2)} л/мин (модель Santee, вес и скафандр из профиля).`,
+          `Power on level ground at ${FLAT_SPEED_MS.toFixed(2)} m/s: ${Math.round(pLo)}–${Math.round(pHi)} W, oxygen ${oxygenLpm(pLo).toFixed(2)}–${oxygenLpm(pHi).toFixed(2)} L/min (Santee model, weight and suit from the profile).`,
         )}
       </p>
       <p className="walk-muted">

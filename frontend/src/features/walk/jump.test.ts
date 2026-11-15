@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { G_MARS, jump } from '@/shared/eva/crew';
+import { marsPowerCorridorW } from '@/shared/eva/traverse';
 import { DEFAULT_PROFILE, normalizeProfile, PROFILE_LIMITS } from '@/shared/eva/crewProfile';
 import { ballistic, eyeHeightM, stepJump, type Airborne } from './jump';
 
@@ -49,5 +50,14 @@ describe('полёт', () => {
     expect(stepJump({ y: 0, vy: 1 }, 0.01, G_MARS, 0.5)).not.toBeNull();
     expect(stepJump({ y: 0, vy: -1 }, 0.01, G_MARS, NaN)).not.toBeNull();
     expect(stepJump({ y: 0, vy: -1 }, 0.01, G_MARS, 0)).toBeNull();
+  });
+});
+
+describe('мощность ходьбы по профилю', () => {
+  it('коридор Santee для 80 кг + 45 кг совпадает с PHYSICS.md §6.4, вес меняет мощность', () => {
+    const [lo, hi] = marsPowerCorridorW(80, 45, 0.75, 0, 1.0);
+    expect(lo).toBeCloseTo(127.8, 0);
+    expect(hi).toBeCloseTo(193.2, 0);
+    expect(marsPowerCorridorW(100, 45, 0.75, 0, 1.0)[0]).toBeGreaterThan(lo);
   });
 });
