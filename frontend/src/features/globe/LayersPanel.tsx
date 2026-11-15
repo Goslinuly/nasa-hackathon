@@ -91,7 +91,9 @@ export default function LayersPanel(_: ModeContext) {
       </span>
       {spectrum.fallback && (
         <span className="layer-meta">
-          Где у слоя нет данных, показан приглушённый слой «{SPECTRA[spectrum.fallback].title}»
+          {t('Где у слоя нет данных, показан приглушённый слой', 'Where this layer has no data, a muted')} «
+          {pick(SPECTRA[spectrum.fallback].title, SPECTRA[spectrum.fallback].titleEn)}»
+          {t('', ' layer is shown')}
         </span>
       )}
 
