@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { formatLatLon, roverItems, roverMarkers, traversePoints, type CurrentFile, type TraverseFile } from './data';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 const read = <T,>(name: string): T =>
   JSON.parse(readFileSync(new URL(`../../../public/data/rovers/${name}`, import.meta.url), 'utf-8')) as T;
@@ -78,6 +82,9 @@ describe('formatLatLon', () => {
   it('южная широта и долгота 0–360', () => {
     expect(formatLatLon(-4.826, -222.6111, 2)).toBe('4.83° ю. ш., 137.39° в. д.');
     expect(formatLatLon(18.4, 77.2, 1)).toBe('18.4° с. ш., 77.2° в. д.');
+    setLang('en');
+    expect(formatLatLon(-4.826, -222.6111, 2)).toBe('4.83° S, 137.39° E');
+    setLang('ru');
   });
 });
 

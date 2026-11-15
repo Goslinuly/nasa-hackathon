@@ -1,5 +1,6 @@
 // Чистые функции EVA: профиль маршрута в сегменты уклонов, подписи коридоров и уровень уклона.
 import type { EvaPoint, SlopeLevel as SlopeClassLevel, SlopeThreshold } from '@/shared/api/evaTypes';
+import { locale, tr } from '@/shared/i18n/lang';
 
 export interface ProfileSample {
   distanceM: number;
@@ -42,12 +43,14 @@ export function formatDuration(seconds: number): string {
   const total = Math.max(0, Math.round(seconds / 60));
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
-  if (hours === 0) return `${minutes} мин`;
-  return minutes === 0 ? `${hours} ч` : `${hours} ч ${minutes} мин`;
+  const min = tr('мин', 'min');
+  const h = tr('ч', 'h');
+  if (hours === 0) return `${minutes} ${min}`;
+  return minutes === 0 ? `${hours} ${h}` : `${hours} ${h} ${minutes} ${min}`;
 }
 
 export function formatCorridor(low: number, high: number, unit: string): string {
-  const fmt = (v: number) => v.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+  const fmt = (v: number) => v.toLocaleString(locale(), { maximumFractionDigits: 1 });
   return `${fmt(low)}–${fmt(high)} ${unit}`;
 }
 

@@ -1,5 +1,6 @@
 // Данные режима «Маршруты роверов»: типы файлов из build_rover_layers.py и чистые преобразования.
 import type { GlobeMarker, LonLat } from '@/app/modeContract';
+import { locale, pick, tr } from '@/shared/i18n/lang';
 
 export interface TraverseFile {
   fetched_utc: string;
@@ -37,12 +38,15 @@ export interface HeliFlight {
 export interface CurrentFile {
   fetched_utc: string;
   credit: string;
+  note?: string;
+  note_en?: string;
   rovers: RoverPosition[];
   ingenuity: {
     id: string;
     name: string;
     mission: string;
     status: string;
+    status_en?: string;
     flights_total: number;
     dist_total_m: number;
     flights: HeliFlight[];
@@ -70,7 +74,7 @@ export const ROVER_COLORS: Record<string, string> = {
 export async function loadRoversData(signal?: AbortSignal): Promise<RoversData> {
   const get = async <T,>(url: string): Promise<T> => {
     const response = await fetch(url, { signal });
-    if (!response.ok) throw new Error(`Не удалось загрузить ${url}: ${response.status}`);
+    if (!response.ok) throw new Error(tr(`Не удалось загрузить ${url}: ${response.status}`, `Could not load ${url}: ${response.status}`));
     return (await response.json()) as T;
   };
   const [current, ...tracks] = await Promise.all([
@@ -109,7 +113,10 @@ export function roverItems(current: CurrentFile): RoverItem[] {
     lat: r.lat,
     lon: r.lon,
     distanceKm: r.dist_total_m / 1000,
-    detail: `Высота ${Math.round(r.elevation_m).toLocaleString('ru-RU')} м над ареоидом`,
+    detail: tr(
+      `Высота ${Math.round(r.elevation_m).toLocaleString(locale())} м над ареоидом`,
+      `Elevation ${Math.round(r.elevation_m).toLocaleString(locale())} m above the areoid`,
+    ),
     sourceUrl: r.source_url,
     walkSite: r.id === 'curiosity' ? 'gale-boxwork' : r.id === 'perseverance' ? 'jezero' : undefined,
   }));
@@ -124,7 +131,7 @@ export function roverItems(current: CurrentFile): RoverItem[] {
       lat: last.lat,
       lon: last.lon,
       distanceKm: heli.dist_total_m / 1000,
-      detail: `${heli.flights_total} полётов. ${heli.status}.`,
+      detail: tr(`${heli.flights_total} полётов`, `${heli.flights_total} flights`) + `. ${pick(heli.status, heli.status_en)}.`,
       sourceUrl: heli.source_url,
     });
   }
@@ -136,7 +143,7 @@ export function roverMarkers(items: RoverItem[]): GlobeMarker[] {
     id: item.id,
     lon: item.lon,
     lat: item.lat,
-    label: `${item.name}, сол ${item.sol}`,
+    label: `${item.name}, ${tr('сол', 'sol')} ${item.sol}`,
     kind: 'rover',
     color: ROVER_COLORS[item.id],
   }));
@@ -144,12 +151,12 @@ export function roverMarkers(items: RoverItem[]): GlobeMarker[] {
 
 /** «4.8260° ю. ш., 137.3889° в. д.» — долгота восточная 0–360, как во всём проекте. */
 export function formatLatLon(lat: number, lon: number, digits = 4): string {
-  const ns = lat >= 0 ? 'с. ш.' : 'ю. ш.';
-  return `${Math.abs(lat).toFixed(digits)}° ${ns}, ${(((lon % 360) + 360) % 360).toFixed(digits)}° в. д.`;
+  const ns = lat >= 0 ? tr('с. ш.', 'N') : tr('ю. ш.', 'S');
+  return `${Math.abs(lat).toFixed(digits)}° ${ns}, ${(((lon % 360) + 360) % 360).toFixed(digits)}° ${tr('в. д.', 'E')}`;
 }
 
 export function formatUtc(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return date.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }

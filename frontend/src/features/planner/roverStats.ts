@@ -1,5 +1,6 @@
 // Показания карточки у марсохода: путь, время и кислород по модели выхода в точке, куда доехала анимация.
 import { segmentCost, type Surface, type TraverseParams } from '@/shared/eva/traverse';
+import { locale, tr } from '@/shared/i18n/lang';
 
 const DEG = Math.PI / 180;
 
@@ -106,18 +107,19 @@ export function roverStatsAt(table: RoverTable, progress: number): RoverStats | 
   };
 }
 
-const num = (value: number, digits: number) => value.toLocaleString('ru-RU', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+const num = (value: number, digits: number) => value.toLocaleString(locale(), { maximumFractionDigits: digits, minimumFractionDigits: digits });
 
 export function formatKmPair(doneM: number, totalM: number): string {
   const digits = totalM < 10_000 ? 2 : 1;
-  return `${num(doneM / 1000, digits)} из ${num(totalM / 1000, digits)} км`;
+  return tr(`${num(doneM / 1000, digits)} из ${num(totalM / 1000, digits)} км`, `${num(doneM / 1000, digits)} of ${num(totalM / 1000, digits)} km`);
 }
 
 export function formatClock(seconds: number): string {
   const total = Math.max(0, Math.round(seconds / 60));
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
-  return hours === 0 ? `${minutes} мин` : `${hours} ч ${String(minutes).padStart(2, '0')} мин`;
+  const min = tr('мин', 'min');
+  return hours === 0 ? `${minutes} ${min}` : `${hours} ${tr('ч', 'h')} ${String(minutes).padStart(2, '0')} ${min}`;
 }
 
 export function formatRange(low: number, high: number, digits: number, unit: string): string {
@@ -136,9 +138,9 @@ export interface RoverCardText {
 
 export function roverCardText(stats: RoverStats): RoverCardText {
   return {
-    speed: `${num(stats.speedMs * 3.6, 1)} км/ч`,
-    rate: formatRange(stats.rateLowLpm, stats.rateHighLpm, 2, 'л/мин'),
-    oxygen: formatRange(stats.o2LowL, stats.o2HighL, stats.o2HighL < 10 ? 1 : 0, 'л'),
+    speed: `${num(stats.speedMs * 3.6, 1)} ${tr('км/ч', 'km/h')}`,
+    rate: formatRange(stats.rateLowLpm, stats.rateHighLpm, 2, tr('л/мин', 'L/min')),
+    oxygen: formatRange(stats.o2LowL, stats.o2HighL, stats.o2HighL < 10 ? 1 : 0, tr('л', 'L')),
     time: formatClock(stats.seconds),
     distance: formatKmPair(stats.distanceM, stats.totalM),
   };

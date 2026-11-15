@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { ModeContext } from '@/app/modeContract';
+import { locale, pick, tr, useLang, useT } from '@/shared/i18n/lang';
 
 import { startAmbient, type AmbientPlayer } from './ambient';
 import {
@@ -20,8 +21,8 @@ import './memorial.css';
 const MARKERS = 'memorial-sites';
 
 function coords(m: Mission): string {
-  const ns = m.lat >= 0 ? 'с. ш.' : 'ю. ш.';
-  return `${Math.abs(m.lat).toFixed(2)}° ${ns}, ${m.lon.toFixed(2)}° в. д.`;
+  const ns = m.lat >= 0 ? tr('с. ш.', 'N') : tr('ю. ш.', 'S');
+  return `${Math.abs(m.lat).toFixed(2)}° ${ns}, ${m.lon.toFixed(2)}° ${tr('в. д.', 'E')}`;
 }
 
 function hostName(url: string): string {
@@ -50,6 +51,8 @@ export default function MemorialPanel({ globe }: ModeContext) {
   const [candles, setCandles] = useState<Set<string>>(() => readCandles(browserStorage()));
   const [music, setMusic] = useState(false);
   const player = useRef<AmbientPlayer | null>(null);
+  const t = useT();
+  const lang = useLang();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -65,7 +68,7 @@ export default function MemorialPanel({ globe }: ModeContext) {
     if (!data) return;
     globe.setMarkers(MARKERS, missionMarkers(data.missions), id => setSelected(id));
     return () => globe.setMarkers(MARKERS, null);
-  }, [data, globe]);
+  }, [data, globe, lang]);
 
   // Музыка гаснет, когда режим закрывают.
   useEffect(() => () => player.current?.stop(), []);
@@ -103,19 +106,22 @@ export default function MemorialPanel({ globe }: ModeContext) {
   };
 
   return (
-    <aside className="mm-panel" aria-label="Памятные места">
+    <aside className="mm-panel" aria-label={t('Памятные места', 'Memorial')}>
       <div className="mm-head-actions">
         <button type="button" className={`mm-music${music ? ' is-on' : ''}`} onClick={toggleMusic} aria-pressed={music}>
-          {music ? '♪ Музыка: вкл' : '♪ Музыка'}
+          {music ? t('♪ Музыка: вкл', '♪ Music: on') : t('♪ Музыка', '♪ Music')}
         </button>
       </div>
 
       <p className="mm-dim">
-        Аппараты, которые закончили работу на поверхности Марса. Они остаются там, где замолчали.
+        {t(
+          'Аппараты, которые закончили работу на поверхности Марса. Они остаются там, где замолчали.',
+          'Spacecraft that finished their work on the surface of Mars. They remain where they fell silent.',
+        )}
       </p>
 
-      {error && <p className="mm-warn">Список не загрузился: {error}</p>}
-      {!data && !error && <p className="mm-dim">Загружаю…</p>}
+      {error && <p className="mm-warn">{t('Список не загрузился', 'The list failed to load')}: {error}</p>}
+      {!data && !error && <p className="mm-dim">{t('Загружаю…', 'Loading…')}</p>}
 
       {data && (
         <ul className="mm-list">
@@ -127,8 +133,8 @@ export default function MemorialPanel({ globe }: ModeContext) {
                 onClick={() => setSelected(m.id)}
               >
                 <span className="mm-item-name">
-                  {candles.has(m.id) && <span className="mm-dot" aria-label="свеча горит" />}
-                  {m.name}
+                  {candles.has(m.id) && <span className="mm-dot" aria-label={t('свеча горит', 'candle lit')} />}
+                  {pick(m.name, m.name_en)}
                 </span>
                 <span className="mm-item-years">
                   {m.landed.slice(0, 4)}–{m.last_contact.slice(0, 4)}
@@ -143,53 +149,55 @@ export default function MemorialPanel({ globe }: ModeContext) {
         <article className="mm-stone">
           <div className="mm-stone-face">
             <p className="mm-agency">{mission.agency}</p>
-            <h3>{mission.name}</h3>
+            <h3>{pick(mission.name, mission.name_en)}</h3>
             <p className="mm-years">
               {formatDate(mission.landed)}
               <br />—<br />
               {formatDate(mission.last_contact)}
             </p>
-            <p className="mm-legacy">{mission.legacy}</p>
+            <p className="mm-legacy">{pick(mission.legacy, mission.legacy_en)}</p>
           </div>
 
           <dl className="mm-facts">
-            <dt>Тип</dt>
-            <dd>{mission.kind}</dd>
-            <dt>Место</dt>
+            <dt>{t('Тип', 'Type')}</dt>
+            <dd>{pick(mission.kind, mission.kind_en)}</dd>
+            <dt>{t('Место', 'Place')}</dt>
             <dd>
-              {mission.place}, {coords(mission)}
+              {pick(mission.place, mission.place_en)}, {coords(mission)}
             </dd>
-            <dt>Работал</dt>
-            <dd>{daysBetween(mission.landed, mission.last_contact).toLocaleString('ru-RU')} земных дней</dd>
+            <dt>{t('Работал', 'Worked')}</dt>
+            <dd>
+              {daysBetween(mission.landed, mission.last_contact).toLocaleString(locale())} {t('земных дней', 'Earth days')}
+            </dd>
             {mission.mission_end && (
               <>
-                <dt>Миссия завершена</dt>
+                <dt>{t('Миссия завершена', 'Mission ended')}</dt>
                 <dd>{formatDate(mission.mission_end)}</dd>
               </>
             )}
             {mission.flights !== undefined && (
               <>
-                <dt>Полётов</dt>
+                <dt>{t('Полётов', 'Flights')}</dt>
                 <dd>{mission.flights}</dd>
               </>
             )}
             {mission.distance_km !== undefined && (
               <>
-                <dt>{mission.flights !== undefined ? 'Пролетел' : 'Проехал'}</dt>
-                <dd>около {mission.distance_km.toLocaleString('ru-RU')} км</dd>
+                <dt>{mission.flights !== undefined ? t('Пролетел', 'Flown') : t('Проехал', 'Driven')}</dt>
+                <dd>{t('около', 'about')} {mission.distance_km.toLocaleString(locale())} {t('км', 'km')}</dd>
               </>
             )}
           </dl>
-          {mission.note && <p className="mm-dim">{mission.note}</p>}
-          {mission.quote_note && <p className="mm-dim">{mission.quote_note}</p>}
+          {mission.note && <p className="mm-dim">{pick(mission.note, mission.note_en)}</p>}
+          {mission.quote_note && <p className="mm-dim">{pick(mission.quote_note, mission.quote_note_en)}</p>}
 
           <button type="button" className="mm-candle-btn" onClick={() => toggleCandle(mission.id)}>
             <Candle lit={candles.has(mission.id)} />
-            {candles.has(mission.id) ? 'Свеча горит' : 'Зажечь свечу'}
+            {candles.has(mission.id) ? t('Свеча горит', 'Candle lit') : t('Зажечь свечу', 'Light a candle')}
           </button>
 
           <p className="mm-sources">
-            Источники:{' '}
+            {t('Источники', 'Sources')}:{' '}
             {mission.sources.map((url, i) => (
               <span key={url}>
                 {i > 0 && ', '}
@@ -201,8 +209,10 @@ export default function MemorialPanel({ globe }: ModeContext) {
       )}
 
       <footer className="mm-dim mm-foot">
-        Свечи видны только вам и хранятся в этом браузере. Музыка написана для проекта и
-        синтезируется в браузере.
+        {t(
+          'Свечи видны только вам и хранятся в этом браузере. Музыка написана для проекта и синтезируется в браузере.',
+          'Candles are visible only to you and are stored in this browser. The music was written for the project and is synthesized in the browser.',
+        )}
       </footer>
     </aside>
   );

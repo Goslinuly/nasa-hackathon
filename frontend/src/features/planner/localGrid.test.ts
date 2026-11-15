@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { MARS_RADIUS_KM } from '@/features/globe/tiles';
 
 import { assertConsistent, findCoveringSite, pixelsPerDegreeOf, siteContains, type SiteManifestBounds } from './localGrid';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 function site(id: string, west: number, south: number, east: number, north: number, pixelM = 1, w?: number, h?: number) {
   const ppd = pixelsPerDegreeOf(pixelM);

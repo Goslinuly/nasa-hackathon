@@ -9,6 +9,10 @@ import { decodePng } from './png';
 import { dataLevelLabel, loadSitePackage, parseTrack, type SiteManifest } from './sitePackage';
 import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
 import { chunkCellsFor, LOD_STEPS, lodDistances, lodForDistance } from './terrainMesh';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 const dataDir = (site: string) => fileURLToPath(new URL(`../../../public/data/local/${site}/`, import.meta.url));
 const readJson = (path: string) => JSON.parse(readFileSync(path, 'utf8'));

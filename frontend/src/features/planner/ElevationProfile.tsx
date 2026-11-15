@@ -1,6 +1,8 @@
 // Профиль высот маршрута: одна ось, перекрестие с подсказкой и индекс точки для глобуса.
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { locale, useT } from '@/shared/i18n/lang';
+
 import type { RoutePoint } from './routing';
 
 interface ElevationProfileProps {
@@ -26,9 +28,10 @@ function ticks(min: number, max: number, target: number): number[] {
   return result;
 }
 
-const km = (m: number) => (m / 1000).toLocaleString('ru-RU', { maximumFractionDigits: m < 10_000 ? 1 : 0 });
+const km = (m: number) => (m / 1000).toLocaleString(locale(), { maximumFractionDigits: m < 10_000 ? 1 : 0 });
 
 export function ElevationProfile({ points, onHover }: ElevationProfileProps) {
+  const t = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(300);
   const [active, setActive] = useState<number | null>(null);
@@ -90,7 +93,10 @@ export function ElevationProfile({ points, onHover }: ElevationProfileProps) {
         width={width}
         height={HEIGHT}
         role="img"
-        aria-label={`Профиль высот: от ${Math.round(geometry.yMin)} до ${Math.round(geometry.yMax)} м на ${km(length)} км`}
+        aria-label={t(
+          `Профиль высот: от ${Math.round(geometry.yMin)} до ${Math.round(geometry.yMax)} м на ${km(length)} км`,
+          `Elevation profile: ${Math.round(geometry.yMin)} to ${Math.round(geometry.yMax)} m over ${km(length)} km`,
+        )}
         onPointerMove={(e) => pick(e.clientX)}
         onPointerLeave={leave}
       >
@@ -98,7 +104,7 @@ export function ElevationProfile({ points, onHover }: ElevationProfileProps) {
           <g key={`y${v}`}>
             <line className="profile-grid" x1={PAD.left} x2={width - PAD.right} y1={y(v)} y2={y(v)} />
             <text className="profile-tick" x={PAD.left - 6} y={y(v)} textAnchor="end" dominantBaseline="middle">
-              {Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString('ru-RU')} км` : `${v} м`}
+              {Math.abs(v) >= 1000 ? `${(v / 1000).toLocaleString(locale())} ${t('км', 'km')}` : `${v} ${t('м', 'm')}`}
             </text>
           </g>
         ))}
@@ -121,9 +127,9 @@ export function ElevationProfile({ points, onHover }: ElevationProfileProps) {
           className="profile-tooltip"
           style={{ left: Math.min(width - 150, Math.max(0, x(point.distanceM) - 70)) }}
         >
-          <span>{km(point.distanceM)} км от A</span>
-          <strong>{Math.round(point.heightM).toLocaleString('ru-RU')} м</strong>
-          <span>уклон {point.slopeDeg.toFixed(1)}°</span>
+          <span>{t(`${km(point.distanceM)} км от A`, `${km(point.distanceM)} km from A`)}</span>
+          <strong>{Math.round(point.heightM).toLocaleString(locale())} {t('м', 'm')}</strong>
+          <span>{t('уклон', 'slope')} {point.slopeDeg.toFixed(1)}°</span>
         </div>
       )}
     </div>

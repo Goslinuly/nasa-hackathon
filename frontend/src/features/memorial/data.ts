@@ -1,14 +1,18 @@
 // Данные режима «Памятные места»: завершённые миссии на поверхности Марса и свечи зрителя.
 import type { GlobeMarker } from '@/app/modeContract';
+import { getLang, locale, pick, tr } from '@/shared/i18n/lang';
 
 export interface Mission {
   id: string;
   name: string;
+  name_en?: string;
   agency: string;
   kind: string;
+  kind_en?: string;
   lat: number;
   lon: number;
   place: string;
+  place_en?: string;
   landed: string;
   last_contact: string;
   mission_end?: string;
@@ -16,8 +20,11 @@ export interface Mission {
   distance_km?: number;
   flights?: number;
   legacy: string;
+  legacy_en?: string;
   note?: string;
+  note_en?: string;
   quote_note?: string;
+  quote_note_en?: string;
   sources: string[];
 }
 
@@ -25,6 +32,7 @@ export interface MissionsFile {
   fetched_utc: string;
   coordinates: string;
   note: string;
+  note_en?: string;
   missions: Mission[];
 }
 
@@ -33,7 +41,7 @@ export const MEMORIAL_COLOR = '#d9d2c3';
 
 export async function loadMissions(signal?: AbortSignal): Promise<MissionsFile> {
   const response = await fetch(MISSIONS_URL, { signal });
-  if (!response.ok) throw new Error(`Не удалось загрузить список миссий: ${response.status}`);
+  if (!response.ok) throw new Error(tr(`Не удалось загрузить список миссий: ${response.status}`, `Could not load the mission list: ${response.status}`));
   return (await response.json()) as MissionsFile;
 }
 
@@ -60,7 +68,7 @@ export function missionMarkers(missions: Mission[]): GlobeMarker[] {
     id: m.id,
     lon: m.lon,
     lat: m.lat,
-    label: m.name,
+    label: pick(m.name, m.name_en),
     kind: 'memorial',
     color: MEMORIAL_COLOR,
   }));
@@ -68,10 +76,18 @@ export function missionMarkers(missions: Mission[]): GlobeMarker[] {
 
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 
-/** «2004-01-25» → «25 января 2004». */
+/** «2004-01-25» → «25 января 2004» (по-английски — «January 25, 2004»). */
 export function formatDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   if (!y || !m || !d) return iso;
+  if (getLang() === 'en') {
+    return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(locale(), {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
+  }
   return `${d} ${MONTHS[m - 1]} ${y}`;
 }
 

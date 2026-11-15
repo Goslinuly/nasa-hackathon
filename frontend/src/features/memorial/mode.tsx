@@ -6,7 +6,9 @@ import type { ModeDefinition } from '@/app/modeContract';
 export const mode: ModeDefinition = {
   id: 'memorial',
   title: 'Памятные места',
+  titleEn: 'Memorial',
   description: 'Где остались роверы и станции, которые больше не выходят на связь',
+  descriptionEn: 'Where the rovers and landers that no longer call home rest',
   order: 40,
   fullscreen: false,
   Panel: lazy(() => import('./MemorialPanel')),

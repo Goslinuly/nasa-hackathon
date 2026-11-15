@@ -1,13 +1,17 @@
 // Компас-лента: стороны света, курс и метка базы с расстоянием.
 import { formatDistance } from '@/shared/eva/suit';
+import { getLang, useT } from '@/shared/i18n/lang';
 
 import { Badge } from './Badge';
 
 const HALF_FOV = 75;
 const WIDTH = 360;
 const PX_PER_DEG = WIDTH / (2 * HALF_FOV);
-const NAMES: Record<number, string> = {
+const NAMES_RU: Record<number, string> = {
   0: 'С', 45: 'СВ', 90: 'В', 135: 'ЮВ', 180: 'Ю', 225: 'ЮЗ', 270: 'З', 315: 'СЗ',
+};
+const NAMES_EN: Record<number, string> = {
+  0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW',
 };
 
 const norm = (d: number) => ((d % 360) + 360) % 360;
@@ -25,6 +29,8 @@ export interface CompassProps {
 }
 
 export function Compass({ headingDeg, baseBearingDeg, baseDistanceM }: CompassProps) {
+  const t = useT();
+  const NAMES = getLang() === 'en' ? NAMES_EN : NAMES_RU;
   const ticks: { x: number; deg: number }[] = [];
   const start = Math.ceil((headingDeg - HALF_FOV) / 15) * 15;
   for (let d = start; d <= headingDeg + HALF_FOV; d += 15) {
@@ -38,13 +44,13 @@ export function Compass({ headingDeg, baseBearingDeg, baseDistanceM }: CompassPr
   return (
     <div className="hud-compass" style={{ width: WIDTH }}>
       <div className="hud-compass-tape">
-        {ticks.map(t => (
+        {ticks.map(tk => (
           <span
-            key={t.deg + ':' + Math.round(t.x)}
-            className={`hud-tick${NAMES[t.deg] ? ' hud-tick--major' : ''}`}
-            style={{ left: t.x }}
+            key={tk.deg + ':' + Math.round(tk.x)}
+            className={`hud-tick${NAMES[tk.deg] ? ' hud-tick--major' : ''}`}
+            style={{ left: tk.x }}
           >
-            {NAMES[t.deg] ?? (t.deg % 30 === 0 ? t.deg : '')}
+            {NAMES[tk.deg] ?? (tk.deg % 30 === 0 ? tk.deg : '')}
           </span>
         ))}
         {!atBase && (
@@ -52,17 +58,20 @@ export function Compass({ headingDeg, baseBearingDeg, baseDistanceM }: CompassPr
             className={`hud-base-marker${baseVisible ? '' : ' hud-base-marker--edge'}`}
             style={{ left: baseX }}
           >
-            {!baseVisible && baseDelta < 0 ? '◄ ' : ''}Б {formatDistance(baseDistanceM)}
+            {!baseVisible && baseDelta < 0 ? '◄ ' : ''}{t('Б', 'B')} {formatDistance(baseDistanceM)}
             {!baseVisible && baseDelta > 0 ? ' ►' : ''}
           </span>
         )}
         <span className="hud-compass-caret" style={{ left: WIDTH / 2 }} />
       </div>
       <div className="hud-compass-caption">
-        курс {Math.round(norm(headingDeg))}° · база {atBase ? 'здесь' : `${Math.round(norm(baseBearingDeg))}°, ${formatDistance(baseDistanceM)}`}
+        {t('курс', 'heading')} {Math.round(norm(headingDeg))}° · {t('база', 'base')} {atBase ? t('здесь', 'here') : `${Math.round(norm(baseBearingDeg))}°, ${formatDistance(baseDistanceM)}`}
         <Badge
           prov="data"
-          tip="Курс: направление взгляда в градусах от севера по часовой стрелке. База: точка старта выхода, азимут и расстояние до неё по прямой по модели рельефа сцены."
+          tip={t(
+            'Курс: направление взгляда в градусах от севера по часовой стрелке. База: точка старта выхода, азимут и расстояние до неё по прямой по модели рельефа сцены.',
+            'Heading: view direction in degrees clockwise from north. Base: the EVA start point, its bearing and straight-line distance from the scene terrain model.',
+          )}
         />
       </div>
     </div>

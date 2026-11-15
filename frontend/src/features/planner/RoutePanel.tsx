@@ -6,6 +6,7 @@ import { useGlobeState, useValue } from '@/app/globeState';
 import type { GlobeApi, LonLat, ModeContext } from '@/app/modeContract';
 import { EvaPanel } from '@/features/eva/EvaPanel';
 import { ResearchAlongRoute } from '@/features/science/ResearchAlongRoute';
+import { getLang, locale, pick as pickLang, tr, useLang, useT } from '@/shared/i18n/lang';
 
 import { DEMO_MISSION } from './demoMission';
 import { SurfacePhotos } from './SurfacePhotos';
@@ -20,7 +21,7 @@ import { findCoveringSite, loadLocalGrid, type SiteManifestBounds } from './loca
 import {
   CREW_RANGE_KG,
   EVA_DEFAULT_TRAVERSE,
-  EVA_PROVENANCE,
+  evaProvenance,
   LOAD_RANGE_KG,
   buildRouteOptions,
   clampMass,
@@ -32,6 +33,7 @@ import {
   formatStopsCount,
   formatUnknownSurface,
   moveItem,
+  routeReasonText,
   formatModelTime,
   formatOxygenCorridor,
   outsideModelWarning,
@@ -70,14 +72,17 @@ function formatDuration(hours: number, unit: DayUnit): string {
   if (days >= 1) {
     const whole = Math.floor(days);
     const rest = Math.round((days - whole) * dayHours);
-    const word = unit === 'mars' ? plural(whole, ['сол', 'сола', 'солов']) : plural(whole, ['сутки', 'суток', 'суток']);
-    return rest > 0 ? `${whole} ${word} ${rest} ч` : `${whole} ${word}`;
+    const en = getLang() === 'en';
+    const word = en
+      ? unit === 'mars' ? (whole === 1 ? 'sol' : 'sols') : whole === 1 ? 'day' : 'days'
+      : unit === 'mars' ? plural(whole, ['сол', 'сола', 'солов']) : plural(whole, ['сутки', 'суток', 'суток']);
+    return rest > 0 ? `${whole} ${word} ${rest} ${tr('ч', 'h')}` : `${whole} ${word}`;
   }
   const total = Math.round(hours * 60);
   const h = Math.floor(total / 60);
   const min = total % 60;
-  const share = unit === 'mars' ? ` · ${days.toFixed(2)} сола` : '';
-  return (h > 0 ? `${h} ч ${min} мин` : `${min} мин`) + share;
+  const share = unit === 'mars' ? ` · ${days.toFixed(2)} ${tr('сола', 'sol')}` : '';
+  return (h > 0 ? `${h} ${tr('ч', 'h')} ${min} ${tr('мин', 'min')}` : `${min} ${tr('мин', 'min')}`) + share;
 }
 
 function MassField({
@@ -92,6 +97,7 @@ function MassField({
   onCommit(kg: number): void;
 }) {
   const [draft, setDraft] = useState(String(value));
+  const t = useT();
   useEffect(() => setDraft(String(value)), [value]);
   const commit = () => {
     const next = clampMass(Number(draft.replace(',', '.')), range, value);
@@ -101,7 +107,7 @@ function MassField({
   return (
     <label className="eva-field">
       <span>
-        {label}, кг ({range.min}–{range.max})
+        {label}, {t('кг', 'kg')} ({range.min}–{range.max})
       </span>
       <input
         type="number"
@@ -122,6 +128,7 @@ const lonEast = (lon: number) => ((lon % 360) + 360) % 360;
 function CoordinateFields({ value, onChange }: { value: LonLat | null; onChange(point: LonLat): void }) {
   const [lat, setLat] = useState('');
   const [lon, setLon] = useState('');
+  const t = useT();
 
   useEffect(() => {
     setLat(value ? value.lat.toFixed(4) : '');
@@ -145,11 +152,11 @@ function CoordinateFields({ value, onChange }: { value: LonLat | null; onChange(
   return (
     <div className="coord-fields">
       <label>
-        <span>Шир.</span>
+        <span>{t('Шир.', 'Lat')}</span>
         <input inputMode="decimal" value={lat} placeholder="18.44" onChange={(e) => setLat(e.target.value)} onBlur={commit} onKeyDown={onKey} />
       </label>
       <label>
-        <span>Долг. E</span>
+        <span>{t('Долг. E', 'Lon E')}</span>
         <input inputMode="decimal" value={lon} placeholder="77.45" onChange={(e) => setLon(e.target.value)} onBlur={commit} onKeyDown={onKey} />
       </label>
     </div>
@@ -187,6 +194,7 @@ function RoverCard({ globe, points, model }: { globe: GlobeApi; points: ProfileP
     return element;
   });
   const [text, setText] = useState<RoverCardText | null>(null);
+  const t = useT();
 
   useEffect(() => {
     globe.setRoverTag?.(host);
@@ -208,26 +216,26 @@ function RoverCard({ globe, points, model }: { globe: GlobeApi; points: ProfileP
   if (!text) return null;
   return createPortal(
     <div className="rover-card-body">
-      <div className="rover-card-title">Модель выхода · показ ускорен</div>
+      <div className="rover-card-title">{t('Модель выхода · показ ускорен', 'EVA model · sped-up playback')}</div>
       <dl className="rover-card-full">
         <div>
-          <dt>Скорость</dt>
+          <dt>{t('Скорость', 'Speed')}</dt>
           <dd>{text.speed}</dd>
         </div>
         <div>
-          <dt>Расход O₂</dt>
+          <dt>{t('Расход O₂', 'O₂ rate')}</dt>
           <dd>{text.rate}</dd>
         </div>
         <div>
-          <dt>Израсходовано</dt>
+          <dt>{t('Израсходовано', 'Used')}</dt>
           <dd>{text.oxygen}</dd>
         </div>
         <div>
-          <dt>В пути</dt>
+          <dt>{t('В пути', 'Elapsed')}</dt>
           <dd>{text.time}</dd>
         </div>
         <div>
-          <dt>Пройдено</dt>
+          <dt>{t('Пройдено', 'Covered')}</dt>
           <dd>{text.distance}</dd>
         </div>
       </dl>
@@ -251,6 +259,8 @@ export default function RoutePanel({ globe }: ModeContext) {
   const [workerReady, setWorkerReady] = useState(false);
   const requestRef = useRef(0);
   const pickRef = useRef<PickTarget | null>('a');
+  const t = useT();
+  const lang = useLang();
 
   const [endpoints, setEndpoints] = useState<Record<Endpoint, LonLat | null>>({ a: null, b: null });
   const [pick, setPick] = useState<PickTarget | null>('a');
@@ -407,7 +417,7 @@ export default function RoutePanel({ globe }: ModeContext) {
       } catch (reason) {
         if (!alive) return;
         setLocalWanted(false);
-        setLocalError(reason instanceof Error ? reason.message : 'Не удалось загрузить детальный рельеф');
+        setLocalError(reason instanceof Error ? reason.message : tr('Не удалось загрузить детальный рельеф', 'Could not load detailed terrain'));
       }
     })();
     return () => {
@@ -424,12 +434,12 @@ export default function RoutePanel({ globe }: ModeContext) {
         id: which,
         lon: endpoints[which]!.lon,
         lat: endpoints[which]!.lat,
-        label: which === 'a' ? 'A · старт' : 'Б · цель',
+        label: which === 'a' ? tr('A · старт', 'A · start') : tr('Б · цель', 'B · target'),
         kind: 'site' as const,
         color: ENDPOINT_COLOR[which],
       }));
     globe.setMarkers('endpoints', markers.length ? markers : null);
-  }, [globe, endpoints]);
+  }, [globe, endpoints, lang]);
 
   useEffect(() => {
     globe.setMarkers(
@@ -527,81 +537,89 @@ export default function RoutePanel({ globe }: ModeContext) {
   return (
     <div className="route-panel">
       <button type="button" className={`demo-mission${demoOn ? ' is-on' : ''}`} onClick={runDemo}>
-        <strong>{DEMO_MISSION.title}</strong>
-        <span>Научная цель, маршрут через неё и бюджет выхода — одним нажатием</span>
+        <strong>{pickLang(DEMO_MISSION.title, DEMO_MISSION.titleEn)}</strong>
+        <span>{t('Научная цель, маршрут через неё и бюджет выхода — одним нажатием', 'A science target, a route through it and the EVA budget in one click')}</span>
       </button>
       {demoOn && (
         <>
-          <p className="planner-note">{DEMO_MISSION.science}</p>
-          <p className="planner-note">{DEMO_MISSION.plan}</p>
+          <p className="planner-note">{pickLang(DEMO_MISSION.science, DEMO_MISSION.scienceEn)}</p>
+          <p className="planner-note">{pickLang(DEMO_MISSION.plan, DEMO_MISSION.planEn)}</p>
         </>
       )}
       <p className="planner-hint">
         {pick
           ? pick === 'stop'
-            ? 'Кликните по планете, чтобы добавить промежуточную остановку.'
-            : `Кликните по планете, чтобы поставить точку ${pick === 'a' ? 'A' : 'Б'}, или введите координаты.`
-          : 'Чтобы переставить точку, нажмите «Выбрать» рядом с ней.'}
+            ? t('Кликните по планете, чтобы добавить промежуточную остановку.', 'Click the planet to add an intermediate stop.')
+            : t(
+                `Кликните по планете, чтобы поставить точку ${pick === 'a' ? 'A' : 'Б'}, или введите координаты.`,
+                `Click the planet to place point ${pick === 'a' ? 'A' : 'B'}, or enter coordinates.`,
+              )
+          : t('Чтобы переставить точку, нажмите «Выбрать» рядом с ней.', 'To move a point, press "Pick" next to it.')}
       </p>
 
       {(['a', 'b'] as Endpoint[]).map((which) => (
         <div key={which} className={`endpoint endpoint-${which}${pick === which ? ' picking' : ''}`}>
           <div className="endpoint-head">
-            <span className="endpoint-badge">{which === 'a' ? 'A' : 'Б'}</span>
-            <span className="endpoint-name">{which === 'a' ? 'Старт' : 'Цель'}</span>
+            <span className="endpoint-badge">{which === 'a' ? 'A' : t('Б', 'B')}</span>
+            <span className="endpoint-name">{which === 'a' ? t('Старт', 'Start') : t('Цель', 'Target')}</span>
             <button type="button" className="link-button" onClick={() => setPick(pick === which ? null : which)}>
-              {pick === which ? 'Отмена' : 'Выбрать'}
+              {pick === which ? t('Отмена', 'Cancel') : t('Выбрать', 'Pick')}
             </button>
           </div>
           <CoordinateFields value={endpoints[which]} onChange={(point) => placeEndpoint(which, point)} />
           {endpoints[which] && terrain.status === 'ready' && (
             <span className="endpoint-height">
-              Высота MOLA {Math.round(terrain.field.sample(endpoints[which]!.lon, endpoints[which]!.lat)).toLocaleString('ru-RU')} м
+              {t('Высота MOLA', 'MOLA elevation')}{' '}
+              {Math.round(terrain.field.sample(endpoints[which]!.lon, endpoints[which]!.lat)).toLocaleString(locale())} {t('м', 'm')}
             </span>
           )}
         </div>
       ))}
 
       <div className="stops-block">
-        <h2 className="planner-subtitle">Остановки</h2>
-        {stops.length === 0 && <p className="planner-note">Между A и Б можно добавить цели: маршрут пройдёт через них по порядку.</p>}
+        <h2 className="planner-subtitle">{t('Остановки', 'Stops')}</h2>
+        {stops.length === 0 && (
+          <p className="planner-note">
+            {t('Между A и Б можно добавить цели: маршрут пройдёт через них по порядку.', 'You can add targets between A and B: the route will pass through them in order.')}
+          </p>
+        )}
         <ol className="stops-list">
           {stops.map((stop, index) => (
             <li key={`${index}-${stop.lon}-${stop.lat}`}>
               <span className="stop-number">{index + 1}</span>
               <span className="mono">
-                {stop.lat.toFixed(3)}°, {lonEast(stop.lon).toFixed(3)}° в. д.
+                {stop.lat.toFixed(3)}°, {lonEast(stop.lon).toFixed(3)}° {t('в. д.', 'E')}
               </span>
-              <button type="button" className="link-button" aria-label="Выше" disabled={index === 0} onClick={() => setStops(moveItem(stops, index, -1))}>
+              <button type="button" className="link-button" aria-label={t('Выше', 'Up')} disabled={index === 0} onClick={() => setStops(moveItem(stops, index, -1))}>
                 ↑
               </button>
-              <button type="button" className="link-button" aria-label="Ниже" disabled={index === stops.length - 1} onClick={() => setStops(moveItem(stops, index, 1))}>
+              <button type="button" className="link-button" aria-label={t('Ниже', 'Down')} disabled={index === stops.length - 1} onClick={() => setStops(moveItem(stops, index, 1))}>
                 ↓
               </button>
-              <button type="button" className="link-button" aria-label="Удалить" onClick={() => setStops(stops.filter((_, i) => i !== index))}>
+              <button type="button" className="link-button" aria-label={t('Удалить', 'Remove')} onClick={() => setStops(stops.filter((_, i) => i !== index))}>
                 ✕
               </button>
             </li>
           ))}
         </ol>
         <button type="button" className="ghost-button" onClick={() => setPick(pick === 'stop' ? null : 'stop')}>
-          {pick === 'stop' ? 'Отмена' : 'Добавить точку'}
+          {pick === 'stop' ? t('Отмена', 'Cancel') : t('Добавить точку', 'Add a point')}
         </button>
       </div>
 
       <div className="planner-actions">
         <button type="button" className="ghost-button" onClick={swap} disabled={!endpoints.a && !endpoints.b}>
-          ⇅ Поменять
+          ⇅ {t('Поменять', 'Swap')}
         </button>
         <button type="button" className="ghost-button" onClick={clear} disabled={!endpoints.a && !endpoints.b}>
-          Сбросить
+          {t('Сбросить', 'Reset')}
         </button>
       </div>
 
       <div className="planner-params">
         <label>
           <span>
-            Макс. уклон <strong>{options.maxSlopeDeg}°</strong>
+            {t('Макс. уклон', 'Max slope')} <strong>{options.maxSlopeDeg}°</strong>
           </span>
           <input
             type="range"
@@ -611,7 +629,7 @@ export default function RoutePanel({ globe }: ModeContext) {
             onChange={(e) => setBaseOptions({ ...baseOptions, maxSlopeDeg: Number(e.target.value) })}
           />
         </label>
-        <div className="day-toggle" role="radiogroup" aria-label="Способ расчёта маршрута">
+        <div className="day-toggle" role="radiogroup" aria-label={t('Способ расчёта маршрута', 'Route cost model')}>
           {(['distance', 'eva'] as CostModel[]).map((value) => (
             <button
               key={value}
@@ -621,25 +639,30 @@ export default function RoutePanel({ globe }: ModeContext) {
               className={costModel === value ? 'active' : undefined}
               onClick={() => setCostModel(value)}
             >
-              {value === 'distance' ? 'По расстоянию' : 'По расходу выхода'}
+              {value === 'distance' ? t('По расстоянию', 'By distance') : t('По расходу выхода', 'By EVA consumption')}
             </button>
           ))}
         </div>
         {hazard && (
           <label className="check-row">
             <input type="checkbox" checked={surfaceFromData} onChange={(e) => setSurfaceFromData(e.target.checked)} />
-            <span>Грунт и изрезанность из данных NASA</span>
+            <span>{t('Грунт и изрезанность из данных NASA', 'Surface and ruggedness from NASA data')}</span>
           </label>
         )}
         {hazard && !surfaceFromData && (
-          <p className="planner-note">Грунт задаётся переключателем ниже; запрет по изрезанности остаётся: это безопасность.</p>
+          <p className="planner-note">
+            {t(
+              'Грунт задаётся переключателем ниже; запрет по изрезанности остаётся: это безопасность.',
+              'Surface is set by the switch below; the ruggedness ban stays on: it is a safety rule.',
+            )}
+          </p>
         )}
         {covering && (
           <label className="check-row">
             <input type="checkbox" checked={localWanted} onChange={(e) => setLocalWanted(e.target.checked)} />
             <span>
-              Детальный рельеф: {covering.title}
-              {manifests.get(covering.id) ? ` (шаг ${manifests.get(covering.id)!.height.pixel_m} м)` : ''}
+              {t('Детальный рельеф', 'Detailed terrain')}: {pickLang(covering.title, covering.title_en)}
+              {manifests.get(covering.id) ? t(` (шаг ${manifests.get(covering.id)!.height.pixel_m} м)`, ` (${manifests.get(covering.id)!.height.pixel_m} m step)`) : ''}
             </span>
           </label>
         )}
@@ -647,9 +670,12 @@ export default function RoutePanel({ globe }: ModeContext) {
         {evaMode && (
           <>
             <p className="planner-note">
-              Скорость берётся из модели (V = −0,01·уклон + 0,75 м/с), ползунок скорости не влияет на модельное время.
+              {t(
+                'Скорость берётся из модели (V = −0,01·уклон + 0,75 м/с), ползунок скорости не влияет на модельное время.',
+                'Speed comes from the model (V = −0.01·slope + 0.75 m/s); the speed slider does not affect model time.',
+              )}
             </p>
-            <div className="day-toggle" role="radiogroup" aria-label="Поверхность">
+            <div className="day-toggle" role="radiogroup" aria-label={t('Поверхность', 'Surface')}>
               {(['firm', 'sand'] as TraverseParams['surface'][]).map((value) => (
                 <button
                   key={value}
@@ -659,18 +685,18 @@ export default function RoutePanel({ globe }: ModeContext) {
                   className={traverse.surface === value ? 'active' : undefined}
                   onClick={() => setTraverse({ ...traverse, surface: value })}
                 >
-                  {value === 'firm' ? 'Плотный грунт' : 'Песок'}
+                  {value === 'firm' ? t('Плотный грунт', 'Firm ground') : t('Песок', 'Sand')}
                 </button>
               ))}
             </div>
             <MassField
-              label="Масса экипажа"
+              label={t('Масса экипажа', 'Crew mass')}
               value={traverse.crewKg}
               range={CREW_RANGE_KG}
               onCommit={(crewKg) => setTraverse({ ...traverse, crewKg })}
             />
             <MassField
-              label="Масса груза"
+              label={t('Масса груза', 'Load mass')}
               value={traverse.loadKg}
               range={LOAD_RANGE_KG}
               onCommit={(loadKg) => setTraverse({ ...traverse, loadKg })}
@@ -679,62 +705,67 @@ export default function RoutePanel({ globe }: ModeContext) {
         )}
         <label>
           <span>
-            Скорость <strong>{speedKmh} км/ч</strong>
-            {evaMode ? ' · только для оценки «при заданной скорости»' : ''}
+            {t('Скорость', 'Speed')} <strong>{speedKmh} {t('км/ч', 'km/h')}</strong>
+            {evaMode ? t(' · только для оценки «при заданной скорости»', ' · only for the "at set speed" estimate') : ''}
           </span>
           <input type="range" min={1} max={20} value={speedKmh} onChange={(e) => setSpeedKmh(Number(e.target.value))} />
         </label>
       </div>
 
       <div className="planner-result" aria-live="polite">
-        {terrain.status === 'loading' && <p className="dim">Загрузка карты высот…</p>}
+        {terrain.status === 'loading' && <p className="dim">{t('Загрузка карты высот…', 'Loading the height map…')}</p>}
         {terrain.status === 'failed' && (
           <p className="warn">
-            Маршрут по рельефу построить нельзя: {terrain.message ?? 'карта высот недоступна'}{' '}
+            {t('Маршрут по рельефу построить нельзя', 'Cannot plan a route over the terrain')}:{' '}
+            {terrain.message ?? t('карта высот недоступна', 'height map unavailable')}{' '}
             <button type="button" className="link-button" onClick={() => window.location.reload()}>
-              Перезагрузить страницу
+              {t('Перезагрузить страницу', 'Reload the page')}
             </button>
           </p>
         )}
-        {busy && <p className="dim">Расчёт маршрута…</p>}
+        {busy && <p className="dim">{t('Расчёт маршрута…', 'Computing the route…')}</p>}
         {!busy && failedLeg !== null && (
           <p className="warn">
-            Нога {failedLeg + 1} непроходима: между соседними точками нет пути с такими ограничениями. На экране остаётся
-            предыдущий маршрут; измените остановки или увеличьте допустимый уклон.
+            {t(
+              `Нога ${failedLeg + 1} непроходима: между соседними точками нет пути с такими ограничениями. На экране остаётся предыдущий маршрут; измените остановки или увеличьте допустимый уклон.`,
+              `Leg ${failedLeg + 1} is impassable: there is no path between these points under the current limits. The previous route stays on screen; change the stops or raise the allowed slope.`,
+            )}
           </p>
         )}
         {!busy && route?.status === 'unreachable' && (
           <p className="warn">
-            Путь с уклоном не круче {options.maxSlopeDeg}° не найден (по прямой {formatKm(route.greatCircleM)}).
-            Увеличьте допустимый уклон.
+            {t(
+              `Путь с уклоном не круче ${options.maxSlopeDeg}° не найден (по прямой ${formatKm(route.greatCircleM)}). Увеличьте допустимый уклон.`,
+              `No path with slopes up to ${options.maxSlopeDeg}° was found (straight line ${formatKm(route.greatCircleM)}). Raise the allowed slope.`,
+            )}
           </p>
         )}
-        {!busy && route?.status === 'invalid' && <p className="warn">{route.reason}</p>}
+        {!busy && route?.status === 'invalid' && <p className="warn">{routeReasonText(route.reason)}</p>}
         {!busy && route?.status === 'ok' && (
           <>
             <dl className="route-stats">
               <div>
-                <dt>Длина пути</dt>
+                <dt>{t('Длина пути', 'Path length')}</dt>
                 <dd>{formatKm(route.lengthM)}</dd>
               </div>
               <div>
-                <dt>По прямой</dt>
+                <dt>{t('По прямой', 'Straight line')}</dt>
                 <dd>{formatKm(straight ?? route.greatCircleM)}</dd>
               </div>
               <div>
-                <dt>Подъём / спуск</dt>
+                <dt>{t('Подъём / спуск', 'Ascent / descent')}</dt>
                 <dd>
-                  +{Math.round(route.ascentM).toLocaleString('ru-RU')} / −{Math.round(route.descentM).toLocaleString('ru-RU')} м
+                  +{Math.round(route.ascentM).toLocaleString(locale())} / −{Math.round(route.descentM).toLocaleString(locale())} {t('м', 'm')}
                 </dd>
               </div>
               <div>
-                <dt>Макс. уклон</dt>
+                <dt>{t('Макс. уклон', 'Max slope')}</dt>
                 <dd>{route.maxSlopeDeg.toFixed(1)}°</dd>
               </div>
               <div className="route-time">
-                <dt>{evaMode ? `Время при ${speedKmh} км/ч` : 'Время в пути'}</dt>
+                <dt>{evaMode ? t(`Время при ${speedKmh} км/ч`, `Time at ${speedKmh} km/h`) : t('Время в пути', 'Travel time')}</dt>
                 <dd>≈ {formatDuration(route.lengthM / 1000 / speedKmh, dayUnit)}</dd>
-                <div className="day-toggle" role="radiogroup" aria-label="Единица суток">
+                <div className="day-toggle" role="radiogroup" aria-label={t('Единица суток', 'Day unit')}>
                   <button
                     type="button"
                     role="radio"
@@ -742,7 +773,7 @@ export default function RoutePanel({ globe }: ModeContext) {
                     className={dayUnit === 'mars' ? 'active' : undefined}
                     onClick={() => setDayUnit('mars')}
                   >
-                    Солы
+                    {t('Солы', 'Sols')}
                   </button>
                   <button
                     type="button"
@@ -751,39 +782,48 @@ export default function RoutePanel({ globe }: ModeContext) {
                     className={dayUnit === 'earth' ? 'active' : undefined}
                     onClick={() => setDayUnit('earth')}
                   >
-                    Земные сутки
+                    {t('Земные сутки', 'Earth days')}
                   </button>
                 </div>
                 <span className="day-note">
                   {dayUnit === 'mars'
-                    ? `= ${formatDuration(route.lengthM / 1000 / speedKmh, 'earth')} по-земному · 1 сол = 24 ч 39 мин 35 с`
-                    : `= ${formatDuration(route.lengthM / 1000 / speedKmh, 'mars')} · 1 сол = 24 ч 39 мин 35 с`}
+                    ? t(
+                        `= ${formatDuration(route.lengthM / 1000 / speedKmh, 'earth')} по-земному · 1 сол = 24 ч 39 мин 35 с`,
+                        `= ${formatDuration(route.lengthM / 1000 / speedKmh, 'earth')} in Earth time · 1 sol = 24 h 39 min 35 s`,
+                      )
+                    : t(
+                        `= ${formatDuration(route.lengthM / 1000 / speedKmh, 'mars')} · 1 сол = 24 ч 39 мин 35 с`,
+                        `= ${formatDuration(route.lengthM / 1000 / speedKmh, 'mars')} · 1 sol = 24 h 39 min 35 s`,
+                      )}
                 </span>
               </div>
               {route.eva && (
                 <>
                   <div>
-                    <dt>Время по модели</dt>
+                    <dt>{t('Время по модели', 'Model time')}</dt>
                     <dd>≈ {formatModelTime(route.eva.seconds)}</dd>
                     <span className="day-note">
-                      Не то же, что «время при {speedKmh} км/ч»: здесь скорость зависит от уклона каждого участка.
+                      {t(
+                        `Не то же, что «время при ${speedKmh} км/ч»: здесь скорость зависит от уклона каждого участка.`,
+                        `Not the same as "time at ${speedKmh} km/h": here speed depends on the slope of each segment.`,
+                      )}
                     </span>
                   </div>
                   <div>
-                    <dt>Кислород</dt>
+                    <dt>{t('Кислород', 'Oxygen')}</dt>
                     <dd className="eva-corridor">{formatOxygenCorridor(route.eva.o2LowL, route.eva.o2HighL)}</dd>
                   </div>
                 </>
               )}
               <div>
-                <dt>Данные рельефа</dt>
+                <dt>{t('Данные рельефа', 'Terrain data')}</dt>
                 <dd className={`data-level data-level-${formatDataLevel(route.dataLevel).tone}`}>{formatDataLevel(route.dataLevel).label}</dd>
                 {multi && multi.stopIndices.length > 0 && <span className="day-note">{formatStopsCount(multi.stopIndices.length)}</span>}
               </div>
               <div>
-                <dt>Высоты</dt>
+                <dt>{t('Высоты', 'Elevations')}</dt>
                 <dd>
-                  {Math.round(route.minHeightM).toLocaleString('ru-RU')}…{Math.round(route.maxHeightM).toLocaleString('ru-RU')} м
+                  {Math.round(route.minHeightM).toLocaleString(locale())}…{Math.round(route.maxHeightM).toLocaleString(locale())} {t('м', 'm')}
                 </dd>
               </div>
             </dl>
@@ -793,8 +833,13 @@ export default function RoutePanel({ globe }: ModeContext) {
                   <>
                     <p>{formatSand(route.hazard.sandM)}</p>
                     <p className="planner-note">
-                      грунт по тепловой инерции TES — трактовка измерения, не доля камней
-                      {route.eva?.surface === 'per_cell' ? '. Расход уже посчитан по грунту каждой ячейки' : ''}
+                      {t(
+                        'грунт по тепловой инерции TES — трактовка измерения, не доля камней',
+                        'surface from TES thermal inertia: an interpretation of the measurement, not a rock fraction',
+                      )}
+                      {route.eva?.surface === 'per_cell'
+                        ? t('. Расход уже посчитан по грунту каждой ячейки', '. Consumption is already computed from the surface of each cell')
+                        : ''}
                     </p>
                   </>
                 )}
@@ -804,30 +849,33 @@ export default function RoutePanel({ globe }: ModeContext) {
                 {formatBlockedCells(route.hazard.blockedByRuggedness, route.hazard.maxRuggedSlopeDeg) && (
                   <>
                     <p>{formatBlockedCells(route.hazard.blockedByRuggedness, route.hazard.maxRuggedSlopeDeg)}</p>
-                    <p className="planner-note">уклон на масштабе 200 м (MOLA+HRSC), а не под ногами</p>
+                    <p className="planner-note">{t('уклон на масштабе 200 м (MOLA+HRSC), а не под ногами', 'slope at a 200 m scale (MOLA+HRSC), not underfoot')}</p>
                   </>
                 )}
               </div>
             )}
-            <h2 className="planner-subtitle">Профиль высот</h2>
+            <h2 className="planner-subtitle">{t('Профиль высот', 'Elevation profile')}</h2>
             <ElevationProfile
               points={route.points}
               onHover={(index) => engine.setProbe(index == null ? null : route.points[index])}
             />
             <p className="planner-note">
               {dataLevelNote(route.dataLevel, localSite ? (manifests.get(localSite)?.height.pixel_m ?? null) : null, options.maxSlopeDeg)}
-              {routeMs != null ? ` Расчёт ${Math.round(routeMs)} мс.` : ''}{' '}
-              Это направление, а не проверенная тропа.{' '}
+              {routeMs != null ? t(` Расчёт ${Math.round(routeMs)} мс.`, ` Computed in ${Math.round(routeMs)} ms.`) : ''}{' '}
+              {t('Это направление, а не проверенная тропа.', 'This is a direction, not a verified trail.')}{' '}
               {route.eva
-                ? `«Время при ${speedKmh} км/ч» — простая симуляция без остановок; «Время по модели» считает скорость по уклону (V = −0,01·уклон + 0,75 м/с) и от ползунка не зависит.`
-                : `Время рассчитано для ${speedKmh} км/ч без остановок.`}
+                ? t(
+                    `«Время при ${speedKmh} км/ч» — простая симуляция без остановок; «Время по модели» считает скорость по уклону (V = −0,01·уклон + 0,75 м/с) и от ползунка не зависит.`,
+                    `"Time at ${speedKmh} km/h" is a simple simulation without stops; "Model time" derives speed from slope (V = −0.01·slope + 0.75 m/s) and does not depend on the slider.`,
+                  )
+                : t(`Время рассчитано для ${speedKmh} км/ч без остановок.`, `Time computed for ${speedKmh} km/h without stops.`)}
             </p>
             {route.eva && (
               <>
                 {outsideModelWarning(route.eva.outsideModelSegments) && (
                   <p className="warn">{outsideModelWarning(route.eva.outsideModelSegments)}</p>
                 )}
-                <p className="planner-note">{EVA_PROVENANCE}</p>
+                <p className="planner-note">{evaProvenance()}</p>
               </>
             )}
             <EvaPanel

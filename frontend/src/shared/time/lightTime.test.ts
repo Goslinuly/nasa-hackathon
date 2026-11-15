@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { formatLightTime, interpolateLightTime, type LightTimeTable } from './lightTime';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 const table: LightTimeTable = {
   source: 'JPL Horizons',

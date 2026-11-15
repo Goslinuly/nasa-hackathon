@@ -20,6 +20,10 @@ import {
   outsideModelWarning,
 } from './routeOptions';
 import { DEFAULT_ROUTE_OPTIONS } from './routing';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 describe('buildRouteOptions', () => {
   it('по расстоянию не добавляет модель и параметры выхода', () => {

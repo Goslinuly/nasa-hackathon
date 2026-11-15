@@ -2,7 +2,9 @@
  "schema_version": 1,
  "id": "gale-boxwork",
  "title": "Гейл, район boxwork на склоне горы Шарп",
+ "title_en": "Gale, boxwork area on the slope of Mount Sharp",
  "note": "Демонстрационный выход ТЗ EVA: лагерь A → научная цель Б, 677 м.",
+ "note_en": "Demo EVA from the EVA spec: camp A → science target B, 677 m.",
  "crs": "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +R=3396190 +units=m +no_defs=True",
  "coordinates": "planetocentric latitude, east longitude 0-360",
  "center": {
@@ -98,16 +100,20 @@
   {
    "id": "A",
    "title": "Лагерь A",
+   "title_en": "Camp A",
    "lat": -4.797816,
    "lon_east": 137.385921,
-   "note": "Круговая панорама при первом прибытии Curiosity в boxwork"
+   "note": "Круговая панорама при первом прибытии Curiosity в boxwork",
+   "note_en": "360° panorama from Curiosity's first arrival at the boxwork"
   },
   {
    "id": "B",
    "title": "Научная цель Б",
+   "title_en": "Science target B",
    "lat": -4.808271,
    "lon_east": 137.38127,
-   "note": "Круговая панорама с пика кампании; рядом место бурения"
+   "note": "Круговая панорама с пика кампании; рядом место бурения",
+   "note_en": "360° panorama from the campaign high point; drill site nearby"
   }
  ],
  "track": {
@@ -124,7 +130,8 @@
    "p10": 10.0,
    "p90": 14.96
   },
-  "note": "Высота трека — телеметрия ровера (elev_geoid). Линию маршрута класть на рельеф DTM; разница — смещение вертикального датума, а не ошибка точки."
+  "note": "Высота трека — телеметрия ровера (elev_geoid). Линию маршрута класть на рельеф DTM; разница — смещение вертикального датума, а не ошибка точки.",
+  "note_en": "Track elevation is rover telemetry (elev_geoid). Drape the route line on the DTM terrain; the difference is a vertical datum offset, not a point error."
  },
  "generated_by": "backend/scripts/build_local_package.py",
  "sha256": {
@@ -141,8 +148,11 @@
   "frame": "те же оси и нулевой уровень, что у участка: x восток, y = высота − base_m, z юг; метры",
   "vexag": 1,
   "label": "дальний план: обзорный рельеф кратера Гейла ~200 м/пикс, без снимка",
+  "label_en": "far view: overview terrain of Gale crater ~200 m/px, no image",
   "note": "Кратер Гейла из galecode.glb, привязан по MOLA MEGDR (корреляция 0,993), высоты приведены к ×1. Под участком вырезан, у края на 3 м ниже HiRISE с переходом 4 км.",
+  "note_en": "Gale crater from galecode.glb, registered to MOLA MEGDR (correlation 0.993), heights at ×1. Cut out under the site; at the edge it sits 3 m below HiRISE with a 4 km transition.",
   "credit": "Обзорный рельеф кратера Гейла (~200 м/пикс), подготовлен командой по глобальным данным MOLA/HRSC; масштаб проверен по MOLA MEGDR (NASA/GSFC MOLA Science Team)",
+  "credit_en": "Overview terrain of Gale crater (~200 m/px), prepared by the team from global MOLA/HRSC data; scale checked against MOLA MEGDR (NASA/GSFC MOLA Science Team)",
   "generated_by": "backend/scripts/blender/site_scene.py --backdrop galecode.glb --backdrop-glb-step 2 (калибровка backend/scripts/blender/backdrops/galecode.json)",
   "sha256": "2dbe987447f5626d08b5ca6a440931e45adeb2f223bd8155f9f747e2f947c2f5"
  }

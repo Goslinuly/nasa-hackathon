@@ -4,6 +4,10 @@ import { describe, expect, it } from 'vitest';
 
 import { BELL_NOTES, CHORDS, midiToHz } from './ambient';
 import { daysBetween, formatDate, missionProblems, readCandles, writeCandles, type MissionsFile } from './data';
+import { setLang } from '@/shared/i18n/lang';
+
+// Тексты проверяются на русском; английские — отдельными проверками.
+setLang('ru');
 
 const file = JSON.parse(
   readFileSync(new URL('../../../public/data/memorial/missions.json', import.meta.url), 'utf-8'),
@@ -47,6 +51,9 @@ describe('missions.json', () => {
 describe('даты', () => {
   it('formatDate и daysBetween', () => {
     expect(formatDate('2004-01-25')).toBe('25 января 2004');
+    setLang('en');
+    expect(formatDate('2004-01-25')).toBe('January 25, 2004');
+    setLang('ru');
     expect(daysBetween('2004-01-25', '2004-02-25')).toBe(31);
   });
 });
