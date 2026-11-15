@@ -1272,7 +1272,8 @@ export class WalkScene {
     const { frame, grid } = this.opts.pkg;
     const a = gridToLocal(frame, -0.5, -0.5);
     const b = gridToLocal(frame, grid.width - 0.5, grid.height - 0.5);
-    const cell = ROUTE_CELL_M;
+    // На обзорном рельефе шаг сетки десятки метров: клетка поиска не мельче него.
+    const cell = Math.max(ROUTE_CELL_M, frame.pixelM);
     const width = Math.max(1, Math.floor((b.x - a.x) / cell));
     const height = Math.max(1, Math.floor((b.z - a.z) / cell));
     if (!this.routeGrid) {
