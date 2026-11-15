@@ -17,6 +17,9 @@ export interface SiteIndexEntry {
   /** Почему выбран этот участок: научная цель, данные, ограничения. */
   why?: string[];
   why_en?: string[];
+  /** Что известно о породах участка по данным миссии (источник — в тексте). */
+  geology?: string;
+  geology_en?: string;
 }
 
 export interface ManifestPoi {

@@ -181,8 +181,17 @@ body {
 
 .landing-main {
   position: relative;
-  background: linear-gradient(to bottom, rgba(5, 5, 7, 0) 0, rgba(5, 5, 7, 0.86) 220px);
+  /* Без затемнения: шар и звёзды видны целиком, читаемость текста держит тень букв. */
+  background: none;
   padding-bottom: 20px;
+}
+
+.landing-main .section-intro,
+.landing-main .section-note,
+.landing-main p,
+.landing-main h2,
+.landing-main h3 {
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.85);
 }
 
 .landing .footer {
@@ -719,5 +728,38 @@ button.region-card:focus-visible {
 
   .topbar-links button {
     letter-spacing: 0.12em;
+  }
+}
+
+/* Блок данных шара сворачивается: крестик у раскрытого, кнопка «i» у свёрнутого. */
+.shell-hud { position: relative; }
+.shell-hud-close {
+  position: absolute; top: 4px; right: 4px; width: 32px; height: 32px; padding: 0;
+  border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.06); color: inherit;
+  font-size: 18px; line-height: 1; cursor: pointer;
+}
+.shell-hud-chip {
+  position: absolute; z-index: 5; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(8, 9, 13, 0.75); color: #fff; font: 600 18px/1 Georgia, serif; font-style: italic; cursor: pointer;
+}
+.sheet-grip { display: none; }
+
+@media (pointer: coarse), (max-width: 760px) {
+  .shell-hud-close { width: 40px; height: 40px; }
+}
+
+@media (max-width: 760px), (max-height: 500px) {
+  /* Свёрнутый блок данных — кнопка над шторкой режима, чтобы её не закрывала панель. */
+  .shell-hud-chip { top: calc(64px + env(safe-area-inset-top)); bottom: auto; right: 12px; }
+  /* Ручка шторки — настоящая кнопка: нажатие сворачивает и разворачивает панель. */
+  .mode-panel::before { display: none; }
+  .sheet-grip {
+    display: block; align-self: center; flex: none; width: 72px; height: 22px; margin-top: 2px;
+    border: 0; background: none; cursor: pointer; position: relative;
+  }
+  .sheet-grip::after {
+    content: ''; position: absolute; left: 18px; right: 18px; top: 9px; height: 4px; border-radius: 2px;
+    background: var(--hairline-strong);
   }
 }

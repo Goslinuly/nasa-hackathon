@@ -9,20 +9,27 @@ import { SLOPE_THRESHOLDS } from './motion';
 import { SiteBrief } from './SiteBrief';
 import { fetchManifest, fetchSiteIndex, loadSitePackage, siteBaseUrl, type SiteIndexEntry, type SitePackage } from './sitePackage';
 import { MARS_RADIUS_KM } from '@/features/globe/tiles';
-import { ASCENT_M, ROVER_REAL_SPEED_MS, ROVER_SPEED_MS, TIME_SCALES, WalkScene, type TeleportTarget, type WalkExtra } from './walkScene';
+import { ASCENT_M, ROVER_REAL_SPEED_MS, ROVER_SPEED_MS, TIME_SCALES, WalkScene, type SurfaceProbe, type TeleportTarget, type WalkExtra } from './walkScene';
+import { SurfaceCard } from './SurfaceCard';
 
 /** Подъём камеры перед переходом на шар. */
 const ASCENT_MS = 1400;
 import { TimeControls } from './TimeControls';
 import { Joystick, TouchLook } from './TouchControls';
 import './walk.css';
+import { AstronautSettings, jumpNotice } from './AstronautSettings';
+import { LandscapeGate } from './LandscapeGate';
+import { nextTimeScale, useCompact } from './compact';
+import { enterLandscape, exitLandscape } from './landscape';
+import { buildOverviewPackage, OVERVIEW_SITE_ID } from './overviewPackage';
+import { setPlannedWalkRoute, takePlannedWalkRoute, type PlannedWalkRoute } from '@/shared/walkRoute';
 
 export default function WalkPanel(ctx: ModeContext) {
   const site = ctx.params.site;
   if (!site) return <SiteChooser ctx={ctx} />;
   return (
     <div className="walk-root">
-      <WalkSite key={site} site={site} ctx={ctx} />
+      {site === OVERVIEW_SITE_ID ? <OverviewSite ctx={ctx} /> : <WalkSite key={site} site={site} ctx={ctx} />}
     </div>
   );
 }
@@ -107,6 +114,8 @@ function SiteChooser({ ctx, notice }: { ctx: ModeContext; notice?: string }) {
 
   const descend = async (s: ChooserSite) => {
     if (descending) return;
+    // Телефон: полный экран и горизонтальная ориентация — только внутри нажатия.
+    enterLandscape();
     setDescending(true);
     if (!preloads.has(s.id)) preloads.set(s.id, loadSitePackage(s.id));
     // Дальний план и модель ровера — тоже заранее, чтобы при посадке они уже были в кэше браузера.
@@ -153,6 +162,88 @@ function SiteChooser({ ctx, notice }: { ctx: ModeContext; notice?: string }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Маршрут обзорного режима забирается один раз; повторный запуск эффекта (режим разработки)
+ * в течение пары секунд получает тот же маршрут.
+ */
+let overviewTaken: { route: PlannedWalkRoute; at: number } | null = null;
+function takeOverviewRoute(): PlannedWalkRoute | null {
+  const route = takePlannedWalkRoute(OVERVIEW_SITE_ID);
+  if (route) {
+    overviewTaken = { route, at: Date.now() };
+    return route;
+  }
+  if (overviewTaken && Date.now() - overviewTaken.at < 3000) return overviewTaken.route;
+  return null;
+}
+
+/** Обзорный режим: маршрут в любом месте Марса на глобальных данных MOLA и CTX. */
+function OverviewSite({ ctx }: { ctx: ModeContext }) {
+  const t = useT();
+  const [pkg, setPkg] = useState<SitePackage | null>(null);
+  const [status, setStatus] = useState<'loading' | 'noroute' | 'error' | 'ready'>('loading');
+  const [error, setError] = useState('');
+  useEscExit(ctx.exit, status !== 'ready');
+
+  useEffect(() => {
+    const ac = new AbortController();
+    let loaded: SitePackage | null = null;
+    const route = takeOverviewRoute();
+    if (!route) {
+      setStatus('noroute');
+      return;
+    }
+    setStatus('loading');
+    (async () => {
+      try {
+        loaded = await buildOverviewPackage(route, ac.signal);
+        if (ac.signal.aborted) {
+          loaded.ortho.close();
+          return;
+        }
+        // Сцена сама забирает маршрут как активный: кладём его обратно перед запуском.
+        setPlannedWalkRoute(route);
+        setPkg(loaded);
+        setStatus('ready');
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        setError((e as Error).message);
+        setStatus('error');
+      }
+    })();
+    return () => {
+      ac.abort();
+      loaded?.ortho.close();
+    };
+  }, []);
+
+  if (status === 'ready' && pkg) {
+    return (
+      <>
+        <WalkView pkg={pkg} ctx={ctx} />
+        <div className="walk-overview-banner" role="note">
+          {t(
+            'Обзорный режим: рельеф MOLA ~7 км, снимок CTX. Мелкие склоны и камни не видны — это не проверенная тропа.',
+            'Overview mode: MOLA ~7 km terrain, CTX image. Small slopes and rocks are not visible — this is not a checked path.',
+          )}
+        </div>
+      </>
+    );
+  }
+  return (
+    <div className="walk-center">
+      <p>
+        {status === 'noroute'
+          ? t('Маршрут не задан. Проложите маршрут A → Б на глобусе.', 'No route is set. Plan an A → B route on the globe.')
+          : status === 'error'
+            ? `${t('Не удалось собрать обзорный рельеф', 'Could not build the overview terrain')}: ${error}`
+            : t('Сборка обзорного рельефа MOLA и снимка CTX…', 'Building the MOLA overview terrain and CTX image…')}
+      </p>
+      <button type="button" className="walk-btn" onClick={ctx.exit}>{t('На глобус', 'To the globe')}</button>
     </div>
   );
 }
@@ -237,7 +328,15 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   const [state, setState] = useState<WalkState | null>(null);
   const [extra, setExtra] = useState<WalkExtra | null>(null);
   const [teleports, setTeleports] = useState<TeleportTarget[]>([]);
-  const [menu, setMenu] = useState<'none' | 'settings' | 'teleport'>('none');
+  const [menu, setMenu] = useState<'none' | 'settings' | 'teleport' | 'nav'>('none');
+  const [probe, setProbe] = useState<SurfaceProbe | null>(null);
+  const compact = useCompact();
+  // На телефоне нет подсказки с клавишами: несколько секунд показываем, что грунт можно нажать.
+  const [tapHint, setTapHint] = useState(true);
+  useEffect(() => {
+    const id = window.setTimeout(() => setTapHint(false), 9000);
+    return () => window.clearTimeout(id);
+  }, []);
   const [shadows, setShadows] = useState(true);
   const [groundDetail, setGroundDetail] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
@@ -255,6 +354,17 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   };
   const exitRef = useRef(leave);
   exitRef.current = leave;
+
+  // Сцена открылась без нажатия (ссылка, перезагрузка): просим горизонталь при первом касании.
+  useEffect(() => {
+    if (!touch) return;
+    const once = () => enterLandscape();
+    window.addEventListener('pointerdown', once, { once: true, capture: true });
+    return () => {
+      window.removeEventListener('pointerdown', once, { capture: true });
+      exitLandscape();
+    };
+  }, [touch]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -274,6 +384,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
           setExtra(x);
         },
         onExit: () => exitRef.current(),
+        onProbe: setProbe,
       });
     } catch (e) {
       setWebglError((e as Error).message);
@@ -306,25 +417,71 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
     <>
       <div ref={hostRef} className="walk-host" />
       <div ref={labelsRef} className="walk-labels" />
-      {touch && <TouchLook onLook={(dx, dy) => sceneRef.current?.lookBy(dx, dy)} />}
+      {touch && <TouchLook onLook={(dx, dy) => sceneRef.current?.lookBy(dx, dy)} onTap={(x, y) => sceneRef.current?.probeAt(x, y)} />}
+      {!touch && extra?.locked && <div className="walk-crosshair" aria-hidden="true" />}
+      {probe && (
+        <SurfaceCard
+          probe={probe}
+          compact={compact}
+          onClose={() => {
+            sceneRef.current?.clearProbe();
+            setProbe(null);
+          }}
+        />
+      )}
       {touch && <Joystick onMove={(x, y) => sceneRef.current?.setJoystick(x, y)} />}
       {state && <Hud state={state} />}
-      <TimeControls scene={sceneRef.current} solar={extra?.solar ?? null} />
+      {state?.vehicle === 'walk' && (
+        <button
+          type="button"
+          className={`walk-btn walk-jump${touch ? ' walk-jump--touch' : ''}${extra?.airborne ? ' is-on' : ''}`}
+          title={t('Пробел', 'Space')}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            sceneRef.current?.jump();
+          }}
+        >
+          {t('Прыжок', 'Jump')}
+        </button>
+      )}
+      {extra?.jump && <div className="walk-note walk-note--jump">{jumpNotice(extra.jump, t)}</div>}
+      <TimeControls scene={sceneRef.current} solar={extra?.solar ?? null} compact={compact} />
 
+      {compact ? (
+        <div className="walk-topbar walk-topbar--compact">
+          <button type="button" className={`walk-btn ${menu !== 'none' ? 'is-on' : ''}`} aria-expanded={menu !== 'none'} onClick={() => setMenu(menu === 'none' ? 'nav' : 'none')}>
+            ☰ {t('Меню', 'Menu')}
+          </button>
+          <button
+            type="button"
+            className="walk-btn walk-speed"
+            title={t('Ускорение времени: нажмите, чтобы переключить', 'Time speed-up: tap to switch')}
+            onClick={() => s?.setTimeScale(nextTimeScale(TIME_SCALES, state?.timeScale ?? 1))}
+          >
+            ×{state?.timeScale ?? 1}
+          </button>
+          <LangSwitch className="walk-lang" />
+        </div>
+      ) : (
       <div className="walk-topbar">
         <button type="button" className="walk-btn" onClick={leave}>{t('На глобус', 'To the globe')}</button>
         <div className="walk-timescale" role="group" aria-label={t('Чем перемещаться', 'How to move')}>
           <button type="button" className={`walk-btn ${state?.vehicle !== 'walk' ? 'is-on' : ''}`} onClick={() => s?.setVehicle('rover')}>{t('Ровер', 'Rover')}</button>
           <button type="button" className={`walk-btn ${state?.vehicle === 'walk' ? 'is-on' : ''}`} onClick={() => s?.setVehicle('walk')}>{t('Пешком', 'On foot')}</button>
-          {s?.hasTrack && (
+          {s?.hasActivePath && (
             <button
               type="button"
               className={`walk-btn ${extra?.autoDrive ? 'is-on' : ''}`}
               aria-pressed={!!extra?.autoDrive}
-              title={t(
-                `Ровер сам едет по треку ${pkg.track?.rover ?? 'ровера'}. W/S/A/D — снова вручную`,
-                `The rover drives itself along the ${pkg.track?.rover ?? 'rover'} track. W/S/A/D to take control again`,
-              )}
+              title={
+                extra?.route
+                  ? t('Ровер сам едет по вашему маршруту. W/S/A/D — снова вручную', 'The rover drives itself along your route. W/S/A/D to take control again')
+                  : t(
+                      `Ровер сам едет по треку ${pkg.track?.rover ?? 'ровера'}. W/S/A/D — снова вручную`,
+                      `The rover drives itself along the ${pkg.track?.rover ?? 'rover'} track. W/S/A/D to take control again`,
+                    )
+              }
               onClick={() => s?.setAutoDrive(!extra?.autoDrive)}
             >
               {t('Автоуправление', 'Autodrive')}
@@ -346,6 +503,24 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </div>
         <LangSwitch className="walk-lang" />
       </div>
+      )}
+
+      {touch && <LandscapeGate />}
+
+      {menu === 'nav' && (
+        <div className="walk-menu walk-menu--nav">
+          <button type="button" className="walk-menu-item" onClick={leave}>{t('На глобус', 'To the globe')}</button>
+          <button type="button" className={`walk-menu-item ${state?.vehicle !== 'walk' ? 'is-on' : ''}`} onClick={() => { s?.setVehicle('rover'); setMenu('none'); }}>{t('Ровер', 'Rover')}</button>
+          <button type="button" className={`walk-menu-item ${state?.vehicle === 'walk' ? 'is-on' : ''}`} onClick={() => { s?.setVehicle('walk'); setMenu('none'); }}>{t('Пешком', 'On foot')}</button>
+          {s?.hasActivePath && (
+            <button type="button" className={`walk-menu-item ${extra?.autoDrive ? 'is-on' : ''}`} onClick={() => { s?.setAutoDrive(!extra?.autoDrive); setMenu('none'); }}>
+              {t('Автоуправление', 'Autodrive')}{extra?.autoDrive ? ' ✓' : ''}
+            </button>
+          )}
+          <button type="button" className="walk-menu-item" onClick={() => setMenu('teleport')}>{t('Перейти к точке', 'Go to point')}</button>
+          <button type="button" className="walk-menu-item" onClick={() => setMenu('settings')}>{t('Настройки', 'Settings')}</button>
+        </div>
+      )}
 
       {menu === 'teleport' && (
         <div className="walk-menu">
@@ -360,6 +535,7 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
 
       {menu === 'settings' && (
         <div className="walk-menu">
+          <AstronautSettings />
           <div className="walk-menu-row">
             <span>{t('Порог уклона', 'Slope limit')}</span>
             {SLOPE_THRESHOLDS.map((d) => (
@@ -417,8 +593,43 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </div>
       )}
 
-      <div className="walk-minimap">
-        <canvas ref={minimapRef} title={t('Щёлкните, чтобы перейти в точку', 'Click to go to a point')} />
+      {extra?.routeMode && (
+        <div className="walk-route-hint" role="status">
+          {t('Нажмите на мини-карте, куда идти: маршрут обойдёт крутые склоны', 'Tap the minimap where to go: the route avoids steep slopes')}
+        </div>
+      )}
+      <div className={`walk-minimap${extra?.routeMode ? ' is-routing' : ''}`}>
+        <div className="walk-route-tools">
+          <button
+            type="button"
+            className={`walk-btn ${extra?.routeMode ? 'is-on' : ''}`}
+            aria-pressed={!!extra?.routeMode}
+            title={t(
+              'Щелчок по мини-карте прокладывает маршрут отсюда в обход крутых склонов',
+              'A click on the minimap plans a route from here around steep slopes',
+            )}
+            onClick={() => s?.setRouteMode(!extra?.routeMode)}
+          >
+            {t('Проложить маршрут', 'Plan a route')}
+          </button>
+          {extra?.route && (
+            <button type="button" className="walk-btn" onClick={() => s?.clearRoute()}>
+              {t('Сбросить маршрут', 'Clear route')}
+            </button>
+          )}
+        </div>
+        {extra?.route && (
+          <div className="walk-route-info">
+            {t(
+              `${extra.route.source === 'planner' ? 'Маршрут из планировщика' : 'Ваш маршрут'}: ${fmtKm(extra.route.lengthM)} · пешком ≈ ${fmtDuration(extra.route.walkS)} (модель)`,
+              `${extra.route.source === 'planner' ? 'Route from the planner' : 'Your route'}: ${fmtKm(extra.route.lengthM)} · on foot ≈ ${fmtDuration(extra.route.walkS)} (model)`,
+            )}
+          </div>
+        )}
+        <canvas
+          ref={minimapRef}
+          title={extra?.routeMode ? t('Щёлкните, куда проложить маршрут', 'Click where to plan the route') : t('Щёлкните, чтобы перейти в точку', 'Click to go to a point')}
+        />
         <div className="walk-minimap-credit">
           {credit ? `${credit.product} · ${pick(credit.credit ?? '', credit.credit_en)}` : ''}
           {pkg.manifest.backdrop ? ` · ${pick(pkg.manifest.backdrop.label, pkg.manifest.backdrop.label_en)}` : ''}
@@ -427,10 +638,21 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
 
       {extra?.autoDrive && (
         <div className="walk-note">
-          {t(
-            `Автоуправление по треку ${pkg.track?.rover ?? 'ровера'}: ${fmtKm(extra.autoS)} из ${fmtKm(extra.trackLength)} · W/S/A/D — вручную`,
-            `Autodrive along the ${pkg.track?.rover ?? 'rover'} track: ${fmtKm(extra.autoS)} of ${fmtKm(extra.trackLength)} · W/S/A/D for manual`,
-          )}
+          {extra.route
+            ? t(
+                `Автоуправление по своему маршруту: ${fmtKm(extra.autoS)} из ${fmtKm(extra.trackLength)} · W/S/A/D — вручную`,
+                `Autodrive along your route: ${fmtKm(extra.autoS)} of ${fmtKm(extra.trackLength)} · W/S/A/D for manual`,
+              )
+            : t(
+                `Автоуправление по треку ${pkg.track?.rover ?? 'ровера'}: ${fmtKm(extra.autoS)} из ${fmtKm(extra.trackLength)} · W/S/A/D — вручную`,
+                `Autodrive along the ${pkg.track?.rover ?? 'rover'} track: ${fmtKm(extra.autoS)} of ${fmtKm(extra.trackLength)} · W/S/A/D for manual`,
+              )}
+        </div>
+      )}
+
+      {extra?.routeFailed && (
+        <div className="walk-blocked walk-blocked--warn">
+          {t('Маршрут не найден: мешают крутые склоны или нет данных', 'No route found: steep slopes or missing data are in the way')}
         </div>
       )}
 
@@ -454,15 +676,19 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </div>
       )}
 
-      {!touch && extra && !extra.locked && !extra.lifting && menu === 'none' && (
+      {touch && tapHint && !probe && menu === 'none' && (
+        <div className="walk-tap-hint" role="status">{t('Нажмите на грунт — покажу породу и данные точки', 'Tap the ground to see the rock and data for that spot')}</div>
+      )}
+
+      {!touch && extra && !extra.locked && !extra.lifting && menu === 'none' && !probe && (
         <div className="walk-hint" onClick={() => s?.lock()}>
           {state?.vehicle === 'walk' ? (
             <>
               <strong>{t('Щёлкните, чтобы идти', 'Click to walk')}</strong>
               <span>
                 {t(
-                  'WASD или стрелки — шаг, мышь — взгляд, 1/2/3 — время ×1/×10/×60, Esc — отпустить мышь, Esc ещё раз — на глобус',
-                  'WASD or arrows to step, mouse to look, 1/2/3 for time ×1/×10/×60, Esc to release the mouse, Esc again to return to the globe',
+                  'WASD или стрелки — шаг, мышь — взгляд, 1/2/3/4 — время ×1/×10/×60/×600, I или правая кнопка — что за точка на поверхности, Esc — отпустить мышь, Esc ещё раз — на глобус',
+                  'WASD or arrows to step, mouse to look, 1/2/3/4 for time ×1/×10/×60/×600, I or right-click to inspect a surface point, Esc to release the mouse, Esc again to return to the globe',
                 )}
               </span>
             </>
@@ -471,8 +697,8 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
               <strong>{t('Щёлкните, чтобы ехать', 'Click to drive')}</strong>
               <span>
                 {t(
-                  'W/S — вперёд и назад, A/D — поворот, мышь — взгляд с мачты, 1/2/3 — время ×1/×10/×60, Esc — отпустить мышь, Esc ещё раз — на глобус',
-                  'W/S forward and back, A/D to turn, mouse to look from the mast, 1/2/3 for time ×1/×10/×60, Esc to release the mouse, Esc again to return to the globe',
+                  'W/S — вперёд и назад, A/D — поворот, мышь — взгляд с мачты, 1/2/3/4 — время ×1/×10/×60/×600, I или правая кнопка — что за точка на поверхности, Esc — отпустить мышь, Esc ещё раз — на глобус',
+                  'W/S forward and back, A/D to turn, mouse to look from the mast, 1/2/3/4 for time ×1/×10/×60/×600, I or right-click to inspect a surface point, Esc to release the mouse, Esc again to return to the globe',
                 )}
               </span>
             </>
@@ -481,6 +707,16 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
       )}
     </>
   );
+}
+
+/** «1 ч 05 мин» или «12 мин». */
+function fmtDuration(sec: number): string {
+  if (!Number.isFinite(sec)) return '—';
+  const min = Math.max(1, Math.round(sec / 60));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (getLang() === 'en') return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m} min`;
+  return h ? `${h} ч ${String(m).padStart(2, '0')} мин` : `${m} мин`;
 }
 
 /** «0,4 км» или «350 м». */

@@ -1,6 +1,7 @@
 // Сенсорное управление: джойстик слева — шаг, протяжка справа — взгляд.
 
 import { useRef, useState } from 'react';
+import { isTap } from './surfacePoint';
 
 const RADIUS = 56;
 
@@ -45,13 +46,16 @@ export function Joystick({ onMove }: { onMove(x: number, y: number): void }) {
   );
 }
 
-export function TouchLook({ onLook }: { onLook(dx: number, dy: number): void }) {
+export function TouchLook({ onLook, onTap }: { onLook(dx: number, dy: number): void; onTap?(x: number, y: number): void }) {
   const last = useRef<{ x: number; y: number; id: number } | null>(null);
+  // Начало касания: короткое касание без протяжки — выбор точки на поверхности, а не взгляд.
+  const start = useRef<{ x: number; y: number; at: number; id: number } | null>(null);
   return (
     <div
       className="walk-touchlook"
       onPointerDown={(e) => {
         last.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
+        start.current = { x: e.clientX, y: e.clientY, at: performance.now(), id: e.pointerId };
         e.currentTarget.setPointerCapture(e.pointerId);
       }}
       onPointerMove={(e) => {
@@ -60,8 +64,18 @@ export function TouchLook({ onLook }: { onLook(dx: number, dy: number): void }) 
         onLook(e.clientX - l.x, e.clientY - l.y);
         last.current = { ...l, x: e.clientX, y: e.clientY };
       }}
-      onPointerUp={() => (last.current = null)}
-      onPointerCancel={() => (last.current = null)}
+      onPointerUp={(e) => {
+        const s = start.current;
+        last.current = null;
+        start.current = null;
+        if (s && s.id === e.pointerId && onTap && isTap(e.clientX - s.x, e.clientY - s.y, performance.now() - s.at)) {
+          onTap(e.clientX, e.clientY);
+        }
+      }}
+      onPointerCancel={() => {
+        last.current = null;
+        start.current = null;
+      }}
     />
   );
 }

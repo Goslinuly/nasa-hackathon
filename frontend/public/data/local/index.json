@@ -20,7 +20,9 @@
       "Both ends of the route have Curiosity 360° panoramas, and the rover drilled rock near point B.",
       "HiRISE terrain at 1 m and an image at 0.25 m, with the real rover track on the terrain.",
       "Radiation here was measured by the same rover's RAD instrument."
-    ]
+    ],
+    "geology": "По данным Curiosity: этот склон горы Шарп сложен слоистыми породами с сульфатами. Гребни «boxwork», вероятно, — сеть минеральных жил, которые отложили и сцементировали подземные воды.",
+    "geology_en": "From Curiosity: this slope of Mount Sharp is made of sulfate-bearing layered rock. The boxwork ridges are likely a network of mineral veins deposited and cemented by groundwater."
   },
   {
     "id": "ares3",
@@ -41,7 +43,9 @@
       "The landing site from Andy Weir's novel The Martian. HiRISE image ESP_040776_2115 was taken at the coordinates the author sent to the HiRISE team.",
       "Acidalia Planitia is almost flat: the elevation range across the site is about 65 m.",
       "There is no rover track and no science measurements here. The site lets you compare the scene from the book with real terrain."
-    ]
+    ],
+    "geology": "Северная низменная равнина Acidalia Planitia: по снимкам с орбиты — гладкий мелкозернистый покров. Ни один ровер здесь не брал проб.",
+    "geology_en": "Acidalia Planitia, a northern lowland plain: orbital images show a smooth fine-grained cover. No rover has sampled it."
   },
   {
     "id": "jezero",
@@ -62,6 +66,8 @@
       "Here Perseverance studies the rocks of the rim of Jezero crater, which once held a lake with a river delta.",
       "You can drive the rover's track with autodrive.",
       "HiRISE 1 m terrain covers only a quarter of the site; near the rover's current position it is CTX 20 m. This is labelled underfoot."
-    ]
+    ],
+    "geology": "По данным Perseverance: дно кратера сложено магматическими породами, богатыми оливином, и базальтами. Западная дельта — осадки с глинами и карбонатами, отложенные водой.",
+    "geology_en": "From Perseverance: the crater floor is made of igneous rocks, olivine-rich and basaltic. The western delta holds water-laid sediments with clays and carbonates."
   }
 ]

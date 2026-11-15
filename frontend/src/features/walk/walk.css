@@ -47,6 +47,10 @@
 .walk-minimap { position: absolute; right: 12px; bottom: 12px; z-index: 2; }
 .walk-minimap canvas { display: block; border: 1px solid rgba(255, 210, 170, 0.45); border-radius: 4px; cursor: crosshair; }
 .walk-minimap-credit { font-size: 10px; color: #c9b3a2; max-width: 200px; margin-top: 2px; text-shadow: 0 1px 2px #000; }
+.walk-route-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; max-width: 200px; }
+.walk-route-tools .walk-btn { font-size: 12px; padding: 4px 8px; }
+.walk-route-info { font-size: 11px; color: #bff4ff; max-width: 200px; margin-bottom: 4px; text-shadow: 0 1px 2px #000; }
+.walk-label-route { color: #bff4ff; border-left: 3px solid #3fe0ff; font-weight: 700; }
 
 .walk-blocked {
   position: absolute; left: 50%; top: 58%; transform: translateX(-50%); padding: 6px 12px; border-radius: 6px;
@@ -160,3 +164,161 @@
 
 /* Описание участка внутри карточки выбора: те же отступы, что у заголовка. */
 .walk-pick .site-brief { padding: 0 12px 12px; }
+
+/* Постоянная плашка обзорного режима: данные грубые. */
+.walk-overview-banner {
+  position: absolute; left: 50%; top: 112px; transform: translateX(-50%); z-index: 12; pointer-events: none;
+  max-width: min(520px, calc(100% - 32px)); padding: 6px 12px; border-radius: 6px; text-align: center;
+  background: rgba(110, 60, 10, 0.85); border: 1px solid rgba(255, 200, 120, 0.6); color: #fff2dc; font-size: 13px;
+}
+
+/* Прыжок: справа внизу над мини-картой, над безопасной зоной. */
+.walk-jump {
+  position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: 250px; z-index: 3;
+  min-width: 64px; min-height: 40px; font-weight: 600; touch-action: none;
+}
+.walk-jump--touch { width: 72px; height: 72px; border-radius: 50%; padding: 0; font-size: 14px; }
+.walk-note--jump { top: 30%; background: rgba(40, 30, 70, 0.8); }
+
+/* Блок «Астронавт» в настройках. */
+.walk-astro { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 210, 170, 0.2); }
+.walk-astro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.walk-astro-field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #c9b3a2; }
+.walk-astro-field input {
+  font: inherit; font-size: 14px; color: #f4e6d8; background: rgba(0, 0, 0, 0.35); min-height: 32px;
+  border: 1px solid rgba(255, 210, 170, 0.35); border-radius: 4px; padding: 4px 6px; width: 100%; box-sizing: border-box;
+}
+.walk-astro-warn { margin: 0; font-size: 12px; padding: 6px 8px; border-left: 3px solid #ff9a62; background: rgba(150, 60, 20, 0.35); }
+
+/* Просьба повернуть телефон. */
+.walk-rotate {
+  position: absolute; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px; text-align: center; background: rgba(20, 10, 6, 0.94); font-size: 18px;
+}
+.walk-rotate p { margin: 0; max-width: 280px; }
+.walk-rotate .walk-link { min-height: 40px; font-size: 14px; }
+.walk-rotate-icon { color: #ff9a62; animation: walk-rotate-turn 2.4s ease-in-out infinite; }
+@keyframes walk-rotate-turn { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+@media (prefers-reduced-motion: reduce) { .walk-rotate-icon { animation: none; transform: rotate(-90deg); } }
+
+/* Телефон горизонтально: лента кнопок не наезжает на «Время», джойстик над панелями HUD,
+   прыжок слева от мини-карты у нижнего края. */
+@media (max-height: 500px) and (min-width: 761px) {
+  .walk-topbar {
+    left: calc(max(8px, env(safe-area-inset-left)) + 200px); max-width: none;
+    flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none;
+  }
+  .walk-topbar::-webkit-scrollbar { display: none; }
+  .walk-topbar > * { flex: none; }
+  .walk-topbar .walk-lang { order: -1; }
+  .walk-joystick { z-index: 12; }
+  .walk-jump { bottom: calc(80px + env(safe-area-inset-bottom)); right: calc(max(12px, env(safe-area-inset-right)) + 190px); }
+}
+@media (max-width: 760px) {
+  .walk-jump { bottom: calc(260px + env(safe-area-inset-bottom)); }
+}
+
+/* Телефон боком (низкий экран, в т.ч. внутри браузера Telegram с панелями сверху и снизу):
+   компактные кнопки одной лентой, маршрут слева от мини-карты, прыжок справа посередине —
+   под большой палец и подальше от нижней панели браузера. */
+@media (max-height: 500px) {
+  .walk-btn { font-size: 11px; padding: 3px 8px; min-height: 30px; border-radius: 5px; }
+  .walk-topbar {
+    top: max(4px, env(safe-area-inset-top)); left: calc(max(6px, env(safe-area-inset-left)) + 150px);
+    right: max(6px, env(safe-area-inset-right)); max-width: none; gap: 4px;
+    flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none;
+  }
+  .walk-topbar::-webkit-scrollbar { display: none; }
+  .walk-topbar > * { flex: none; }
+  .walk-timescale { gap: 3px; }
+  .walk-time { top: max(4px, env(safe-area-inset-top)); left: max(6px, env(safe-area-inset-left)); width: auto; max-width: 140px; padding: 0; background: none; border: 0; }
+  .walk-time > .walk-btn { font-size: 10px; }
+  .walk-minimap {
+    right: max(8px, env(safe-area-inset-right)); bottom: 8px;
+    display: flex; flex-direction: row-reverse; align-items: flex-end; gap: 6px;
+  }
+  .walk-route-tools { flex-direction: column; align-items: stretch; max-width: 120px; margin: 0; }
+  .walk-route-tools .walk-btn { font-size: 10px; padding: 3px 6px; }
+  .walk-route-info { font-size: 10px; max-width: 120px; }
+  .walk-minimap-credit { display: none; }
+  .walk-joystick { width: 96px; height: 96px; left: max(16px, env(safe-area-inset-left)); bottom: 16px; }
+  .walk-joystick-knob { width: 38px; height: 38px; }
+  .walk-jump, .walk-jump--touch {
+    top: 46%; bottom: auto; right: max(12px, env(safe-area-inset-right)); transform: translateY(-50%);
+    width: 56px; height: 56px; min-width: 0; min-height: 0; border-radius: 50%; padding: 0; font-size: 11px;
+  }
+  .walk-overview-banner { top: 40px; font-size: 11px; padding: 4px 8px; }
+  .walk-root .walk-hud .hud-toggle {
+    top: calc(max(4px, env(safe-area-inset-top)) + 38px); bottom: auto; left: max(6px, env(safe-area-inset-left)); right: auto;
+    transform: none; min-height: 28px; font-size: 10px; padding: 2px 8px;
+  }
+}
+
+/* Компактная раскладка (телефон): слева время, по центру компас, справа меню, ускорение и язык. */
+.walk-topbar--compact {
+  left: auto !important; right: max(6px, env(safe-area-inset-right)) !important; top: max(4px, env(safe-area-inset-top)) !important;
+  max-width: none !important; overflow: visible !important; gap: 4px;
+}
+.walk-topbar--compact .walk-lang { order: 0 !important; }
+.walk-speed { min-width: 48px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.walk-menu--nav { display: flex; flex-direction: column; gap: 4px; }
+.walk-menu-item.is-on { background: #b4552a; }
+@media (max-width: 760px), (max-height: 500px) {
+  .walk-menu { top: calc(max(4px, env(safe-area-inset-top)) + 40px) !important; right: max(6px, env(safe-area-inset-right)) !important;
+    left: auto !important; width: min(280px, calc(100% - 12px)) !important; max-height: calc(100dvh - 56px) !important; overflow-y: auto; }
+  .walk-time { top: max(4px, env(safe-area-inset-top)) !important; left: max(6px, env(safe-area-inset-left)) !important; width: auto !important; }
+  .walk-time--open {
+    width: min(280px, calc(100vw - 12px)) !important; max-height: calc(100dvh - 12px) !important; overflow-y: auto !important;
+    padding: 6px !important; background: rgb(24, 13, 8) !important; border: 1px solid rgba(255, 210, 170, 0.3) !important; z-index: 14;
+  }
+  .walk-time--open .walk-menu-row { flex-wrap: wrap; gap: 4px; }
+  .walk-time--open p { margin: 0; font-size: 11px; }
+  /* Мини-карта — в самый угол экрана. */
+  .walk-minimap { right: env(safe-area-inset-right) !important; bottom: env(safe-area-inset-bottom) !important; }
+  .walk-minimap canvas { border-radius: 4px 0 0 0; }
+  .walk-root .walk-hud .hud-toggle {
+    top: calc(max(4px, env(safe-area-inset-top)) + 38px) !important; bottom: auto !important;
+    left: max(6px, env(safe-area-inset-left)) !important; right: auto !important; transform: none !important;
+    min-height: 28px; font-size: 10px; padding: 2px 8px;
+  }
+}
+@media (max-width: 760px), (max-height: 500px) {
+  .walk-minimap { flex-direction: column-reverse !important; align-items: flex-end !important; gap: 4px !important; }
+  .walk-route-tools { flex-direction: row !important; max-width: none !important; margin-right: 6px !important; }
+  .walk-time-head { flex-wrap: nowrap !important; justify-content: space-between; }
+}
+@media (max-width: 760px), (max-height: 500px) {
+  /* Кнопки маршрута над картой, сама карта — вплотную к углу. */
+  .walk-minimap { display: flex !important; flex-direction: column !important; align-items: flex-end !important; }
+  .walk-minimap-credit { text-align: right; margin-right: 4px; }
+}
+@media (max-width: 760px) and (min-height: 501px) {
+  /* Вертикально: компас под строкой кнопок. */
+  .walk-hud .hud-tc { top: calc(max(4px, env(safe-area-inset-top)) + 46px); }
+}
+
+/* Подсказка режима маршрута: видна и на телефоне, где нет всплывающих title. */
+.walk-route-hint {
+  position: absolute; left: 50%; top: 64px; transform: translateX(-50%); z-index: 13; pointer-events: none;
+  max-width: min(420px, calc(100% - 24px)); padding: 6px 12px; border-radius: 6px; text-align: center; font-size: 13px;
+  background: rgba(180, 85, 42, 0.92); border: 1px solid #ff9a62; color: #fff;
+}
+/* Высота по видимой области: в мобильных браузерах нижняя панель не должна закрывать мини-карту. */
+.walk-root { bottom: auto; height: 100dvh; }
+@media (max-width: 760px), (max-height: 500px) {
+  .walk-route-hint { top: calc(max(4px, env(safe-area-inset-top)) + 44px); font-size: 11px; padding: 4px 8px; }
+  /* В режиме маршрута карта крупнее — в маленькую трудно попасть пальцем. */
+  .walk-minimap.is-routing canvas { transform: scale(1.8); transform-origin: bottom right; }
+  .walk-minimap.is-routing .walk-route-tools { position: relative; z-index: 1; }
+  .walk-minimap.is-routing { z-index: 12; }
+}
+
+/* Подсказка для телефона: грунт можно нажать. */
+.walk-tap-hint {
+  position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6;
+  pointer-events: none; max-width: min(320px, calc(100% - 260px)); padding: 5px 10px; border-radius: 6px; text-align: center;
+  font-size: 11px; background: rgba(20, 60, 80, 0.85); border: 1px solid rgba(95, 227, 255, 0.6); color: #eafcff;
+  animation: walk-tap-hint 9s ease forwards;
+}
+@keyframes walk-tap-hint { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
+@media (max-width: 760px) and (min-height: 501px) { .walk-tap-hint { bottom: 170px; max-width: calc(100% - 32px); } }

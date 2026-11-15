@@ -1,0 +1,128 @@
+/* Панель «Экипаж». Цвета берутся из переменных оболочки приложения, здесь только раскладка. */
+
+.crew-intro {
+  margin: 0 0 12px;
+  color: var(--dim, #a8907c);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.crew-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.crew-card {
+  border: 1px solid var(--line, rgba(220, 180, 140, 0.22));
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--panel, rgba(18, 13, 10, 0.6));
+}
+
+.crew-wide {
+  grid-column: 1 / -1;
+}
+
+.crew-card h3 {
+  margin: 0 0 9px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent, #e8a864);
+}
+
+.crew-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: baseline;
+}
+
+.crew-row + .crew-row {
+  margin-top: 3px;
+}
+
+.crew-k {
+  color: var(--dim, #a8907c);
+}
+
+.crew-v {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.crew-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 5px;
+}
+
+.crew-hero b {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.crew-fields {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(94px, 1fr));
+}
+
+.crew-fields label {
+  display: block;
+  font-size: 11px;
+  color: var(--dim, #a8907c);
+}
+
+.crew-fields input,
+.crew-fields select {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line, rgba(220, 180, 140, 0.22));
+  border-radius: 6px;
+  padding: 4px 7px;
+}
+
+.crew-tag {
+  display: inline-block;
+  font-size: 9px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 99px;
+  border: 1px solid currentColor;
+  flex: none;
+}
+
+.crew-tag-measurement { color: #8fd49b; }
+.crew-tag-model { color: #e8a864; }
+.crew-tag-rule { color: #e8c074; }
+
+.crew-note {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  margin: 7px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--dim, #a8907c);
+}
+
+.crew-advice {
+  margin: 8px 0 0;
+  padding: 5px 0 5px 11px;
+  border-left: 3px solid var(--line, rgba(220, 180, 140, 0.22));
+}
+
+.crew-advice-ok { border-color: #8fd49b; }
+.crew-advice-warn { border-color: #e8c074; }
+.crew-advice-danger { border-color: #f08a7a; }

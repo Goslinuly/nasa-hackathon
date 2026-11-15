@@ -44,6 +44,11 @@ const LEVEL_TITLE: Record<HudLevel, [string, string]> = {
   full: ['полный', 'full'],
   hidden: ['скрыт', 'hidden'],
 };
+const LEVEL_SHORT: Record<HudLevel, [string, string]> = {
+  min: ['мин', 'min'],
+  full: ['полн', 'full'],
+  hidden: ['скр', 'off'],
+};
 
 /** Внешние данные HUD; undefined — ещё грузится, null — нет данных. */
 export interface HudExternal {
@@ -183,7 +188,8 @@ export function HudView({ state: s, ext, level, onToggle }: HudViewProps) {
 
   const toggle = (
     <button type="button" className="hud-toggle" onClick={onToggle} title={tt('Уровень экрана: минимум → полный → скрыт', 'Display level: minimal → full → hidden')}>
-      HUD: {tt(...LEVEL_TITLE[level])} · H
+      <span className="hud-toggle-long">HUD: {tt(...LEVEL_TITLE[level])} · H</span>
+      <span className="hud-toggle-short">HUD: {tt(...LEVEL_SHORT[level])}</span>
     </button>
   );
   if (level === 'hidden') return <div className="hud walk-hud hud--hidden">{toggle}</div>;

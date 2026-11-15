@@ -19,7 +19,15 @@ import { shadowNeedsRefresh } from './shadowPolicy';
 import { TerrainChunks } from './terrainMesh';
 import { buildTrackPath, headingAlong, nearestOnPath, pointAt, TRACK_CORRIDOR_M, type TrackPath } from './trackPath';
 import { createTerrainMaterial, orthoHiPlacement } from './terrainMaterial';
+import { takePlannedWalkRoute, type PlannedWalkRoute } from '@/shared/walkRoute';
+import { findPath, nearestPassable, passableMask, routeWalkTime, simplifyPath, type RouteGrid } from './gridRoute';
+import { G_MARS, jump as jumpModel } from '@/shared/eva/crew';
+import { getCrewProfile, subscribeCrewProfile } from '@/shared/eva/crewProfile';
+import { eyeHeightM, stepJump, type Airborne } from './jump';
+import { pointLonLat, rayMarchTerrain } from './surfacePoint';
+import { OVERVIEW_SITE_ID } from './overviewPackage';
 
+/** Прежняя фиксированная высота глаз; теперь она считается по росту из профиля (jump.ts). */
 export const EYE_HEIGHT_M = 1.7;
 /** Высота, на которую камера поднимается перед переходом на шар. */
 export const ASCENT_M = 2500;
@@ -43,7 +51,7 @@ interface LiftPose {
 const ARRIVE_MS = 2600;
 
 const TOP_VIEW: LiftPose = { h: ASCENT_M, pitch: -Math.PI / 2 + 0.001, yaw: 0 };
-export const TIME_SCALES = [1, 10, 60] as const;
+export const TIME_SCALES = [1, 10, 60, 600] as const;
 const TRACK_LABEL_RADIUS_M = 50;
 const FOG_DAY = new THREE.Color('#cfa47e');
 const FOG_NIGHT = new THREE.Color('#121626');
@@ -95,6 +103,42 @@ export interface WalkExtra {
   trackLength: number;
   /** Крутизна выше порога, пропущенная на следе ровера, градусы (NaN — не было). */
   steepOnTrackDeg: number;
+  /** Свой маршрут: откуда, длина, м, и время пешком по модели, с (null — нет маршрута). */
+  route: { source: 'planner' | 'walk'; lengthM: number; walkS: number } | null;
+  /** Щелчок по мини-карте прокладывает маршрут. */
+  routeMode: boolean;
+  /** Последняя попытка проложить маршрут не удалась (показываем ~4 с). */
+  routeFailed: boolean;
+  /** Последний прыжок по модели (показываем ~2,5 с). */
+  jump: { heightM: number; flightS: number } | null;
+  /** Сейчас в полёте. */
+  airborne: boolean;
+}
+
+/**
+ * Маршрут забирается из общего хранилища один раз; повторное создание сцены для того же
+ * участка в течение пары секунд (двойной запуск эффектов в режиме разработки) получает его же.
+ */
+let lastTaken: { siteId: string; route: PlannedWalkRoute; at: number } | null = null;
+function takeRouteOnce(siteId: string): PlannedWalkRoute | null {
+  const route = takePlannedWalkRoute(siteId);
+  if (route) {
+    lastTaken = { siteId, route, at: Date.now() };
+    return route;
+  }
+  if (lastTaken && lastTaken.siteId === siteId && Date.now() - lastTaken.at < 3000) return lastTaken.route;
+  return null;
+}
+
+/** Шаг грубой сетки для поиска маршрута, м. */
+const ROUTE_CELL_M = 3;
+const ROUTE_COLOR = '#3fe0ff';
+
+interface CustomRoute {
+  source: 'planner' | 'walk';
+  path: TrackPath;
+  walkS: number;
+  mesh: THREE.Group;
 }
 
 export interface TeleportTarget {
@@ -116,6 +160,31 @@ export interface WalkSceneOptions {
   arrive?: boolean;
   onState(state: WalkState, extra: WalkExtra): void;
   onExit(): void;
+  /** Выбрана точка на поверхности (касание, правая кнопка, клавиша I). */
+  onProbe?(probe: SurfaceProbe): void;
+}
+
+/** Точка на поверхности под касанием: всё из сетки высот участка («данные»). */
+export interface SurfaceProbe {
+  x: number;
+  z: number;
+  lat: number;
+  lonEast: number;
+  /** Высота относительно ареоида, м; NaN — нет данных. */
+  elevationM: number;
+  slopeDeg: number;
+  /** База разностей для уклона, м. */
+  slopeBaseM: number;
+  /** Откуда высота: HiRISE DTM, CTX, MOLA (подпись из паспорта участка). */
+  heightSource: string;
+  /** Обзорный режим (MOLA). */
+  overview: boolean;
+  /** Расстояние по горизонтали от человека или ровера, м. */
+  distanceM: number;
+  vehicle: Vehicle;
+  siteId: string;
+  /** Где на экране выбрана точка, доля высоты (0 — верх): карточка встаёт так, чтобы не закрыть метку. */
+  screenY: number;
 }
 
 interface Label {
@@ -162,6 +231,8 @@ export class WalkScene {
   private ribbonMaterial: THREE.MeshBasicMaterial | null = null;
   private postMaterial: THREE.MeshLambertMaterial | null = null;
   private fog: THREE.Fog;
+  /** Множитель дальности обзора и дымки (больше 1 — обзорный рельеф). */
+  private viewScale = 1;
   private geo: SolarGeometry;
   private tau = DEFAULT_TAU;
   private clockRunning = true;
@@ -189,6 +260,11 @@ export class WalkScene {
   private blockedSlopeDeg = NaN;
   private blockedAt = 0;
   private lastUnlockAt = 0;
+  /** Полёт в прыжке (null — стоим на земле). */
+  private air: Airborne | null = null;
+  /** Высота глаз по росту из профиля, м (модель). */
+  private eyeM = eyeHeightM(getCrewProfile().heightCm);
+  private lastJump: { heightM: number; flightS: number; at: number } | null = null;
 
   // Настройки
   timeScale = 1;
@@ -202,6 +278,12 @@ export class WalkScene {
   private trackPath: TrackPath | null = null;
   private autoDrive = false;
   private autoS = 0;
+  /** Свой маршрут (из планировщика или проложенный здесь); автоуправление едет по нему. */
+  private customRoute: CustomRoute | null = null;
+  private routeMode = false;
+  private routeFailedAt = -Infinity;
+  private routeLabels: Label[] = [];
+  private routeGrid: RouteGrid | null = null;
   private steepOnTrackDeg = NaN;
   private steepAt = 0;
   private trackLabels: Label[] = [];
@@ -221,6 +303,9 @@ export class WalkScene {
   private fastSeconds = 0;
 
   private tmp = new THREE.Vector3();
+  private probeMarker: THREE.Mesh | null = null;
+  private probeScale = 1;
+  private raycaster = new THREE.Raycaster();
   private sunDir = new THREE.Vector3(0, 1, 0);
   /** Где и при каком солнце последний раз рисовалась карта теней (shadowPolicy.ts). */
   private shadowAt = { x: NaN, z: NaN, t: 0, sun: new THREE.Vector3() };
@@ -253,14 +338,19 @@ export class WalkScene {
     this.renderer.domElement.className = 'walk-canvas';
     container.appendChild(this.renderer.domElement);
 
-    this.camera = new THREE.PerspectiveCamera(70, container.clientWidth / Math.max(1, container.clientHeight), 0.1, 6000);
+    // Обзорный рельеф (шаг сетки десятки метров, участок до сотен км): дальше видно и дымка дальше.
+    this.viewScale = pkg.frame.pixelM >= 20 ? 8 : 1;
+    this.camera = new THREE.PerspectiveCamera(
+      70, container.clientWidth / Math.max(1, container.clientHeight), this.viewScale > 1 ? 0.5 : 0.1, 6000 * this.viewScale * 1.25,
+    );
     this.camera.rotation.order = 'YXZ';
 
     this.geo = solarGeometry(this.simTimeMs, this.latDeg, this.lonEastDeg);
-    this.fog = new THREE.Fog(FOG_DAY, FOG_FAR_DAY_M * FOG_NEAR_FRACTION, FOG_FAR_DAY_M);
+    this.fog = new THREE.Fog(FOG_DAY, FOG_FAR_DAY_M * this.viewScale * FOG_NEAR_FRACTION, FOG_FAR_DAY_M * this.viewScale);
     this.scene.fog = this.fog;
     this.scene.background = FOG_DAY.clone();
     this.sky = new SkyDome(import.meta.env.BASE_URL);
+    this.sky.mesh.scale.setScalar(this.viewScale);
     this.scene.add(this.sky.mesh);
     if (pkg.manifest.backdrop) {
       this.backdrop = new BackdropPass();
@@ -304,6 +394,7 @@ export class WalkScene {
     this.buildPois();
     this.buildTeleports();
     this.placeAtStart();
+    this.loadPlannedRoute();
     this.scene.add(this.rover.group);
     void this.rover.load(`${import.meta.env.BASE_URL}models/perseverance.glb`).then((ok) => {
       if (ok) this.rover.setVisible(true);
@@ -544,7 +635,8 @@ export class WalkScene {
     const b = gridToLocal(frame, grid.width - 0.5, grid.height - 0.5);
     const wM = b.x - a.x;
     const hM = b.z - a.z;
-    const size = window.innerWidth <= 760 ? 132 : 200;
+    // Телефон (узкий или боком, низкий экран) — мини-карта меньше.
+    const size = window.innerHeight <= 500 ? 110 : window.innerWidth <= 760 ? 132 : 200;
     this.minimapScale = size / Math.max(wM, hM);
     const dpr = Math.min(window.devicePixelRatio, 2);
     canvas.width = Math.round(wM * this.minimapScale * dpr);
@@ -588,9 +680,13 @@ export class WalkScene {
     this.minimapBase = base;
     const onDown = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
-      const x = a.x + (e.clientX - r.left) / this.minimapScale;
-      const z = a.z + (e.clientY - r.top) / this.minimapScale;
-      this.teleport(x, z);
+      // Карта может быть увеличена через CSS transform: переводим из экранных пикселей в пиксели раскладки.
+      const kx = r.width > 0 ? canvas.clientWidth / r.width : 1;
+      const ky = r.height > 0 ? canvas.clientHeight / r.height : 1;
+      const x = a.x + ((e.clientX - r.left) * kx) / this.minimapScale;
+      const z = a.z + ((e.clientY - r.top) * ky) / this.minimapScale;
+      if (this.routeMode) this.routeTo(x, z);
+      else this.teleport(x, z);
       e.stopPropagation();
     };
     canvas.addEventListener('pointerdown', onDown);
@@ -606,6 +702,18 @@ export class WalkScene {
     const dpr = canvas.width / parseFloat(canvas.style.width || '1');
     ctx.drawImage(this.minimapBase, 0, 0);
     const k = this.minimapScale * dpr;
+    if (this.customRoute) {
+      ctx.strokeStyle = ROUTE_COLOR;
+      ctx.lineWidth = 2.5 * dpr;
+      ctx.beginPath();
+      this.customRoute.path.pts.forEach((p, i) => {
+        const x = (p.x - this.minimapOrigin.x) * k;
+        const y = (p.z - this.minimapOrigin.z) * k;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
     const mx = (this.px - this.minimapOrigin.x) * k;
     const my = (this.pz - this.minimapOrigin.z) * k;
     this.camera.getWorldDirection(this.tmp);
@@ -642,7 +750,17 @@ export class WalkScene {
       this.controls = controls;
       const onClick = () => this.lock();
       canvas.addEventListener('click', onClick);
-      this.disposers.push(() => canvas.removeEventListener('click', onClick));
+      // Правая кнопка — точка на поверхности: без захвата мыши под курсором, с захватом — в центре экрана.
+      const onContext = (e: MouseEvent) => {
+        e.preventDefault();
+        if (this.controls?.isLocked) this.probeCenter();
+        else this.probeAt(e.clientX, e.clientY);
+      };
+      canvas.addEventListener('contextmenu', onContext);
+      this.disposers.push(() => {
+        canvas.removeEventListener('click', onClick);
+        canvas.removeEventListener('contextmenu', onContext);
+      });
     }
     const isTyping = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -654,8 +772,17 @@ export class WalkScene {
         if (!this.controls?.isLocked && performance.now() - this.lastUnlockAt > 400) this.opts.onExit();
         return;
       }
-      if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
+      if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4') {
         this.setTimeScale(TIME_SCALES[Number(e.code.slice(5)) - 1]);
+        return;
+      }
+      if (e.code === 'KeyI') {
+        if (!e.repeat) this.probeCenter();
+        return;
+      }
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!e.repeat) this.jump();
         return;
       }
       if (MOVE_KEYS.has(e.code)) {
@@ -668,11 +795,87 @@ export class WalkScene {
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', onBlur);
+    this.disposers.push(subscribeCrewProfile(() => {
+      this.eyeM = eyeHeightM(getCrewProfile().heightCm);
+    }));
     this.disposers.push(() => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
     });
+  }
+
+  // ---------- точка на поверхности ----------
+
+  /** Луч из камеры через точку экрана до рельефа; при попадании — метка и onProbe. */
+  probeAt(clientX: number, clientY: number): SurfaceProbe | null {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return null;
+    const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    this.camera.updateMatrixWorld();
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const { origin, direction } = this.raycaster.ray;
+    const hit = rayMarchTerrain(origin, direction, this.groundAt, this.camera.far, 0.25 * this.viewScale);
+    if (!hit) return null;
+    const { pkg } = this.opts;
+    const geo = pointLonLat(pkg.frame, hit.x, hit.z);
+    const probe: SurfaceProbe = {
+      x: hit.x,
+      z: hit.z,
+      lat: geo.lat,
+      lonEast: geo.lonEast,
+      elevationM: this.sampler.heightAt(hit.x, hit.z),
+      slopeDeg: this.sampler.slopeDeg(hit.x, hit.z),
+      slopeBaseM: 2 * this.sampler.dz,
+      heightSource: dataLevelLabel(pkg.manifest, this.sampler.sourceAt(hit.x, hit.z)),
+      overview: pkg.manifest.id === OVERVIEW_SITE_ID,
+      distanceM: Math.hypot(hit.x - this.px, hit.z - this.pz),
+      vehicle: this.vehicle,
+      siteId: pkg.manifest.id,
+      screenY: (clientY - r.top) / r.height,
+    };
+    this.placeProbeMarker(hit.x, hit.y, hit.z, hit.t);
+    this.opts.onProbe?.(probe);
+    return probe;
+  }
+
+  /** Точка в центре экрана (взгляд при захваченной мыши). */
+  probeCenter(): SurfaceProbe | null {
+    const r = this.renderer.domElement.getBoundingClientRect();
+    return this.probeAt(r.left + r.width / 2, r.top + r.height / 2);
+  }
+
+  clearProbe(): void {
+    if (!this.probeMarker) return;
+    this.scene.remove(this.probeMarker);
+    this.probeMarker.geometry.dispose();
+    (this.probeMarker.material as THREE.Material).dispose();
+    this.probeMarker = null;
+  }
+
+  private placeProbeMarker(x: number, y: number, z: number, dist: number): void {
+    this.clearProbe();
+    const geo = new THREE.RingGeometry(0.75, 1, 40);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new THREE.MeshBasicMaterial({
+      color: '#3fe0ff', transparent: true, opacity: 0.9, depthWrite: false, fog: false,
+      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -16, side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(geo, mat);
+    // Размер растёт с расстоянием, чтобы метка была видна и вблизи, и вдали.
+    this.probeScale = Math.max(0.35, dist * 0.015);
+    ring.position.set(x, y + Math.max(0.05, this.probeScale * 0.15), z);
+    ring.renderOrder = 5;
+    this.probeMarker = ring;
+    this.scene.add(ring);
+  }
+
+  private pulseProbe(now: number): void {
+    const m = this.probeMarker;
+    if (!m) return;
+    const k = 0.5 + 0.5 * Math.sin(now * 0.006);
+    m.scale.setScalar(this.probeScale * (0.8 + 0.4 * k));
+    (m.material as THREE.MeshBasicMaterial).opacity = 0.55 + 0.4 * (1 - k);
   }
 
   lock(): void {
@@ -765,7 +968,7 @@ export class WalkScene {
     this.fog.color.copy(FOG_NIGHT).lerp(FOG_DAY, day);
     this.fog.color.lerp(FOG_DUSK, Math.sin(Math.PI * day) * 0.35);
     this.applyTrackGlow(day);
-    this.fog.far = THREE.MathUtils.clamp((FOG_FAR_DAY_M * DEFAULT_TAU) / this.tau, 1500, 8000);
+    this.fog.far = THREE.MathUtils.clamp((FOG_FAR_DAY_M * DEFAULT_TAU) / this.tau, 1500, 8000) * this.viewScale;
     this.fog.near = this.fog.far * FOG_NEAR_FRACTION;
     (this.scene.background as THREE.Color).copy(this.fog.color);
     this.sky.update({
@@ -833,7 +1036,7 @@ export class WalkScene {
   /** Точка игрока и высота камеры над рельефом — для перехода на шар. */
   exitOrigin(): { lon: number; lat: number; altitudeKm: number } {
     const ll = localToLonLat(this.opts.pkg.frame, this.px, this.pz);
-    const eye = this.vehicle === 'rover' ? MAST_HEIGHT_M : EYE_HEIGHT_M;
+    const eye = this.vehicle === 'rover' ? MAST_HEIGHT_M : this.eyeM;
     return { lon: ll.lonEast, lat: ll.lat, altitudeKm: (eye + (this.liftHold?.h ?? 0)) / 1000 };
   }
 
@@ -893,6 +1096,7 @@ export class WalkScene {
 
   teleport(x: number, z: number): void {
     this.autoDrive = false;
+    this.air = null;
     const p = this.nearestValid(x, z);
     this.px = p.x;
     this.pz = p.z;
@@ -913,6 +1117,8 @@ export class WalkScene {
     if (this.clockRunning) this.simTimeMs += dt * 1000 * this.timeScale;
     this.applyLighting();
     this.move(dt);
+    // Прыжок идёт в реальном времени, без ускорения: иначе полёт выглядел бы неестественно.
+    this.stepAir(dt);
     this.updateCameraHeight();
     this.stepLift(now);
 
@@ -935,6 +1141,7 @@ export class WalkScene {
       this.renderer.render(this.scene, this.camera);
     }
     this.updateLabels();
+    this.pulseProbe(now);
 
     this.minimapTimer -= dt;
     if (this.minimapTimer <= 0) {
@@ -953,6 +1160,34 @@ export class WalkScene {
     this.stateTimer -= dt;
     if (this.stateTimer <= 0) this.emitState(true);
   };
+
+  /** Прыжок: только пешком и с земли, скорость отрыва по модели crew.ts и профилю. */
+  jump(): { heightM: number; flightS: number } | null {
+    if (this.vehicle !== 'walk' || this.air || this.liftHold) return null;
+    const g = this.groundAt(this.px, this.pz);
+    if (!Number.isFinite(g)) return null;
+    const p = getCrewProfile();
+    const r = jumpModel({ bodyKg: p.bodyKg, loadKg: p.loadKg, earthJumpM: p.earthJumpM });
+    if (!(r.takeoffMs > 0)) return null;
+    this.air = { y: g, vy: r.takeoffMs };
+    this.lastJump = { heightM: r.heightM, flightS: r.flightS, at: performance.now() };
+    this.emitState(true);
+    return r;
+  }
+
+  get airborne(): boolean {
+    return this.air !== null;
+  }
+
+  private stepAir(dt: number): void {
+    if (!this.air) return;
+    if (this.vehicle !== 'walk' || this.liftHold) {
+      this.air = null;
+      return;
+    }
+    this.air = stepJump(this.air, dt, G_MARS, this.groundAt(this.px, this.pz));
+    if (!this.air) this.emitState(true);
+  }
 
   private move(dt: number): void {
     if (this.liftHold) return;
@@ -1057,7 +1292,7 @@ export class WalkScene {
 
   /** Автоуправление: ровер едет по треку со своей скоростью, курс сглажен по точке впереди. */
   private autoStep(dt: number): void {
-    const path = this.trackPath;
+    const path = this.activePath;
     if (!path) return this.setAutoDrive(false);
     const next = Math.min(path.length, this.autoS + ROVER_SPEED_MS * dt * this.timeScale);
     const p = pointAt(path, next);
@@ -1086,7 +1321,7 @@ export class WalkScene {
 
   /** Включить/выключить автоуправление по треку ровера. Включение пересаживает в ровер на трек. */
   setAutoDrive(on: boolean): void {
-    const path = this.trackPath;
+    const path = this.activePath;
     if (!on || !path || this.liftHold) {
       if (this.autoDrive) {
         this.autoDrive = false;
@@ -1120,6 +1355,171 @@ export class WalkScene {
     return this.trackPath !== null;
   }
 
+  /** Путь автоуправления: свой маршрут, если есть, иначе трек ровера. */
+  private get activePath(): TrackPath | null {
+    return this.customRoute?.path ?? this.trackPath;
+  }
+
+  get hasActivePath(): boolean {
+    return this.activePath !== null;
+  }
+
+  // ---------- свой маршрут ----------
+
+  /** Маршрут из планировщика на шаре: становится активным, старт — в его первой точке. */
+  private loadPlannedRoute(): void {
+    const planned = takeRouteOnce(this.opts.pkg.manifest.id);
+    if (!planned) return;
+    const frame = this.opts.pkg.frame;
+    const pts = planned.points.map((p) => lonLatToLocal(frame, p.lonEast, p.lat));
+    if (!this.setCustomRoute(pts, planned.source)) return;
+    const start = this.nearestValid(pts[0].x, pts[0].z);
+    this.px = start.x;
+    this.pz = start.z;
+    this.baseX = start.x;
+    this.baseZ = start.z;
+    const yaw = headingAlong(this.customRoute!.path, 0);
+    this.startYaw = yaw;
+    this.roverYaw = yaw;
+    this.camera.rotation.set(0, yaw, 0);
+    this.updateCameraHeight();
+  }
+
+  private setCustomRoute(pts: { x: number; z: number }[], source: 'planner' | 'walk'): boolean {
+    const path = buildTrackPath(pts);
+    if (path.pts.length < 2) return false;
+    this.clearRoute(false);
+    const mesh = new THREE.Group();
+    const material = new THREE.MeshBasicMaterial({
+      color: ROUTE_COLOR, transparent: true, opacity: 0.85, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -10, depthWrite: false,
+    });
+    const ribbon = new THREE.Mesh(this.ribbonGeometry(path.pts, 0.35), material);
+    ribbon.renderOrder = 3;
+    mesh.add(ribbon);
+    const post = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
+    post.translate(0, 1, 0);
+    const postMaterial = new THREE.MeshBasicMaterial({ color: ROUTE_COLOR });
+    for (const p of [path.pts[0], path.pts[path.pts.length - 1]]) {
+      const y = this.groundY(p.x, p.z);
+      const m = new THREE.Mesh(post, postMaterial);
+      m.position.set(p.x, Number.isFinite(y) ? y : 0, p.z);
+      mesh.add(m);
+    }
+    this.scene.add(mesh);
+    const walkS = routeWalkTime(path.pts, (x, z) => this.sampler.heightAt(x, z), walkSpeed);
+    this.customRoute = { source, path, walkS, mesh };
+    if (!this.routeLabels.length) this.routeLabels = [this.makeLabel('walk-label walk-label-route'), this.makeLabel('walk-label walk-label-route')];
+    return true;
+  }
+
+  /** Убрать свой маршрут; автоуправление вернётся к треку ровера. */
+  clearRoute(emit = true): void {
+    const r = this.customRoute;
+    if (!r) return;
+    if (this.autoDrive) {
+      this.autoDrive = false;
+      this.speedMs = 0;
+    }
+    this.scene.remove(r.mesh);
+    const materials = new Set<THREE.Material>();
+    r.mesh.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      if (m.material) materials.add(m.material as THREE.Material);
+    });
+    materials.forEach((m) => m.dispose());
+    this.customRoute = null;
+    if (emit) this.emitState(true);
+  }
+
+  setRouteMode(on: boolean): void {
+    this.routeMode = on;
+    this.emitState(true);
+  }
+
+  /**
+   * Проложить маршрут от текущего места до точки по DTM: A* на сетке ROUTE_CELL_M,
+   * клетки без данных и круче порога maxSlopeDeg непроходимы. false — пути нет.
+   */
+  routeTo(x: number, z: number): boolean {
+    const { frame, grid } = this.opts.pkg;
+    const a = gridToLocal(frame, -0.5, -0.5);
+    const b = gridToLocal(frame, grid.width - 0.5, grid.height - 0.5);
+    // На обзорном рельефе шаг сетки десятки метров: клетка поиска не мельче него.
+    const cell = Math.max(ROUTE_CELL_M, frame.pixelM);
+    const width = Math.max(1, Math.floor((b.x - a.x) / cell));
+    const height = Math.max(1, Math.floor((b.z - a.z) / cell));
+    if (!this.routeGrid) {
+      // Крутизна в центрах клеток той же функцией, что и запрет шага (TerrainSampler.slopeDeg).
+      const slope = new Float32Array(width * height);
+      for (let r = 0; r < height; r++) {
+        for (let c = 0; c < width; c++) slope[r * width + c] = this.sampler.slopeDeg(a.x + (c + 0.5) * cell, a.z + (r + 0.5) * cell);
+      }
+      this.routeGrid = { width, height, cellM: cell, slope };
+    }
+    const g = this.routeGrid;
+    const toCell = (px: number, pz: number) => ({
+      col: Math.min(width - 1, Math.max(0, Math.floor((px - a.x) / cell))),
+      row: Math.min(height - 1, Math.max(0, Math.floor((pz - a.z) / cell))),
+    });
+    const mask = passableMask(g, this.maxSlopeDeg);
+    const start = toCell(this.px, this.pz);
+    const goal = nearestPassable(g, mask, toCell(x, z), 3);
+    const cells = goal ? findPath(g, mask, start, goal, this.maxSlopeDeg) : null;
+    if (!cells || cells.length < 2) {
+      this.routeFailedAt = performance.now();
+      this.emitState(true);
+      return false;
+    }
+    const pts = simplifyPath(g, mask, cells).map((c) => ({ x: a.x + (c.col + 0.5) * cell, z: a.z + (c.row + 0.5) * cell }));
+    pts[0] = { x: this.px, z: this.pz };
+    this.setCustomRoute(pts, 'walk');
+    this.routeFailedAt = -Infinity;
+    this.emitState(true);
+    return true;
+  }
+
+  /** Лента, уложенная на рельеф вдоль ломаной (шаг 1 м), полуширина half, м. */
+  private ribbonGeometry(pts: { x: number; z: number }[], half: number): THREE.BufferGeometry {
+    const samples: { x: number; z: number; dx: number; dz: number }[] = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i];
+      const b = pts[i + 1];
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      if (len < 1e-3) continue;
+      const n = Math.max(1, Math.ceil(len / 1.0));
+      for (let k = 0; k < n; k++) {
+        const t = k / n;
+        samples.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, dx: (b.x - a.x) / len, dz: (b.z - a.z) / len });
+      }
+    }
+    const last = pts[pts.length - 1];
+    if (samples.length) samples.push({ ...last, dx: samples[samples.length - 1].dx, dz: samples[samples.length - 1].dz });
+    const pos = new Float32Array(samples.length * 6);
+    const ok = new Uint8Array(samples.length);
+    samples.forEach((s, i) => {
+      const lx = s.x - s.dz * half;
+      const lz = s.z + s.dx * half;
+      const rx = s.x + s.dz * half;
+      const rz = s.z - s.dx * half;
+      const ly = this.groundY(lx, lz);
+      const ry = this.groundY(rx, rz);
+      ok[i] = Number.isFinite(ly) && Number.isFinite(ry) ? 1 : 0;
+      pos.set([lx, (ly || 0) + 0.14, lz, rx, (ry || 0) + 0.14, rz], i * 6);
+    });
+    const index: number[] = [];
+    for (let i = 0; i < samples.length - 1; i++) {
+      if (!ok[i] || !ok[i + 1]) continue;
+      const k = i * 2;
+      index.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setIndex(index);
+    return g;
+  }
+
   private groundAt = (x: number, z: number): number => this.sampler.heightAt(x, z) - this.refY;
 
   private updateCameraHeight(): void {
@@ -1133,9 +1533,12 @@ export class WalkScene {
       if (Number.isFinite(g)) this.camera.position.set(this.px, g + MAST_HEIGHT_M, this.pz);
       return;
     }
-    const h = this.sampler.heightAt(this.px, this.pz);
+    const g = this.groundAt(this.px, this.pz);
+    // В прыжке ступни над рельефом, но не ниже него.
+    let feet = g;
+    if (this.air) feet = Number.isFinite(g) ? Math.max(this.air.y, g) : this.air.y;
     // Стоим только на данных; если вдруг NaN — оставляем прежнюю высоту.
-    const y = Number.isFinite(h) ? h - this.refY + EYE_HEIGHT_M : this.camera.position.y;
+    const y = Number.isFinite(feet) ? feet + this.eyeM : this.camera.position.y;
     this.camera.position.set(this.px, y, this.pz);
   }
 
@@ -1157,6 +1560,13 @@ export class WalkScene {
   }
 
   private updateLabels(): void {
+    const route = this.customRoute;
+    this.routeLabels.forEach((label, i) => {
+      const p = route ? route.path.pts[i === 0 ? 0 : route.path.pts.length - 1] : null;
+      const y = p ? this.groundY(p.x, p.z) : NaN;
+      if (p) label.pos.set(p.x, (Number.isFinite(y) ? y : 0) + 2.4, p.z);
+      this.project(label, i === 0 ? 'A' : tr('Б', 'B'), !!p);
+    });
     for (const p of this.pois) {
       const d = Math.hypot(p.x - this.px, p.z - this.pz);
       p.label.pos.y = p.y + Math.min(60, 4 + d * 0.05);
@@ -1228,7 +1638,16 @@ export class WalkScene {
       solar: this.solarState(),
       autoDrive: this.autoDrive,
       autoS: this.autoS,
-      trackLength: this.trackPath?.length ?? NaN,
+      trackLength: this.activePath?.length ?? NaN,
+      route: this.customRoute
+        ? { source: this.customRoute.source, lengthM: this.customRoute.path.length, walkS: this.customRoute.walkS }
+        : null,
+      routeMode: this.routeMode,
+      routeFailed: performance.now() - this.routeFailedAt < 4000,
+      jump: this.lastJump && performance.now() - this.lastJump.at < 2500
+        ? { heightM: this.lastJump.heightM, flightS: this.lastJump.flightS }
+        : null,
+      airborne: this.air !== null,
       steepOnTrackDeg: performance.now() - this.steepAt < 1500 ? this.steepOnTrackDeg : NaN,
     });
   }

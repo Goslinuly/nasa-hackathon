@@ -14,6 +14,8 @@ import { SurfacePhotos } from './SurfacePhotos';
 import { fetchManifest, fetchSiteIndex, type SiteIndexEntry } from '@/features/walk/sitePackage';
 
 import { ElevationProfile } from './ElevationProfile';
+import { findWalkSite, toWalkPoints } from './walkHandoff';
+import { setPlannedWalkRoute } from '@/shared/walkRoute';
 import type { TraverseParams } from '@/shared/eva/traverse';
 
 import { loadHazardGrid } from './hazard';
@@ -253,7 +255,7 @@ function RoverCard({ globe, points, model }: { globe: GlobeApi; points: ProfileP
   );
 }
 
-export default function RoutePanel({ globe }: ModeContext) {
+export default function RoutePanel({ globe, openMode }: ModeContext) {
   const { engine, terrain: terrainStore } = useGlobeState();
   const terrain = useValue(terrainStore);
   const workerRef = useRef<Worker | null>(null);
@@ -524,6 +526,27 @@ export default function RoutePanel({ globe }: ModeContext) {
     }
     return { ...traverse, perCell: false };
   }, [route, traverse]);
+
+  const walkSiteId = useMemo(() => {
+    if (route?.status !== 'ok' || route.points.length < 2) return null;
+    const sites = siteIndex.flatMap((entry) => {
+      const manifest = manifests.get(entry.id);
+      return manifest ? [{ id: entry.id, bounds: manifest.bounds_lonlat }] : [];
+    });
+    return findWalkSite(sites, route.points);
+  }, [route, siteIndex, manifests]);
+  // Подробный участок — его рельеф HiRISE; иначе обзорный режим по глобальным данным.
+  const walkIt = (siteId: string | null = walkSiteId) => {
+    if (!siteId || route?.status !== 'ok') return;
+    setPlannedWalkRoute({
+      siteId,
+      points: toWalkPoints(route.points),
+      source: 'planner',
+      label: `A → ${tr('Б', 'B')}, ${formatKm(route.lengthM)}`,
+      createdAt: Date.now(),
+    });
+    openMode('walk', { site: siteId });
+  };
 
   const demoOn =
     endpoints.a?.lon === DEMO_MISSION.a.lon &&
@@ -864,6 +887,23 @@ export default function RoutePanel({ globe }: ModeContext) {
                   </>
                 )}
               </div>
+            )}
+            {walkSiteId ? (
+              <button type="button" className="ghost-button walk-it" onClick={() => walkIt()}>
+                {t('Пройти от первого лица', 'Walk it in first person')}
+              </button>
+            ) : (
+              <>
+                <button type="button" className="ghost-button walk-it" onClick={() => walkIt('overview')}>
+                  {t('Пройти от первого лица (обзорный режим)', 'Walk it in first person (overview mode)')}
+                </button>
+                <p className="planner-note">
+                  {t(
+                    'Здесь нет подробного рельефа: сцена строится по MOLA (~7 км) и снимку CTX. Мелкие склоны и камни не видны, это не проверенная тропа. Подробный рельеф — в Гейле, Ares 3 и Езеро.',
+                    'No detailed terrain here: the scene uses MOLA (~7 km) and a CTX image. Small slopes and rocks are not visible; this is not a checked path. Detailed terrain exists at Gale, Ares 3 and Jezero.',
+                  )}
+                </p>
+              </>
             )}
             <h2 className="planner-subtitle">{t('Профиль высот', 'Elevation profile')}</h2>
             <ElevationProfile
