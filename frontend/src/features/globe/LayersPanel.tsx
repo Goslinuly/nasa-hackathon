@@ -85,6 +85,11 @@ export default function LayersPanel(_: ModeContext) {
       <span className="layer-meta">
         {spectrum.kind} · {formatResolution(spectrum.nativeResolutionM)} · {spectrum.coverage}
       </span>
+      {spectrum.fallback && (
+        <span className="layer-meta">
+          Где у слоя нет данных, показан приглушённый слой «{SPECTRA[spectrum.fallback].title}»
+        </span>
+      )}
 
       <span className="hud-label">Детальные снимки</span>
       <label className="check">
