@@ -7,6 +7,7 @@ export interface GeologyExtent { lon_min: number; lon_max: number; lat_min: numb
 export interface GeologyUnit { unit: string; label: string; color: [number, number, number] }
 export interface GeologyLegend {
   title: string; credit: string; source: string; retrieved: string; status: string; extent: GeologyExtent; units: GeologyUnit[];
+  title_en?: string; credit_en?: string; status_en?: string;
 }
 
 const isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
@@ -32,6 +33,9 @@ export function parseGeologyLegend(raw: unknown): GeologyLegend {
   return {
     title: raw.title as string, credit: raw.credit as string, source: raw.source as string, retrieved: raw.retrieved as string,
     status: raw.status as string,
+    title_en: isText(raw.title_en) ? raw.title_en : undefined,
+    credit_en: isText(raw.credit_en) ? raw.credit_en : undefined,
+    status_en: isText(raw.status_en) ? raw.status_en : undefined,
     extent: { lon_min: lonMin as number, lon_max: lonMax as number, lat_min: latMin as number, lat_max: latMax as number }, units,
   };
 }

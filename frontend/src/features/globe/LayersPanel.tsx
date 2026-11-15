@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import { useGlobeState, useValue } from '@/app/globeState';
 import type { ModeContext } from '@/app/modeContract';
+import { pick, useLang, useT } from '@/shared/i18n/lang';
 
 import { EXAGGERATION_OPTIONS } from './engine';
 import { formatResolution } from './format';
@@ -24,6 +25,8 @@ const SPECTRUM_ORDER: SpectrumId[] = [
 
 export default function LayersPanel(_: ModeContext) {
   const { engine, terrain: terrainStore } = useGlobeState();
+  const t = useT();
+  const lang = useLang();
   const terrain = useValue(terrainStore);
   const [spectrumId, setSpectrumId] = useState<SpectrumId>(() => engine.getSpectrum());
   const [ctxOn, setCtxOn] = useState(() => engine.isOverlayEnabled(CTX_OVERLAY.id));
@@ -56,8 +59,8 @@ export default function LayersPanel(_: ModeContext) {
 
   return (
     <div className="layers-panel">
-      <span className="hud-label">Спектр</span>
-      <div className="layer-list" role="radiogroup" aria-label="Спектр">
+      <span className="hud-label">{t('Спектр', 'Spectrum')}</span>
+      <div className="layer-list" role="radiogroup" aria-label={t('Спектр', 'Spectrum')}>
         {SPECTRUM_ORDER.map((id) => (
           <button
             key={id}
@@ -67,53 +70,58 @@ export default function LayersPanel(_: ModeContext) {
             className={id === spectrumId ? 'active' : undefined}
             onClick={() => chooseSpectrum(id)}
           >
-            {SPECTRA[id].title}
+            {pick(SPECTRA[id].title, SPECTRA[id].titleEn)}
           </button>
         ))}
       </div>
-      <p className="layer-desc">{spectrum.description}</p>
+      <p className="layer-desc">{pick(spectrum.description, spectrum.descriptionEn)}</p>
       {spectrum.legend && (
         <div className="legend">
-          <span className="legend-quantity">{spectrum.legend.quantity}</span>
+          <span className="legend-quantity">{pick(spectrum.legend.quantity, spectrum.legend.quantityEn)}</span>
           <span className="legend-bar" style={{ background: spectrum.legend.gradient }} />
           <span className="legend-ends">
-            <span>{spectrum.legend.low}</span>
-            <span>{spectrum.legend.high}</span>
+            <span>{pick(spectrum.legend.low, spectrum.legend.lowEn)}</span>
+            <span>{pick(spectrum.legend.high, spectrum.legend.highEn)}</span>
           </span>
         </div>
       )}
       <span className="layer-meta">
-        {spectrum.kind} · {formatResolution(spectrum.nativeResolutionM)} · {spectrum.coverage}
+        {pick(spectrum.kind, spectrum.kindEn)} · {formatResolution(spectrum.nativeResolutionM)} ·{' '}
+        {pick(spectrum.coverage, spectrum.coverageEn)}
       </span>
 
-      <span className="hud-label">Детальные снимки</span>
+      <span className="hud-label">{t('Детальные снимки', 'Detailed images')}</span>
       <label className="check">
         <input type="checkbox" checked={ctxOn} onChange={toggleCtx} />
         <span>
-          {CTX_OVERLAY.title}
-          <small>почти вся планета, с ~160 м/пикс экрана</small>
+          {pick(CTX_OVERLAY.title, CTX_OVERLAY.titleEn)}
+          <small>{t('почти вся планета, с ~160 м/пикс экрана', 'almost the whole planet, from ~160 m/px on screen')}</small>
         </span>
       </label>
       <label className="check">
         <input type="checkbox" checked={hiriseOn} onChange={toggleHirise} />
         <span>
-          HiRISE · 0.25–0.5 м (ч/б)
-          <small>{HIRISE_OVERLAYS.map((o) => o.title).join(', ')}</small>
+          {t('HiRISE · 0.25–0.5 м (ч/б)', 'HiRISE · 0.25–0.5 m (B/W)')}
+          <small>{HIRISE_OVERLAYS.map((o) => pick(o.title, o.titleEn)).join(', ')}</small>
         </span>
       </label>
       {!ctxOn && !hiriseOn && (
-        <p className="layer-desc">Без снимков приближение ограничено разрешением подложки.</p>
+        <p className="layer-desc">
+          {t('Без снимков приближение ограничено разрешением подложки.', 'Without images, zoom is limited by the base map resolution.')}
+        </p>
       )}
       <label className="check">
         <input type="checkbox" checked={footprintsOn} onChange={toggleFootprints} />
         <span>
-          Участки прогулки
-          <small>оранжевые контуры DTM HiRISE для режима «От первого лица»</small>
+          {t('Участки прогулки', 'Walk sites')}
+          <small>
+            {t('оранжевые контуры DTM HiRISE для режима «От первого лица»', 'orange HiRISE DTM outlines for the First person mode')}
+          </small>
         </span>
       </label>
 
-      <span className="hud-label">Рельеф по высоте</span>
-      <div className="hud-toggle" role="radiogroup" aria-label="Вертикальное преувеличение">
+      <span className="hud-label">{t('Рельеф по высоте', 'Vertical relief')}</span>
+      <div className="hud-toggle" role="radiogroup" aria-label={t('Вертикальное преувеличение', 'Vertical exaggeration')}>
         {EXAGGERATION_OPTIONS.map((value) => (
           <button
             key={value}
@@ -130,9 +138,12 @@ export default function LayersPanel(_: ModeContext) {
       </div>
       <span className="layer-meta">
         {terrain.status === 'ready' &&
-          `${exaggeration === 1 ? 'Реальный масштаб' : `Преувеличение ×${exaggeration}`} · геометрия MOLA ${formatResolution(terrain.resolutionM)}`}
-        {terrain.status === 'loading' && 'Загрузка карты высот…'}
-        {terrain.status === 'failed' && `${terrain.message ?? 'Карта высот недоступна'}: показана гладкая сфера`}
+          `${exaggeration === 1 ? t('Реальный масштаб', 'True scale') : `${t('Преувеличение', 'Exaggeration')} ×${exaggeration}`} · ${t('геометрия', 'geometry')} MOLA ${formatResolution(terrain.resolutionM)}`}
+        {terrain.status === 'loading' && t('Загрузка карты высот…', 'Loading the elevation map…')}
+        {terrain.status === 'failed' &&
+          (lang === 'en'
+            ? 'Elevation map unavailable: showing a smooth sphere'
+            : `${terrain.message ?? 'Карта высот недоступна'}: показана гладкая сфера`)}
       </span>
     </div>
   );

@@ -7,6 +7,8 @@ export const mode: ModeDefinition = {
   id: 'atlas',
   title: '2D-атлас',
   description: 'Плоская карта со слоями и покрытием точки',
+  titleEn: '2D atlas',
+  descriptionEn: 'Flat map with layers and point coverage',
   order: 80,
   fullscreen: true,
   Panel: lazy(() => import('./AtlasPage').then((m) => ({ default: m.AtlasMode }))),

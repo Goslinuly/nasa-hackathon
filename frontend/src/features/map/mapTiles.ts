@@ -5,6 +5,8 @@ export const METERS_PER_DEGREE = Math.PI * 3389500 / 180;
 export interface MapLayer {
   id: string;
   title: string;
+  /** Название по-английски (shared/i18n). */
+  titleEn: string;
   resolution: number;
   nativeZoom: number;
   minZoom: number;
@@ -15,12 +17,12 @@ export interface MapLayer {
 const TREK_URL = 'https://trek.nasa.gov/mars/';
 const TREK_SPECTRA = ['tes-albedo', 'tes-dust', 'tes-inertia', 'tes-pyroxene', 'tes-plagioclase', 'tes-silicates'] as const;
 type TrekSpectrumId = typeof TREK_SPECTRA[number];
-const trekAtlasLayers: MapLayer[] = TREK_SPECTRA.map(id => ({ id, title: `${SPECTRA[id].title} · ${SPECTRA[id].kind}`,
+const trekAtlasLayers: MapLayer[] = TREK_SPECTRA.map(id => ({ id, title: `${SPECTRA[id].title} · ${SPECTRA[id].kind}`, titleEn: `${SPECTRA[id].titleEn} · ${SPECTRA[id].kindEn}`,
   resolution: SPECTRA[id].nativeResolutionM, nativeZoom: SPECTRA[id].maxNativeZoom, minZoom: 0, credit: SPECTRA[id].credit, url: TREK_URL, visible: false }));
 export const MAP_LAYERS: MapLayer[] = [
-  { id: 'ctx', title: 'CTX · снимки поверхности', resolution: 5, nativeZoom: 13, minZoom: 12, credit: 'NASA/JPL/MSSS · Caltech Murray Lab · ASU', url: 'https://jmars.asu.edu/node/2844', visible: true },
+  { id: 'ctx', title: 'CTX · снимки поверхности', titleEn: 'CTX · surface images', resolution: 5, nativeZoom: 13, minZoom: 12, credit: 'NASA/JPL/MSSS · Caltech Murray Lab · ASU', url: 'https://jmars.asu.edu/node/2844', visible: true },
   ...trekAtlasLayers,
-  { id: 'viking', title: 'Viking · обзорная мозаика', resolution: 232, nativeZoom: 7, minZoom: 0, credit: 'NASA/JPL/USGS · Mars Trek', url: TREK_URL, visible: true },
+  { id: 'viking', title: 'Viking · обзорная мозаика', titleEn: 'Viking · overview mosaic', resolution: 232, nativeZoom: 7, minZoom: 0, credit: 'NASA/JPL/USGS · Mars Trek', url: TREK_URL, visible: true },
 ];
 const isTrekSpectrum = (id: string): id is TrekSpectrumId => (TREK_SPECTRA as readonly string[]).includes(id);
 export function mapTileUrl(id: string, z: number, x: number, y: number) {
