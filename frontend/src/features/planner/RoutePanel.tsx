@@ -534,16 +534,17 @@ export default function RoutePanel({ globe, openMode }: ModeContext) {
     });
     return findWalkSite(sites, route.points);
   }, [route, siteIndex, manifests]);
-  const walkIt = () => {
-    if (!walkSiteId || route?.status !== 'ok') return;
+  // Подробный участок — его рельеф HiRISE; иначе обзорный режим по глобальным данным.
+  const walkIt = (siteId: string | null = walkSiteId) => {
+    if (!siteId || route?.status !== 'ok') return;
     setPlannedWalkRoute({
-      siteId: walkSiteId,
+      siteId,
       points: toWalkPoints(route.points),
       source: 'planner',
       label: `A → ${tr('Б', 'B')}, ${formatKm(route.lengthM)}`,
       createdAt: Date.now(),
     });
-    openMode('walk', { site: walkSiteId });
+    openMode('walk', { site: siteId });
   };
 
   const demoOn =
@@ -887,16 +888,21 @@ export default function RoutePanel({ globe, openMode }: ModeContext) {
               </div>
             )}
             {walkSiteId ? (
-              <button type="button" className="ghost-button walk-it" onClick={walkIt}>
+              <button type="button" className="ghost-button walk-it" onClick={() => walkIt()}>
                 {t('Пройти от первого лица', 'Walk it in first person')}
               </button>
             ) : (
-              <p className="planner-note">
-                {t(
-                  'Пройти от первого лица можно только внутри участка с подробным рельефом: Гейл, Ares 3, Езеро.',
-                  'First-person walk is only available inside a site with detailed terrain: Gale, Ares 3, Jezero.',
-                )}
-              </p>
+              <>
+                <button type="button" className="ghost-button walk-it" onClick={() => walkIt('overview')}>
+                  {t('Пройти от первого лица (обзорный режим)', 'Walk it in first person (overview mode)')}
+                </button>
+                <p className="planner-note">
+                  {t(
+                    'Здесь нет подробного рельефа: сцена строится по MOLA (~7 км) и снимку CTX. Мелкие склоны и камни не видны, это не проверенная тропа. Подробный рельеф — в Гейле, Ares 3 и Езеро.',
+                    'No detailed terrain here: the scene uses MOLA (~7 km) and a CTX image. Small slopes and rocks are not visible; this is not a checked path. Detailed terrain exists at Gale, Ares 3 and Jezero.',
+                  )}
+                </p>
+              </>
             )}
             <h2 className="planner-subtitle">{t('Профиль высот', 'Elevation profile')}</h2>
             <ElevationProfile
