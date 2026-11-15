@@ -312,3 +312,13 @@
   .walk-minimap.is-routing .walk-route-tools { position: relative; z-index: 1; }
   .walk-minimap.is-routing { z-index: 12; }
 }
+
+/* Подсказка для телефона: грунт можно нажать. */
+.walk-tap-hint {
+  position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 6;
+  pointer-events: none; max-width: min(320px, calc(100% - 260px)); padding: 5px 10px; border-radius: 6px; text-align: center;
+  font-size: 11px; background: rgba(20, 60, 80, 0.85); border: 1px solid rgba(95, 227, 255, 0.6); color: #eafcff;
+  animation: walk-tap-hint 9s ease forwards;
+}
+@keyframes walk-tap-hint { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
+@media (max-width: 760px) and (min-height: 501px) { .walk-tap-hint { bottom: 170px; max-width: calc(100% - 32px); } }

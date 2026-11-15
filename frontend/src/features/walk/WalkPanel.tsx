@@ -331,6 +331,12 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
   const [menu, setMenu] = useState<'none' | 'settings' | 'teleport' | 'nav'>('none');
   const [probe, setProbe] = useState<SurfaceProbe | null>(null);
   const compact = useCompact();
+  // На телефоне нет подсказки с клавишами: несколько секунд показываем, что грунт можно нажать.
+  const [tapHint, setTapHint] = useState(true);
+  useEffect(() => {
+    const id = window.setTimeout(() => setTapHint(false), 9000);
+    return () => window.clearTimeout(id);
+  }, []);
   const [shadows, setShadows] = useState(true);
   const [groundDetail, setGroundDetail] = useState(true);
   const [webglError, setWebglError] = useState<string | null>(null);
@@ -668,6 +674,10 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
                 `Too steep: ${Math.round(extra.blockedSlopeDeg)}° with a ${state?.maxSlopeDeg ?? ''}° limit`,
               )}
         </div>
+      )}
+
+      {touch && tapHint && !probe && menu === 'none' && (
+        <div className="walk-tap-hint" role="status">{t('Нажмите на грунт — покажу породу и данные точки', 'Tap the ground to see the rock and data for that spot')}</div>
       )}
 
       {!touch && extra && !extra.locked && !extra.lifting && menu === 'none' && !probe && (
