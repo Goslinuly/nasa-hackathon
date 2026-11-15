@@ -60,8 +60,8 @@ Official resources from the challenge page.
 | Model | Used for | Reference |
 |---|---|---|
 | Mars24 time algorithm | Mars local time, sol numbers, sun position, sky | Allison & McEwen (2000), [NASA GISS Mars24](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) |
-| Suit walking speed `V = −0.01·θ + 0.75` m/s and metabolic cost on slopes | Walking speed, route cost in oxygen, time back to base | Apollo EVA traverse data as summarised in [docs/TZ_EVA_Safety.md](docs/TZ_EVA_Safety.md), 9.1; Santee et al. (2001), "A proposed model for load carriage on sloped terrain", Aviat. Space Environ. Med. 72(6): 562–566 |
-| Radiation dose corridor 0.64 ± 0.12 mSv/day | Dose for a planned EVA | MSL RAD surface measurements, see [docs/TZ_EVA_Safety.md](docs/TZ_EVA_Safety.md), 9.4 |
+| Suit walking speed `V = −0.01·θ + 0.75` m/s and metabolic cost on slopes | Walking speed, route cost in oxygen, time back to base | Apollo EVA traverse data as summarised in the EVA safety requirements, 9.1; Santee et al. (2001), "A proposed model for load carriage on sloped terrain", Aviat. Space Environ. Med. 72(6): 562–566 |
+| Radiation dose corridor 0.64 ± 0.12 mSv/day | Dose for a planned EVA | MSL RAD surface measurements, see the EVA safety requirements, 9.4 |
 
 ### 3D models and renders
 
@@ -73,7 +73,7 @@ Official resources from the challenge page.
 
 ### Local 3D terrain: The Martian locations and Gale crater
 
-Used by [`backend/scripts/build_martian_obj.py`](backend/scripts/build_martian_obj.py), [`backend/scripts/build_local_package.py`](backend/scripts/build_local_package.py) and [docs/BLENDER_TERRAIN.md](docs/BLENDER_TERRAIN.md).
+Used by [`backend/scripts/build_martian_obj.py`](backend/scripts/build_martian_obj.py), and [`backend/scripts/build_local_package.py`](backend/scripts/build_local_package.py).
 
 | Source | Used for | Credit |
 |---|---|---|
@@ -93,25 +93,20 @@ Used by [`backend/scripts/build_martian_obj.py`](backend/scripts/build_martian_o
 | [Mars24 lander locations](https://www.giss.nasa.gov/tools/mars24/help/landers.html); NASA NSSDCA pages for [Viking 1](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1975-075C), [Viking 2](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1975-083C), [Mars Pathfinder](https://nssdc.gsfc.nasa.gov/nmc/spacecraft/display.action?id=1996-068A); [JPL: Ingenuity mission ends](https://www.jpl.nasa.gov/news/after-three-years-on-mars-nasas-ingenuity-helicopter-mission-ends/); [Wikipedia: Opportunity](https://en.wikipedia.org/wiki/Opportunity_(rover)) | Memorial: coordinates and dates of completed missions; origin of the "battery is low" paraphrase | NASA GISS, NASA NSSDCA, NASA/JPL-Caltech, Wikipedia |
 | Memorial music | Background music in the memorial | Own Web Audio synthesis, no recordings |
 
-Sources for features that are not connected yet (for example weather archives) are listed in [docs/TZ_First_Person.md](docs/TZ_First_Person.md) and are added here when they are connected. The full research catalogue with checks and limitations is in [docs/RESOURCES.md](docs/RESOURCES.md).
+Sources for features that are not connected yet (for example weather archives) are added here when they are connected. The full research catalogue with checks and limitations is in [docs/RESOURCES.md](docs/RESOURCES.md).
 
 ## Структура репозитория
 
 - `backend/` — FastAPI + PostgreSQL/PostGIS + Celery: каталог продуктов, покрытие, маршруты ([инструкция запуска](backend/README.md)).
 - `frontend/` — React + TypeScript + Vite: атлас, экспедиция, научные панели ([инструкция запуска](frontend/README.md)).
 - `infra/` — docker-compose для локальной инфраструктуры (PostGIS, Redis, MinIO, API, worker).
-- `docs/` — ТЗ, каталог ресурсов и [архитектурная основа](docs/ARCHITECTURE.md).
+- `docs/` — каталог ресурсов и [архитектурная основа](docs/ARCHITECTURE.md).
 
 ## Документация
 
-- [Полное техническое задание версии 4.1](docs/TZ_Martian_Map_SpaceApps2026.md)
-- [Техническое задание версии 4.1 в Word](docs/TZ_Martian_Map_SpaceApps2026_v4_1.docx)
+- [Архитектурная основа](docs/ARCHITECTURE.md)
 - [Ресурсы, источники информации и базы данных](docs/RESOURCES.md)
-- [Ресурсы, источники информации и базы данных в Word](docs/RESOURCES.docx)
 - [Деплой на Railway без CLI](docs/DEPLOY_RAILWAY.md)
-- [EVA-режим: состояние внедрения](docs/EVA_IMPLEMENTATION.md)
-- [Рельеф мест из «Марсианина» в Blender](docs/BLENDER_TERRAIN.md)
-- [Переход с глобуса в вид от первого лица и экран выхода](docs/TZ_First_Person.md)
 - [Черновик страницы проекта для Space Apps](docs/SPACE_APPS_PROJECT.md)
 
 ## Team
