@@ -296,3 +296,19 @@
   /* Вертикально: компас под строкой кнопок. */
   .walk-hud .hud-tc { top: calc(max(4px, env(safe-area-inset-top)) + 46px); }
 }
+
+/* Подсказка режима маршрута: видна и на телефоне, где нет всплывающих title. */
+.walk-route-hint {
+  position: absolute; left: 50%; top: 64px; transform: translateX(-50%); z-index: 13; pointer-events: none;
+  max-width: min(420px, calc(100% - 24px)); padding: 6px 12px; border-radius: 6px; text-align: center; font-size: 13px;
+  background: rgba(180, 85, 42, 0.92); border: 1px solid #ff9a62; color: #fff;
+}
+/* Высота по видимой области: в мобильных браузерах нижняя панель не должна закрывать мини-карту. */
+.walk-root { bottom: auto; height: 100dvh; }
+@media (max-width: 760px), (max-height: 500px) {
+  .walk-route-hint { top: calc(max(4px, env(safe-area-inset-top)) + 44px); font-size: 11px; padding: 4px 8px; }
+  /* В режиме маршрута карта крупнее — в маленькую трудно попасть пальцем. */
+  .walk-minimap.is-routing canvas { transform: scale(1.8); transform-origin: bottom right; }
+  .walk-minimap.is-routing .walk-route-tools { position: relative; z-index: 1; }
+  .walk-minimap.is-routing { z-index: 12; }
+}

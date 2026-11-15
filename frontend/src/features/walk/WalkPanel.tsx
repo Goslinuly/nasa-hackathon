@@ -573,7 +573,12 @@ function WalkView({ pkg, ctx }: { pkg: SitePackage; ctx: ModeContext }) {
         </div>
       )}
 
-      <div className="walk-minimap">
+      {extra?.routeMode && (
+        <div className="walk-route-hint" role="status">
+          {t('Нажмите на мини-карте, куда идти: маршрут обойдёт крутые склоны', 'Tap the minimap where to go: the route avoids steep slopes')}
+        </div>
+      )}
+      <div className={`walk-minimap${extra?.routeMode ? ' is-routing' : ''}`}>
         <div className="walk-route-tools">
           <button
             type="button"

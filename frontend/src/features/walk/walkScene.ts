@@ -650,8 +650,11 @@ export class WalkScene {
     this.minimapBase = base;
     const onDown = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
-      const x = a.x + (e.clientX - r.left) / this.minimapScale;
-      const z = a.z + (e.clientY - r.top) / this.minimapScale;
+      // Карта может быть увеличена через CSS transform: переводим из экранных пикселей в пиксели раскладки.
+      const kx = r.width > 0 ? canvas.clientWidth / r.width : 1;
+      const ky = r.height > 0 ? canvas.clientHeight / r.height : 1;
+      const x = a.x + ((e.clientX - r.left) * kx) / this.minimapScale;
+      const z = a.z + ((e.clientY - r.top) * ky) / this.minimapScale;
       if (this.routeMode) this.routeTo(x, z);
       else this.teleport(x, z);
       e.stopPropagation();
