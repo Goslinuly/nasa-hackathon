@@ -86,6 +86,9 @@ export interface ModeDefinition {
   title: string;
   /** Одна строка подсказки под кнопкой. */
   description: string;
+  /** Название и подсказка по-английски (shared/i18n); без них — русские. */
+  titleEn?: string;
+  descriptionEn?: string;
   /** Порядок кнопок слева направо. */
   order: number;
   /**
