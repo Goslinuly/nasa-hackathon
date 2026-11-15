@@ -45,7 +45,7 @@ interface LiftPose {
 const ARRIVE_MS = 2600;
 
 const TOP_VIEW: LiftPose = { h: ASCENT_M, pitch: -Math.PI / 2 + 0.001, yaw: 0 };
-export const TIME_SCALES = [1, 10, 60] as const;
+export const TIME_SCALES = [1, 10, 60, 600] as const;
 const TRACK_LABEL_RADIUS_M = 50;
 const FOG_DAY = new THREE.Color('#cfa47e');
 const FOG_NIGHT = new THREE.Color('#121626');
@@ -196,6 +196,8 @@ export class WalkScene {
   private ribbonMaterial: THREE.MeshBasicMaterial | null = null;
   private postMaterial: THREE.MeshLambertMaterial | null = null;
   private fog: THREE.Fog;
+  /** Множитель дальности обзора и дымки (больше 1 — обзорный рельеф). */
+  private viewScale = 1;
   private geo: SolarGeometry;
   private tau = DEFAULT_TAU;
   private clockRunning = true;
@@ -293,14 +295,19 @@ export class WalkScene {
     this.renderer.domElement.className = 'walk-canvas';
     container.appendChild(this.renderer.domElement);
 
-    this.camera = new THREE.PerspectiveCamera(70, container.clientWidth / Math.max(1, container.clientHeight), 0.1, 6000);
+    // Обзорный рельеф (шаг сетки десятки метров, участок до сотен км): дальше видно и дымка дальше.
+    this.viewScale = pkg.frame.pixelM >= 20 ? 8 : 1;
+    this.camera = new THREE.PerspectiveCamera(
+      70, container.clientWidth / Math.max(1, container.clientHeight), this.viewScale > 1 ? 0.5 : 0.1, 6000 * this.viewScale * 1.25,
+    );
     this.camera.rotation.order = 'YXZ';
 
     this.geo = solarGeometry(this.simTimeMs, this.latDeg, this.lonEastDeg);
-    this.fog = new THREE.Fog(FOG_DAY, FOG_FAR_DAY_M * FOG_NEAR_FRACTION, FOG_FAR_DAY_M);
+    this.fog = new THREE.Fog(FOG_DAY, FOG_FAR_DAY_M * this.viewScale * FOG_NEAR_FRACTION, FOG_FAR_DAY_M * this.viewScale);
     this.scene.fog = this.fog;
     this.scene.background = FOG_DAY.clone();
     this.sky = new SkyDome(import.meta.env.BASE_URL);
+    this.sky.mesh.scale.setScalar(this.viewScale);
     this.scene.add(this.sky.mesh);
     if (pkg.manifest.backdrop) {
       this.backdrop = new BackdropPass();
@@ -708,7 +715,7 @@ export class WalkScene {
         if (!this.controls?.isLocked && performance.now() - this.lastUnlockAt > 400) this.opts.onExit();
         return;
       }
-      if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
+      if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4') {
         this.setTimeScale(TIME_SCALES[Number(e.code.slice(5)) - 1]);
         return;
       }
@@ -819,7 +826,7 @@ export class WalkScene {
     this.fog.color.copy(FOG_NIGHT).lerp(FOG_DAY, day);
     this.fog.color.lerp(FOG_DUSK, Math.sin(Math.PI * day) * 0.35);
     this.applyTrackGlow(day);
-    this.fog.far = THREE.MathUtils.clamp((FOG_FAR_DAY_M * DEFAULT_TAU) / this.tau, 1500, 8000);
+    this.fog.far = THREE.MathUtils.clamp((FOG_FAR_DAY_M * DEFAULT_TAU) / this.tau, 1500, 8000) * this.viewScale;
     this.fog.near = this.fog.far * FOG_NEAR_FRACTION;
     (this.scene.background as THREE.Color).copy(this.fog.color);
     this.sky.update({

@@ -164,3 +164,10 @@
 
 /* Описание участка внутри карточки выбора: те же отступы, что у заголовка. */
 .walk-pick .site-brief { padding: 0 12px 12px; }
+
+/* Постоянная плашка обзорного режима: данные грубые. */
+.walk-overview-banner {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 12; pointer-events: none;
+  max-width: min(720px, calc(100% - 32px)); padding: 6px 12px; border-radius: 6px; text-align: center;
+  background: rgba(110, 60, 10, 0.85); border: 1px solid rgba(255, 200, 120, 0.6); color: #fff2dc; font-size: 13px;
+}

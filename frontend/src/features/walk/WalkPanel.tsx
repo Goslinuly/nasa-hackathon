@@ -16,13 +16,15 @@ const ASCENT_MS = 1400;
 import { TimeControls } from './TimeControls';
 import { Joystick, TouchLook } from './TouchControls';
 import './walk.css';
+import { buildOverviewPackage, OVERVIEW_SITE_ID } from './overviewPackage';
+import { setPlannedWalkRoute, takePlannedWalkRoute, type PlannedWalkRoute } from '@/shared/walkRoute';
 
 export default function WalkPanel(ctx: ModeContext) {
   const site = ctx.params.site;
   if (!site) return <SiteChooser ctx={ctx} />;
   return (
     <div className="walk-root">
-      <WalkSite key={site} site={site} ctx={ctx} />
+      {site === OVERVIEW_SITE_ID ? <OverviewSite ctx={ctx} /> : <WalkSite key={site} site={site} ctx={ctx} />}
     </div>
   );
 }
@@ -153,6 +155,88 @@ function SiteChooser({ ctx, notice }: { ctx: ModeContext; notice?: string }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Маршрут обзорного режима забирается один раз; повторный запуск эффекта (режим разработки)
+ * в течение пары секунд получает тот же маршрут.
+ */
+let overviewTaken: { route: PlannedWalkRoute; at: number } | null = null;
+function takeOverviewRoute(): PlannedWalkRoute | null {
+  const route = takePlannedWalkRoute(OVERVIEW_SITE_ID);
+  if (route) {
+    overviewTaken = { route, at: Date.now() };
+    return route;
+  }
+  if (overviewTaken && Date.now() - overviewTaken.at < 3000) return overviewTaken.route;
+  return null;
+}
+
+/** Обзорный режим: маршрут в любом месте Марса на глобальных данных MOLA и CTX. */
+function OverviewSite({ ctx }: { ctx: ModeContext }) {
+  const t = useT();
+  const [pkg, setPkg] = useState<SitePackage | null>(null);
+  const [status, setStatus] = useState<'loading' | 'noroute' | 'error' | 'ready'>('loading');
+  const [error, setError] = useState('');
+  useEscExit(ctx.exit, status !== 'ready');
+
+  useEffect(() => {
+    const ac = new AbortController();
+    let loaded: SitePackage | null = null;
+    const route = takeOverviewRoute();
+    if (!route) {
+      setStatus('noroute');
+      return;
+    }
+    setStatus('loading');
+    (async () => {
+      try {
+        loaded = await buildOverviewPackage(route, ac.signal);
+        if (ac.signal.aborted) {
+          loaded.ortho.close();
+          return;
+        }
+        // Сцена сама забирает маршрут как активный: кладём его обратно перед запуском.
+        setPlannedWalkRoute(route);
+        setPkg(loaded);
+        setStatus('ready');
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        setError((e as Error).message);
+        setStatus('error');
+      }
+    })();
+    return () => {
+      ac.abort();
+      loaded?.ortho.close();
+    };
+  }, []);
+
+  if (status === 'ready' && pkg) {
+    return (
+      <>
+        <WalkView pkg={pkg} ctx={ctx} />
+        <div className="walk-overview-banner" role="note">
+          {t(
+            'Обзорный режим: рельеф MOLA ~7 км, снимок CTX. Мелкие склоны и камни не видны — это не проверенная тропа.',
+            'Overview mode: MOLA ~7 km terrain, CTX image. Small slopes and rocks are not visible — this is not a checked path.',
+          )}
+        </div>
+      </>
+    );
+  }
+  return (
+    <div className="walk-center">
+      <p>
+        {status === 'noroute'
+          ? t('Маршрут не задан. Проложите маршрут A → Б на глобусе.', 'No route is set. Plan an A → B route on the globe.')
+          : status === 'error'
+            ? `${t('Не удалось собрать обзорный рельеф', 'Could not build the overview terrain')}: ${error}`
+            : t('Сборка обзорного рельефа MOLA и снимка CTX…', 'Building the MOLA overview terrain and CTX image…')}
+      </p>
+      <button type="button" className="walk-btn" onClick={ctx.exit}>{t('На глобус', 'To the globe')}</button>
     </div>
   );
 }
