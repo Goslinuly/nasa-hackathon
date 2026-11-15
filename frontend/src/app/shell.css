@@ -18,9 +18,39 @@ body {
   z-index: 0;
 }
 
+/* Звёздное небо за шаром: панорама Млечного Пути (рендер команды, та же, что в прогулке).
+   Отдельный слой под прозрачным холстом шара. Анимация — только очень медленный сдвиг
+   через transform: его делает видеокарта, страница не перерисовывается. */
+.shell-globe::before {
+  content: '';
+  position: absolute;
+  inset: -4%;
+  z-index: 0;
+  background: #030305 url('/data/sky/milkyway_icrf.webp') 62% 55% / cover no-repeat;
+  opacity: 0.9;
+  transition: opacity 0.8s ease;
+  will-change: transform;
+  animation: stars-drift 360s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.stage-explore .shell-globe::before {
+  opacity: 0.45;
+}
+
+@keyframes stars-drift {
+  from { transform: translate3d(0, 0, 0) scale(1.02); }
+  to { transform: translate3d(-3%, 1.5%, 0) scale(1.05); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-globe::before { animation: none; }
+}
+
 .shell-globe .globe-canvas {
   position: absolute;
   inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
 }
