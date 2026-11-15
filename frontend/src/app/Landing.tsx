@@ -23,7 +23,7 @@ const SECTIONS = [
   ['coverage', 'Покрытие'],
   ['regions', 'Районы'],
   ['honesty', 'Данные'],
-  ['science', 'Архив RAD'],
+  ['science', 'Архив'],
 ] as const;
 
 export function Landing({ active, point, modes, onExplore, onMode, onRegion }: LandingProps) {
@@ -75,10 +75,6 @@ export function Landing({ active, point, modes, onExplore, onMode, onRegion }: L
             <br />
             <span className="hero-thin">EXPLORER</span>
           </h1>
-          <p>
-            Выберите любые координаты, от Олимпа до безымянного кратера. Сервис покажет, какие данные
-            там есть, и отметит, где деталей пока нет.
-          </p>
           <div className="hero-actions">
             <button type="button" className="hero-cta" onClick={onExplore}>
               Открыть шар
@@ -96,38 +92,31 @@ export function Landing({ active, point, modes, onExplore, onMode, onRegion }: L
             ))}
           </div>
         </div>
-        <button type="button" className="hero-scroll" onClick={() => scrollTo('coverage')}>
-          вниз ↓
-        </button>
       </header>
 
       <main className="landing-main">
         <section className="section" id="coverage">
           <div className="section-head">
-            <span className="section-number">_01</span>
             <h2>Данные выбранной точки</h2>
           </div>
-          {!point && (
-            <p className="section-intro">
-              Откройте шар и кликните по любой точке планеты. Здесь и на шаре появится список данных,
-              которые для неё есть.
-            </p>
-          )}
-          <CoverageCard point={point} />
+          <p className="section-intro">
+            {point
+              ? 'Карты и модели рельефа, которые есть для точки, выбранной на шаре, и их разрешение.'
+              : 'Откройте шар и нажмите на любую точку планеты. Здесь появится список карт и моделей рельефа для этого места и их разрешение.'}
+          </p>
+          {point && <CoverageCard point={point} />}
         </section>
 
         <section className="section" id="regions">
           <div className="section-head">
-            <span className="section-number">_02</span>
             <h2>Районы с подробным рельефом</h2>
           </div>
           <p className="section-intro">
-            37 моделей рельефа HiRISE (~1 м/пикс) в шести районах. Это кандидаты для детальной прогулки
-            и точки входа в каталог. Планировать экспедицию можно в
-            любых координатах.
+            Для шести районов есть 37 моделей рельефа HiRISE с шагом около 1 м. Нажмите на карточку,
+            чтобы открыть район на шаре. Маршрут можно строить и в любом другом месте планеты.
           </p>
           <div className="region-grid">
-            {regions.map((region, index) => (
+            {regions.map((region) => (
               <button
                 type="button"
                 className="region-card"
@@ -135,7 +124,6 @@ export function Landing({ active, point, modes, onExplore, onMode, onRegion }: L
                 onClick={() => onRegion(region)}
                 title="Показать на шаре"
               >
-                <span className="region-index">{String(index + 1).padStart(2, '0')}_</span>
                 <h3>{region.name_ru}</h3>
                 <span className="region-en">{region.name_en}</span>
                 <div className="region-stats">
@@ -145,7 +133,7 @@ export function Landing({ active, point, modes, onExplore, onMode, onRegion }: L
                   </div>
                   <div>
                     <span className="mono big">
-                      {region.best_dtm_resolution_m != null ? region.best_dtm_resolution_m.toFixed(2) : '—'}
+                      {region.best_dtm_resolution_m != null ? region.best_dtm_resolution_m.toFixed(2) : 'нет'}
                     </span>
                     <span className="micro-label">м/пикс лучший</span>
                   </div>
@@ -156,49 +144,47 @@ export function Landing({ active, point, modes, onExplore, onMode, onRegion }: L
                 </span>
               </button>
             ))}
-            {regions.length === 0 && <p className="dim">Каталог недоступен: запустите backend (порт 8001).</p>}
+            {regions.length === 0 && <p className="section-note">Каталог районов сейчас недоступен.</p>}
           </div>
         </section>
 
         <section className="section" id="honesty">
           <div className="section-head">
-            <span className="section-number">_03</span>
             <h2>Ограничения данных</h2>
           </div>
-          <div className="honesty-grid">
-            <div>
-              <h4>Зум ≠ детализация</h4>
-              <p>
-                Увеличение экрана не повышает разрешение данных. Подложка шара имеет 200 м/пикс. Поверх неё
-                почти везде лежит CTX 5 м, а в районах посадок HiRISE до 25 см. Если приблизиться сильнее,
-                чем позволяют данные под центром экрана, HUD сообщит о пределе и не станет растягивать
-                пиксели. Объём шара построен по MOLA (~7.4 км/пикс) с указанным преувеличением.
-              </p>
-            </div>
-            <div>
-              <h4>Контур показывает съёмку</h4>
-              <p>
-                Оранжевые контуры на шаре обозначают границы стереосъёмки HiRISE. Внутри них 20–47&nbsp;%
-                пробелов NoData. Контур не означает ровную проходимую площадку.
-              </p>
-            </div>
-            <div>
-              <h4>У каждого значения есть источник</h4>
-              <p>
-                Статусы каталога: кандидат → доступ проверен → скачан → геометрия проверена → обработан
-                → научно проверен → опубликован. Уровень данных определяют только опубликованные
-                продукты.
-              </p>
-            </div>
+          <p className="section-intro">
+            Что стоит знать, прежде чем делать выводы по карте.
+          </p>
+          <div className="section-notes">
+            <h3>Приближение не добавляет деталей</h3>
+            <p className="section-note">
+              Основная карта шара имеет разрешение 200 м на пиксель. Почти везде поверх неё лежат
+              снимки CTX с шагом 5 м, а в местах посадок есть HiRISE до 25 см. Если приблизить сильнее,
+              чем позволяют данные в центре экрана, появится предупреждение, а пиксели растягиваться
+              не будут. Форма шара построена по MOLA (около 7,4 км на пиксель), высоты преувеличены,
+              множитель указан на экране.
+            </p>
+            <h3>Контур показывает границу съёмки</h3>
+            <p className="section-note">
+              Оранжевые контуры на шаре обозначают границы стереосъёмки HiRISE. Внутри контура от 20
+              до 47&nbsp;% площади остаётся без данных. По контуру нельзя судить, ровная ли там
+              поверхность и можно ли по ней пройти.
+            </p>
+            <h3>У каждого значения есть источник</h3>
+            <p className="section-note">
+              Каждая запись каталога проходит этапы: кандидат, доступ проверен, скачан, геометрия
+              проверена, обработан, научно проверен, опубликован. Уровень данных точки считается
+              только по опубликованным продуктам.
+            </p>
           </div>
         </section>
 
         <SciencePanel />
+        <DataCredits />
       </main>
 
       <footer className="footer">
-        <DataCredits />
-        <span className="mono dim">MARTIAN MAP · v0.2</span>
+        <span className="mono dim">MARTIAN MAP · v1</span>
       </footer>
     </div>
   );

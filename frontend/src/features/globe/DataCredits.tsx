@@ -1,39 +1,41 @@
-// Блок со ссылками на все источники данных глобуса.
-import { CTX_OVERLAY, HIRISE_OVERLAYS, SPECTRA } from './layers';
+// Раздел «Источники данных»: полный список из app/sources.ts по группам.
+import { SOURCE_GROUPS } from '@/app/sources';
 
 export function DataCredits() {
-  const spectra = Object.values(SPECTRA);
   return (
-    <section className="credits" aria-label="Источники данных">
-      <h2 className="credits-title">Источники данных</h2>
-      <ul>
-        {spectra.map((layer) => (
-          <li key={layer.id}>
-            <strong>{layer.title}</strong>: {layer.credit}
-          </li>
+    <section className="section credits" id="sources" aria-labelledby="sources-title">
+      <div className="section-head">
+        <h2 id="sources-title">Источники данных</h2>
+      </div>
+      <p className="section-intro">
+        Все данные, модели и методы, которые использует сайт. У каждого набора свои условия
+        использования, они указаны по ссылкам.
+      </p>
+      <div className="credits-groups">
+        {SOURCE_GROUPS.map((group) => (
+          <div className="credits-group" key={group.id}>
+            <h3>{group.title}</h3>
+            <ul>
+              {group.items.map((item) => (
+                <li key={item.name}>
+                  <strong>{item.name}</strong>
+                  <span className="credits-use">{item.use}</span>
+                  <span className="credits-credit">{item.credit}</span>
+                  {item.links.length > 0 && (
+                    <span className="credits-links">
+                      {item.links.map((link) => (
+                        <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer">
+                          {link.label}
+                        </a>
+                      ))}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-        <li>
-          <strong>{CTX_OVERLAY.title}</strong>: {CTX_OVERLAY.credit}. V01 можно свободно использовать с
-          указанием авторства.
-        </li>
-        <li>
-          <strong>HiRISE</strong> ({HIRISE_OVERLAYS.map((o) => o.title).join(', ')}): {HIRISE_OVERLAYS[0].credit}
-        </li>
-        <li>
-          <strong>Объём рельефа и маршруты</strong>: MOLA MEGDR 16 px/° (MGS-M-MOLA-5-MEGDR-L3-V1.0),
-          NASA/GSFC MOLA Science Team, PDS Geosciences Node; уменьшено до 8 px/°.
-        </li>
-        <li>
-          <strong>Геология (атлас)</strong>: USGS SIM 3292, Tanaka et al. (2014); сервис USGS Astrogeology ArcGIS.
-          Производный растр из векторной публикации.
-        </li>
-        <li>
-          <strong>Модель марсохода Perseverance</strong>: NASA/JPL-Caltech (NASA 3D Resources). Размер условный, не в масштабе планеты.
-        </li>
-        <li>
-          <strong>Тайловые сервисы</strong>: NASA Mars Trek (JPL), Caltech Murray Lab.
-        </li>
-      </ul>
+      </div>
     </section>
   );
 }

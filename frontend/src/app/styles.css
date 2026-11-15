@@ -214,25 +214,6 @@ h1 {
   background: #fff;
 }
 
-.hero-scroll {
-  position: absolute;
-  z-index: 10;
-  bottom: 26px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--dim);
-  animation: bob 2.4s ease-in-out infinite;
-}
-
-@keyframes bob {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, 7px); }
-}
-
 .hud {
   position: absolute;
   z-index: 10;
@@ -395,13 +376,6 @@ h1 {
   margin-bottom: 34px;
 }
 
-.section-number {
-  font-family: var(--font-display);
-  font-weight: 300;
-  font-size: 30px;
-  color: var(--dim);
-}
-
 h2 {
   margin: 0;
   font-family: var(--font-display);
@@ -415,11 +389,43 @@ h2 {
   color: transparent;
 }
 
-.section-intro {
+/* Один текстовый столбец для вводных и заметок всех разделов главной. */
+.section-intro,
+.section-note {
+  max-width: 680px;
+  font-size: 16px;
+  line-height: 1.65;
   color: var(--dim);
-  max-width: 640px;
-  margin-top: -10px;
-  margin-bottom: 34px;
+}
+
+.section-intro {
+  margin: 0 0 32px;
+}
+
+.section-note {
+  margin: 0 0 16px;
+}
+
+ul.section-note {
+  padding-left: 1.2em;
+}
+
+.section-notes {
+  max-width: 680px;
+}
+
+.section-notes h3 {
+  margin: 28px 0 8px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.section-notes h3:first-child {
+  margin-top: 0;
 }
 
 .micro-label {
@@ -537,8 +543,14 @@ h2 {
   gap: 18px;
 }
 
+/* Строки карточек выровнены по общей сетке: название, англ. имя, числа, штрихкод, статус. */
 .region-card {
   position: relative;
+  display: grid;
+  grid-row: span 5;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  align-content: start;
   border: 1px solid var(--hairline);
   border-radius: 10px;
   padding: 24px 24px 20px;
@@ -551,15 +563,9 @@ h2 {
   transform: translateY(-3px);
 }
 
-.region-index {
-  font-family: var(--font-display);
-  font-weight: 300;
-  font-size: 26px;
-  color: var(--dim);
-}
-
 .region-card h3 {
-  margin: 10px 0 2px;
+  align-self: end;
+  margin: 0 0 4px;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 17px;
@@ -576,8 +582,9 @@ h2 {
 }
 
 .region-stats {
-  display: flex;
-  gap: 34px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
   margin: 20px 0 16px;
 }
 
@@ -612,35 +619,6 @@ h2 {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--mars);
-}
-
-.honesty-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 18px;
-}
-
-.honesty-grid > div {
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-  padding: 22px 24px;
-  background: rgba(13, 14, 19, 0.6);
-}
-
-.honesty-grid h4 {
-  margin: 0 0 10px;
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 14px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
-.honesty-grid p {
-  margin: 0;
-  color: var(--dim);
-  font-size: 14px;
 }
 
 .footer {
@@ -686,8 +664,7 @@ h2 {
     padding: 10px 12px;
   }
 
-  .hud-hint,
-  .hero-scroll {
+  .hud-hint {
     display: none;
   }
 
@@ -811,33 +788,84 @@ h2 {
   color: var(--dim);
 }
 
-.credits {
-  flex: 1 1 520px;
+.credits-groups {
+  columns: 2 320px;
+  column-gap: 48px;
 }
 
-.credits-title {
-  margin: 0 0 8px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.24em;
+.credits-group {
+  break-inside: avoid;
+  padding-bottom: 8px;
+}
+
+.credits-group h3 {
+  margin: 24px 0 10px;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--dim);
+  color: var(--accent);
 }
 
-.credits ul {
+.credits-group ul {
   margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: 4px;
-  font-size: 12px;
-  line-height: 1.5;
+  gap: 14px;
 }
 
-.credits strong {
+.credits-group li {
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.credits-group strong {
   color: var(--text);
   font-weight: 500;
+}
+
+.credits-use,
+.credits-credit {
+  color: var(--dim);
+}
+
+.credits-credit {
+  font-size: 13px;
+}
+
+.credits-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  font-size: 13px;
+}
+
+.credits-links a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(174, 191, 221, 0.35);
+}
+
+.credits-links a:hover {
+  color: var(--text);
+}
+
+.credits-links a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse), (max-width: 760px) {
+  .credits-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+  }
 }
 
 .planner-stage {
@@ -1392,97 +1420,6 @@ h2 {
   .zoom-buttons {
     display: none;
   }
-}
-
-#science {
-  scroll-margin-top: 5rem;
-}
-
-#science details {
-  margin-top: 1rem;
-}
-
-#science summary {
-  cursor: pointer;
-  padding: 0.5rem 0;
-}
-
-#science li {
-  margin: 0.5rem 0;
-}
-
-.science-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: end;
-  margin: 1.5rem 0;
-}
-
-.science-controls label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.science-controls .science-checkbox {
-  flex-direction: row;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.science-controls input,
-.science-controls button {
-  font: inherit;
-  padding: 0.65rem;
-  color: var(--text);
-  background: var(--bg-soft);
-  border: 1px solid var(--hairline-strong);
-  border-radius: 4px;
-  color-scheme: dark;
-}
-
-.science-controls button {
-  cursor: pointer;
-}
-
-.science-controls button:hover {
-  border-color: var(--accent);
-}
-
-.science-controls input:focus-visible,
-.science-controls button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
-.science-table-wrap {
-  overflow-x: auto;
-  max-height: 30rem;
-  margin: 1rem 0;
-}
-
-.science-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.science-table th,
-.science-table td {
-  text-align: left;
-  padding: 0.8rem;
-  border-bottom: 1px solid var(--hairline);
-}
-
-.science-table caption {
-  text-align: left;
-  padding: 0.75rem 0;
-  color: var(--dim);
-}
-
-.science-hash {
-  overflow-wrap: anywhere;
 }
 
 .research-route {
