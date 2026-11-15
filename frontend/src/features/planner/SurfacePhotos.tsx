@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 
 import { fetchRoverPhotos } from '@/shared/api/client';
 import type { RoverPhotosResponse } from '@/shared/api/evaTypes';
-import { locale, tr, useT } from '@/shared/i18n/lang';
+import { locale, tr, useLang, useT } from '@/shared/i18n/lang';
 import { findNearTrack, type LonLat, type NearTrackHit } from '@/shared/rovers/nearTrack';
 
 const MAX_DISTANCE_M = 6000;
@@ -14,6 +14,7 @@ export function SurfacePhotos({ points }: { points: LonLat[] }) {
   const [hit, setHit] = useState<NearTrackHit | null | 'searching'>('searching');
   const [photos, setPhotos] = useState<RoverPhotosResponse | null>(null);
   const t = useT();
+  const lang = useLang();
 
   useEffect(() => {
     let alive = true;
@@ -37,7 +38,7 @@ export function SurfacePhotos({ points }: { points: LonLat[] }) {
     return () => {
       alive = false;
     };
-  }, [hit]);
+  }, [hit, lang]);
 
   if (hit === 'searching' || hit === null) return null;
 

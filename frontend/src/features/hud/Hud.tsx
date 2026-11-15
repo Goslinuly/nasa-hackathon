@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { WalkState } from '@/app/modeContract';
-import { getLang, locale, tr, useT } from '@/shared/i18n/lang';
+import { getLang, locale, tr, useLang, useT } from '@/shared/i18n/lang';
 import { DOSE_RATE_MSV_DAY, distanceToGaleKm, evaDose, GALE, loadRad, type RadSummary } from '@/shared/eva/radiation';
 import {
   DONKI_TYPE_LABEL,
@@ -20,7 +20,7 @@ import {
   formatDuration,
   slopeLevel,
 } from '@/shared/eva/suit';
-import { regionAt, regionTypeRu, type RegionInfo } from '@/shared/regions/regionAt';
+import { regionAt, regionTypeLabel, type RegionInfo } from '@/shared/regions/regionAt';
 import { formatLightTime, interpolateLightTime, loadLightTimeTable, type LightTimeTable } from '@/shared/time/lightTime';
 import {
   formatHours,
@@ -63,6 +63,8 @@ export function Hud({ state }: HudProps) {
     window.matchMedia?.('(max-width: 760px), (max-height: 500px), (pointer: coarse)').matches ? 'min' : 'full',
   );
   const [ext, setExt] = useState<HudExternal>({});
+  // Тексты API (оговорки RAD, события DONKI) приходят на языке интерфейса: при смене языка — перезапрос.
+  const lang = useLang();
 
   useEffect(() => {
     let alive = true;
@@ -72,7 +74,7 @@ export function Hud({ state }: HudProps) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [lang]);
 
   const regionLat = Math.round(state.lat * 50);
   const regionLon = Math.round(state.lonEast * 50);
@@ -133,11 +135,12 @@ function regionLine(region: RegionInfo | null | undefined): string {
   if (region.specific) {
     const name = region.specific.name;
     if (getLang() === 'en') {
-      // Тип по IAU: «Crater, craters» → crater; не повторяем, если тип уже в названии.
-      const kindEn = (region.specific.type || '').split(',')[0].trim().toLowerCase();
-      parts.push(kindEn && !name.toLowerCase().includes(kindEn) ? `${name} ${kindEn}` : name);
+      // «Gale crater»; не повторяем тип, если он уже в названии (Aeolis Mons).
+      const iau = (region.specific.type || '').split(',')[0].trim().toLowerCase();
+      const kindEn = regionTypeLabel(region.specific.type);
+      parts.push(kindEn && !(iau && name.toLowerCase().includes(iau)) ? `${name} ${kindEn}` : name);
     } else {
-      const kind = regionTypeRu(region.specific.type);
+      const kind = regionTypeLabel(region.specific.type);
       parts.push(kind ? `${kind} ${name}` : name);
     }
   }

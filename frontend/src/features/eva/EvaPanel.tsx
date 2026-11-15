@@ -25,7 +25,7 @@ import type {
   SpaceWeatherSummary,
   WalkbackResponse,
 } from '@/shared/api/evaTypes';
-import { locale, tr, useT } from '@/shared/i18n/lang';
+import { locale, tr, useLang, useT } from '@/shared/i18n/lang';
 
 import {
   buildEvaPoints,
@@ -58,6 +58,8 @@ const STATUS_KIND: Record<string, Kind> = {
 
 function useLoad<T>(run: () => Promise<T>, deps: unknown[]): Load<T> {
   const [value, setValue] = useState<Load<T>>({ state: 'loading' });
+  // Тексты ответов API зависят от языка: при смене языка запрос повторяется.
+  const lang = useLang();
   useEffect(() => {
     let live = true;
     setValue({ state: 'loading' });
@@ -68,7 +70,7 @@ function useLoad<T>(run: () => Promise<T>, deps: unknown[]): Load<T> {
     return () => {
       live = false;
     };
-  }, deps);
+  }, [...deps, lang]);
   return value;
 }
 
