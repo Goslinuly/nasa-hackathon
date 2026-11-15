@@ -2,9 +2,14 @@
 from fastapi import APIRouter, Query
 
 from martian_map.api.lang import LocalizedRoute
-from martian_map.modules.rovers import photos
+from martian_map.modules.rovers import photos, positions
 
 router = APIRouter(route_class=LocalizedRoute, prefix="/rovers")
+
+
+@router.get("/positions")
+async def rover_positions() -> dict:
+    return await positions.fetch_positions()
 
 
 @router.get("/photos")

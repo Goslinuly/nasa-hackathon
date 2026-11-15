@@ -266,6 +266,7 @@ export default function RoutePanel({ globe }: ModeContext) {
   const [pick, setPick] = useState<PickTarget | null>('a');
   const [stops, setStops] = useState<LonLat[]>([]);
   const [hazard, setHazard] = useState<HazardGrid | null>(null);
+  const [hazardRetrieved, setHazardRetrieved] = useState<string>('');
   const [surfaceFromData, setSurfaceFromData] = useState(true);
   const [multi, setMulti] = useState<MultiInfo | null>(null);
   const [failedLeg, setFailedLeg] = useState<number | null>(null);
@@ -307,7 +308,10 @@ export default function RoutePanel({ globe }: ModeContext) {
   useEffect(() => {
     const abort = new AbortController();
     void loadHazardGrid(abort.signal).then((bundle) => {
-      if (bundle && !abort.signal.aborted) setHazard(bundle.grid);
+      if (bundle && !abort.signal.aborted) {
+        setHazard(bundle.grid);
+        setHazardRetrieved(bundle.manifest.retrieved ?? '');
+      }
     });
     return () => abort.abort();
   }, []);
@@ -839,6 +843,12 @@ export default function RoutePanel({ globe }: ModeContext) {
                       )}
                       {route.eva?.surface === 'per_cell'
                         ? t('. Расход уже посчитан по грунту каждой ячейки', '. Consumption is already computed from the surface of each cell')
+                        : ''}
+                      {hazardRetrieved
+                        ? t(
+                            `. Слои выгружены из архивов NASA ${hazardRetrieved}`,
+                            `. Layers exported from NASA archives on ${hazardRetrieved}`,
+                          )
                         : ''}
                     </p>
                   </>

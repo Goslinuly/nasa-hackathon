@@ -129,3 +129,23 @@ describe('космическая погода', () => {
     expect(latestRelevantEvent(null)).toBeNull();
   });
 });
+
+describe('parseRadLive', () => {
+  it('берёт последний сол ряда и переводит в мкГр/ч', async () => {
+    const { parseRadLive } = await import('./radiation');
+    const live = parseRadLive({
+      status: 'ok',
+      dataset: 'msl_rad_dosimetry',
+      caveat: 'ряд как есть',
+      series: [
+        { time: '2026-11-10', dose_ugy_per_sol: 220, samples: 12 },
+        { time: '2026-11-13', dose_ugy_per_sol: 246.6, samples: 10 },
+      ],
+    });
+    expect(live?.kind).toBe('live');
+    expect(live?.startUtc).toBe('2026-11-13');
+    expect(live?.rateMicroGyH).toBeCloseTo(10.0, 1);
+    expect(parseRadLive({ status: 'ok', series: [] })).toBeNull();
+    expect(parseRadLive(null)).toBeNull();
+  });
+});

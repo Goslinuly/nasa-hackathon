@@ -495,15 +495,22 @@ function RadiationRows({ state: s, rad, rover = false }: { state: WalkState; rad
       <Row
         label={tt('RAD, Гейл', 'RAD, Gale')}
         value={`${fmtNum(rad.rateMicroGyH, 1)} ${tt('мкГр/ч', 'µGy/h')}${rad.sol !== null ? ` · sol ${rad.sol}` : ''}`}
-        prov="archive"
+        prov={rad.kind === 'live' ? 'data' : 'archive'}
         date={dateOnly(rad.startUtc)}
         tip={
-          tt(
-            `Curiosity RAD, канал B: средняя мощность поглощённой дозы по ${rad.observations} замерам, ` +
-              `${rad.startUtc} — ${rad.endUtc}. Файл: ${rad.sourceFile}. Это архив, не текущие условия. `,
-            `Curiosity RAD, channel B: mean absorbed dose rate over ${rad.observations} readings, ` +
-              `${rad.startUtc} — ${rad.endUtc}. File: ${rad.sourceFile}. This is archive data, not current conditions. `,
-          ) + rad.limitations.join(' ')
+          (rad.kind === 'live'
+            ? tt(
+                `Curiosity RAD: средняя мощность дозы за последний сол ряда NASA ISWA (${rad.sourceFile}), ` +
+                  `замер от ${dateOnly(rad.startUtc)}; ряд отстаёт от реального времени до пары суток. `,
+                `Curiosity RAD: mean dose rate for the latest sol of the NASA ISWA series (${rad.sourceFile}), ` +
+                  `measured ${dateOnly(rad.startUtc)}; the series lags real time by up to a couple of days. `,
+              )
+            : tt(
+                `Curiosity RAD, канал B: средняя мощность поглощённой дозы по ${rad.observations} замерам, ` +
+                  `${rad.startUtc} — ${rad.endUtc}. Файл: ${rad.sourceFile}. Это архив, не текущие условия. `,
+                `Curiosity RAD, channel B: mean absorbed dose rate over ${rad.observations} readings, ` +
+                  `${rad.startUtc} — ${rad.endUtc}. File: ${rad.sourceFile}. This is archive data, not current conditions. `,
+              )) + rad.limitations.join(' ')
         }
       />
     );

@@ -43,6 +43,7 @@ export interface RadSummary {
   observations: number;
   sourceFile: string;
   limitations: string[];
+  kind?: 'live' | 'archive';
 }
 
 interface RadApiResponse {
@@ -78,16 +79,50 @@ export function parseRad(body: RadApiResponse | null): RadSummary | null {
 
 const radLoading = new Map<string, Promise<RadSummary | null>>();
 
-/** Один запрос за сессию на язык (ограничения набора приходят на языке интерфейса); ошибки → null. */
+const SOL_HOURS = 88775.244 / 3600;
+
+interface RadLiveBody {
+  status?: string;
+  series?: { time?: string; dose_ugy_per_sol?: number; samples?: number }[];
+  caveat?: string;
+  dataset?: string;
+}
+
+/** Живой ряд ISWA → сводка в мкГр/ч; null — ряд пуст или не в нашем формате. */
+export function parseRadLive(body: RadLiveBody | null): RadSummary | null {
+  const last = body?.status === 'ok' ? body.series?.at(-1) : undefined;
+  if (!last || typeof last.dose_ugy_per_sol !== 'number' || !Number.isFinite(last.dose_ugy_per_sol)) {
+    return null;
+  }
+  return {
+    rateMicroGyH: last.dose_ugy_per_sol / SOL_HOURS,
+    sol: null,
+    startUtc: last.time ?? '',
+    endUtc: last.time ?? '',
+    observations: last.samples ?? 0,
+    sourceFile: body?.dataset ?? 'msl_rad_dosimetry',
+    limitations: body?.caveat ? [body.caveat] : [],
+    kind: 'live',
+  };
+}
+
+/** Сначала живой ряд ISWA, при отказе — архив; один запрос за сессию на язык, ошибки → null. */
 export function loadRad(): Promise<RadSummary | null> {
-  const url = apiUrl('/science/rad');
-  const key = url.toString();
+  const liveUrl = apiUrl('/eva/rad-live', { days: 30 });
+  const archiveUrl = apiUrl('/science/rad');
+  const key = liveUrl.toString();
   let pending = radLoading.get(key);
   if (!pending) {
-    pending = fetch(url)
-      .then(r => (r.ok ? (r.json() as Promise<RadApiResponse>) : null))
-      .then(parseRad)
-      .catch(() => null);
+    const archive = () =>
+      fetch(archiveUrl)
+        .then(r => (r.ok ? (r.json() as Promise<RadApiResponse>) : null))
+        .then(parseRad)
+        .catch(() => null);
+    pending = fetch(liveUrl)
+      .then(r => (r.ok ? (r.json() as Promise<RadLiveBody>) : null))
+      .then(parseRadLive)
+      .catch(() => null)
+      .then(live => live ?? archive());
     radLoading.set(key, pending);
   }
   return pending;

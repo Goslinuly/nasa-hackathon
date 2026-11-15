@@ -18,6 +18,7 @@ import type {
   RadiationResponse,
   RouteDoseResponse,
   RoverPhotosResponse,
+  RoverPositionsResponse,
   SlopesResponse,
   SolarEventsResponse,
   SpaceWeatherSummary,
@@ -172,3 +173,5 @@ export const fetchRouteDose = (seconds: number, deltaHM: number | null) =>
 
 export const fetchRoverPhotos = (rover: string, sol: number, limit = 6) =>
   getJson<RoverPhotosResponse>('/rovers/photos', { rover, sol, limit });
+
+export const fetchRoverPositions = () => getJson<RoverPositionsResponse>('/rovers/positions');

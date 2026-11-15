@@ -253,3 +253,22 @@ export interface RoverPhotosOk {
 }
 
 export type RoverPhotosResponse = RoverPhotosOk | SourceUnavailable;
+
+export interface RoverLivePosition {
+  lon: number;
+  lat: number;
+  sol: number | null;
+  elevation_m: number | null;
+  dist_total_m: number | null;
+  source_url: string;
+}
+
+export interface RoverPositionsOk {
+  status: 'ok';
+  fetched_utc: string;
+  rovers: Record<string, RoverLivePosition>;
+  credit: string;
+  note: string;
+}
+
+export type RoverPositionsResponse = RoverPositionsOk | SourceUnavailable;

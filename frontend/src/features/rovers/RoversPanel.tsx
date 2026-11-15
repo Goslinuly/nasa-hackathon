@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { GlobeLine, ModeContext } from '@/app/modeContract';
+import { fetchRoverPositions } from '@/shared/api/client';
+import type { RoverPositionsOk } from '@/shared/api/evaTypes';
 import { locale, useLang, useT } from '@/shared/i18n/lang';
 
 import {
@@ -26,6 +28,18 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
   const [selected, setSelected] = useState<string | null>(null);
   const t = useT();
   const lang = useLang();
+  const [live, setLive] = useState<RoverPositionsOk | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchRoverPositions().then(
+      (data) => alive && data.status === 'ok' && setLive(data),
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -37,8 +51,22 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
     return () => controller.abort();
   }, []);
 
-  // Подписи в карточках и метках на шаре зависят от языка: пересобираем при смене.
-  const items = useMemo(() => (data ? roverItems(data.current) : []), [data, lang]);
+  // Подписи зависят от языка, позиции — от живого запроса: пересобираем при смене любого.
+  const items = useMemo(() => {
+    const base = data ? roverItems(data.current) : [];
+    if (!live) return base;
+    return base.map((item) => {
+      const now = live.rovers[item.id];
+      if (!now) return item;
+      return {
+        ...item,
+        lat: now.lat,
+        lon: now.lon,
+        sol: now.sol ?? item.sol,
+        distanceKm: now.dist_total_m ? now.dist_total_m / 1000 : item.distanceKm,
+      };
+    });
+  }, [data, live, lang]);
 
   useEffect(() => {
     if (!data) return;
@@ -80,9 +108,18 @@ export default function RoversPanel({ globe, openMode }: ModeContext) {
       {data && (
         <>
           <p className="rv-dim">
+            {live
+              ? t(
+                  `Позиции запрошены ${formatUtc(live.fetched_utc)} напрямую из NASA MMGIS: ${live.note}.`,
+                  `Positions requested ${formatUtc(live.fetched_utc)} straight from NASA MMGIS: ${live.note}.`,
+                )
+              : t(
+                  `Позиции на ${formatUtc(data.current.fetched_utc)} (снимок набора NASA MMGIS; живой запрос не прошёл).`,
+                  `Positions as of ${formatUtc(data.current.fetched_utc)} (NASA MMGIS snapshot; the live request failed).`,
+                )}{' '}
             {t(
-              `Позиции на ${formatUtc(data.current.fetched_utc)} (дата выгрузки из NASA MMGIS). Роверы едут дальше, а на глобусе показана последняя известная нам точка.`,
-              `Positions as of ${formatUtc(data.current.fetched_utc)} (NASA MMGIS export date). The rovers keep driving; the globe shows the last point we know.`,
+              `Треки показаны по снимку от ${formatUtc(data.current.fetched_utc)}.`,
+              `Traverses are drawn from the snapshot taken ${formatUtc(data.current.fetched_utc)}.`,
             )}
           </p>
           <ul className="rv-list">

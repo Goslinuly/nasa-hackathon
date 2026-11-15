@@ -83,3 +83,44 @@ def test_photos_route_source_down(client: TestClient, monkeypatch: pytest.Monkey
 
 def test_photos_route_validates_rover(client: TestClient) -> None:
     assert client.get("/api/v1/rovers/photos?rover=spirit&sol=1").status_code == 422
+
+
+M20_CURRENT = {
+    "features": [
+        {
+            "geometry": {"coordinates": [77.231, 18.436, -2560.0]},
+            "properties": {"sol": 2024, "dist_total_m": 38012.5},
+        }
+    ]
+}
+
+
+def test_positions_parse_current() -> None:
+    from martian_map.modules.rovers import positions
+
+    parsed = positions.parse_current(M20_CURRENT)
+    assert parsed is not None
+    assert parsed["sol"] == 2024
+    assert abs(parsed["lon"] - 77.231) < 1e-9
+    assert positions.parse_current({"features": []}) is None
+
+
+def test_positions_route(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fake(url: str, params: dict | None = None):
+        return M20_CURRENT
+
+    monkeypatch.setattr(cache, "fetch_json", fake)
+    data = client.get("/api/v1/rovers/positions").json()
+    assert data["status"] == "ok"
+    assert set(data["rovers"]) == {"perseverance", "curiosity"}
+    assert data["rovers"]["curiosity"]["sol"] == 2024
+    assert data["fetched_utc"].endswith("Z")
+
+
+def test_positions_route_source_down(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fail(url: str, params: dict | None = None):
+        raise RuntimeError("сеть")
+
+    monkeypatch.setattr(cache, "fetch_json", fail)
+    data = client.get("/api/v1/rovers/positions").json()
+    assert data["status"] == "source_unavailable"
