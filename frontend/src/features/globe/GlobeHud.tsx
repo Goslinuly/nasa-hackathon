@@ -2,9 +2,11 @@
 import { useEffect, useState } from 'react';
 
 import { useGlobeState, useValue } from '@/app/globeState';
+import { locale, useLang, useT } from '@/shared/i18n/lang';
 import { regionAt, type RegionInfo } from '@/shared/regions/regionAt';
 
 import { formatAltitude, formatResolution } from './format';
+import { layerTitleEn } from './layers';
 
 const lonEast = (lon: number) => ((lon % 360) + 360) % 360;
 
@@ -33,18 +35,22 @@ export function GlobeHud() {
   const point = useValue(hover);
   const state = useValue(view);
   const region = useRegion(point);
+  const t = useT();
+  const lang = useLang();
 
   return (
     <div className="hud shell-hud" aria-live="off">
       <div>
-        <span className="hud-label">Курсор</span>
+        <span className="hud-label">{t('Курсор', 'Cursor')}</span>
         <span className="hud-value">
           {point
             ? `${Math.abs(point.lat).toFixed(4)}° ${point.lat >= 0 ? 'N' : 'S'}  ${lonEast(point.lon).toFixed(4)}° E`
             : '—'}
         </span>
         {point?.heightM != null && (
-          <span className="hud-sub">MOLA {Math.round(point.heightM).toLocaleString('ru-RU')} м · над ареоидом</span>
+          <span className="hud-sub">
+            MOLA {Math.round(point.heightM).toLocaleString(locale())} {t('м · над ареоидом', 'm · above areoid')}
+          </span>
         )}
         {point && region && (region.specific || region.province || region.geology) && (
           <span className="hud-sub">
@@ -52,7 +58,7 @@ export function GlobeHud() {
               [region.specific?.name, region.province && region.province.name !== region.specific?.name ? region.province.name : null]
                 .filter(Boolean)
                 .join(' · '),
-              region.geology ? `геология: ${region.geology.unit} — ${region.geology.label}` : null,
+              region.geology ? `${t('геология', 'geology')}: ${region.geology.unit} — ${region.geology.label}` : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -62,19 +68,20 @@ export function GlobeHud() {
       {state && (
         <>
           <div>
-            <span className="hud-label">Высота камеры</span>
+            <span className="hud-label">{t('Высота камеры', 'Camera altitude')}</span>
             <span className="hud-value">{formatAltitude(state.altitudeKm)}</span>
           </div>
           <div>
-            <span className="hud-label">Данные под центром</span>
+            <span className="hud-label">{t('Данные под центром', 'Data at center')}</span>
             <span className="hud-value">{formatResolution(state.dataResolutionM)}</span>
-            <span className="hud-sub">{state.sourceTitle}</span>
+            <span className="hud-sub">{lang === 'en' ? layerTitleEn(state.sourceTitle) : state.sourceTitle}</span>
           </div>
         </>
       )}
       {state?.overLimit && (
         <div className="hud-warn">
-          Предел источника ({formatResolution(state.nativeResolutionM)}). Дальше идёт только увеличение, новых деталей нет.
+          {t('Предел источника', 'Source limit')} ({formatResolution(state.nativeResolutionM)}).{' '}
+          {t('Дальше идёт только увеличение, новых деталей нет.', 'Beyond this it is only magnified; no new detail.')}
         </div>
       )}
     </div>

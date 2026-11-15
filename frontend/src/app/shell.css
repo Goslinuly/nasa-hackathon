@@ -71,6 +71,12 @@ body {
   background: rgba(5, 5, 7, 0.88);
 }
 
+.topbar-end {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .topbar-links button {
   background: none;
   border: 0;

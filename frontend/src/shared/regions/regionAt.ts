@@ -1,5 +1,6 @@
 // Регион и геологический юнит под точкой: газеттир IAU USGS и растр SIM 3292, расчёт в браузере.
 import { GEOLOGY_IMAGE_URL, geologyPixel, loadGeologyLegend, type GeologyLegend } from '@/features/map/geology';
+import { getLang } from '@/shared/i18n/lang';
 
 export interface NamedRegion {
   name: string;
@@ -142,8 +143,28 @@ const TYPE_RU: Record<string, string> = {
   'Mensa, mensae': 'столовые горы',
 };
 
+const TYPE_EN: Record<string, string> = {
+  'Mons, montes': 'mountain',
+  'Crater, craters': 'crater',
+  'Planitia, planitiae': 'plain',
+  'Planum, plana': 'plateau',
+  'Vallis, valles': 'valley',
+  'Terra, terrae': 'highland',
+  'Chasma, chasmata': 'canyon',
+  'Fossa, fossae': 'troughs',
+  'Tholus, tholi': 'dome',
+  'Patera, paterae': 'patera',
+  'Labyrinthus, labyrinthi': 'labyrinth',
+  'Mensa, mensae': 'mesas',
+};
+
 export function regionTypeRu(type: string): string | null {
   return TYPE_RU[type] ?? null;
+}
+
+/** Вид объекта газеттира на текущем языке интерфейса. */
+export function regionTypeLabel(type: string): string | null {
+  return getLang() === 'en' ? (TYPE_EN[type] ?? null) : regionTypeRu(type);
 }
 
 /** Именованные структуры, через которые проходит ломаная; от мелких к крупным, без повторов. */

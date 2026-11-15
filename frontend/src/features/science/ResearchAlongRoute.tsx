@@ -7,7 +7,8 @@ import type { RouteResult } from '@/features/planner/routing';
 import { fetchResearchRoute } from '@/shared/api/client';
 import type { PlacedStudy, ResearchRoute, RouteSide } from '@/shared/api/scienceTypes';
 import { makeMarsPoint } from '@/shared/coordinates/mars';
-import { regionsAlong, regionTypeRu, type NamedRegion } from '@/shared/regions/regionAt';
+import { tr, useT } from '@/shared/i18n/lang';
+import { regionsAlong, regionTypeLabel, type NamedRegion } from '@/shared/regions/regionAt';
 
 const MAX_POINTS = 50;
 
@@ -24,20 +25,21 @@ interface Props {
   onAddStop?(point: LonLat): void;
 }
 
-const SIDE_LABEL: Record<RouteSide, string> = {
-  left: 'слева от линии',
-  right: 'справа от линии',
-  on_line: 'на самой линии',
+const SIDE_LABEL: Record<RouteSide, [string, string]> = {
+  left: ['слева от линии', 'left of the line'],
+  right: ['справа от линии', 'right of the line'],
+  on_line: ['на самой линии', 'on the line'],
 };
 
 export function formatOffset(study: PlacedStudy): string {
   const metres = study.distance_from_route_m;
   const distance =
-    metres >= 1000 ? `${Math.round(metres / 1000)} км` : `${Math.round(metres)} м`;
-  return `${distance} ${SIDE_LABEL[study.side]}`;
+    metres >= 1000 ? `${Math.round(metres / 1000)} ${tr('км', 'km')}` : `${Math.round(metres)} ${tr('м', 'm')}`;
+  return `${distance} ${tr(...SIDE_LABEL[study.side])}`;
 }
 
 export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Props) {
+  const t = useT();
   const [corridorKm, setCorridorKm] = useState('5');
   const [result, setResult] = useState<ResearchRoute | null>(null);
   const [error, setError] = useState('');
@@ -80,7 +82,7 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
     try {
       const corridorM = Number(corridorKm) * 1000;
       if (!Number.isFinite(corridorM) || corridorM <= 0 || corridorM > 50000) {
-        throw new Error('Ширина поиска: от 0 до 50 км в каждую сторону.');
+        throw new Error(tr('Ширина поиска: от 0 до 50 км в каждую сторону.', 'Search width: 0 to 50 km on each side.'));
       }
       setResult(
         await fetchResearchRoute(
@@ -89,7 +91,7 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
         ),
       );
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Не удалось выполнить поиск');
+      setError(reason instanceof Error ? reason.message : tr('Не удалось выполнить поиск', 'Search failed'));
     } finally {
       setBusy(false);
     }
@@ -97,14 +99,16 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
 
   return (
     <section className="research-route">
-      <h2 className="planner-subtitle">Исследования рядом с путём</h2>
+      <h2 className="planner-subtitle">{t('Исследования рядом с путём', 'Research near the path')}</h2>
       <p className="planner-note">
-        Находит в каталоге исследования рядом с этим путём и показывает их источники.
-        Близость исследования к маршруту не переносит его измерения на ваш путь.
+        {t(
+          'Находит в каталоге исследования рядом с этим путём и показывает их источники. Близость исследования к маршруту не переносит его измерения на ваш путь.',
+          "Finds catalog studies near this path and shows their sources. A study being close to the route does not carry its measurements over to your path.",
+        )}
       </p>
       <div className="research-controls">
         <label>
-          <span>Искать в каждую сторону, км</span>
+          <span>{t('Искать в каждую сторону, км', 'Search on each side, km')}</span>
           <input
             type="number"
             min="0.1"
@@ -115,21 +119,21 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
           />
         </label>
         <button type="button" className="ghost-button" disabled={!path || busy} onClick={search}>
-          {busy ? 'Поиск…' : 'Найти исследования'}
+          {busy ? t('Поиск…', 'Searching…') : t('Найти исследования', 'Find research')}
         </button>
       </div>
       {crossed.length > 0 && (
         <p className="planner-note">
-          Маршрут проходит через:{' '}
+          {t('Маршрут проходит через:', 'The route passes through:')}{' '}
           {crossed
-            .map((r) => `${r.name}${regionTypeRu(r.type) ? ` (${regionTypeRu(r.type)})` : ''}`)
+            .map((r) => `${r.name}${regionTypeLabel(r.type) ? ` (${regionTypeLabel(r.type)})` : ''}`)
             .join(', ')}{' '}
-          · газеттир IAU, USGS
+          · {t('газеттир IAU, USGS', 'IAU gazetteer, USGS')}
         </p>
       )}
-      {!path && <p className="dim">Поставьте точки A и Б, чтобы искать исследования по пути.</p>}
+      {!path && <p className="dim">{t('Поставьте точки A и Б, чтобы искать исследования по пути.', 'Place points A and B to search for research along the path.')}</p>}
       {path && route?.status !== 'ok' && (
-        <p className="dim">Маршрут ещё не рассчитан, поэтому поиск пойдёт по прямой между A и Б.</p>
+        <p className="dim">{t('Маршрут ещё не рассчитан, поэтому поиск пойдёт по прямой между A и Б.', 'The route is not calculated yet, so the search follows a straight line between A and B.')}</p>
       )}
       {error && (
         <p className="warn" role="alert">
@@ -139,21 +143,23 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
       {result && (
         <div aria-live="polite">
           <p>
-            Длина линии поиска {(result.route_length_m / 1000).toFixed(1)} км. Найдено
-            исследований: {result.matched_total}.
+            {t('Длина линии поиска', 'Search line length')} {(result.route_length_m / 1000).toFixed(1)} {t('км', 'km')}.{' '}
+            {t('Найдено исследований', 'Studies found')}: {result.matched_total}.
           </p>
           {result.matched_total === 0 && (
             <p className="dim">
-              В каталоге пока нет исследований с координатами в этом коридоре. Это не значит, что
-              участок не исследовался.
+              {t(
+                'В каталоге пока нет исследований с координатами в этом коридоре. Это не значит, что участок не исследовался.',
+                'The catalog has no studies with coordinates in this corridor yet. That does not mean the area was never studied.',
+              )}
             </p>
           )}
           {result.nearby.length > 0 && (
             <div className="research-nearby">
               <p className="dim">
                 {result.matched_total === 0
-                  ? 'На самой линии ничего нет, но в стороне от неё нашлось:'
-                  : 'Рядом с линией, но за коридором:'}
+                  ? t('На самой линии ничего нет, но в стороне от неё нашлось:', 'Nothing on the line itself, but found off to the side:')
+                  : t('Рядом с линией, но за коридором:', 'Near the line, but outside the corridor:')}
               </p>
               <ul className="dim">
                 {result.nearby.map((study) => (
@@ -164,21 +170,24 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
               </ul>
               <p className="dim">
                 {result.nearby_total > result.nearby.length
-                  ? `Показаны ближайшие ${result.nearby.length} из ${result.nearby_total}. `
+                  ? t(`Показаны ближайшие ${result.nearby.length} из ${result.nearby_total}. `, `Showing the nearest ${result.nearby.length} of ${result.nearby_total}. `)
                   : ''}
-                Расширьте коридор, чтобы они попали в поиск. На сам маршрут их измерения
-                не переносятся.
+                {t(
+                  'Расширьте коридор, чтобы они попали в поиск. На сам маршрут их измерения не переносятся.',
+                  'Widen the corridor to include them. Their measurements do not carry over to the route itself.',
+                )}
               </p>
             </div>
           )}
           {result.unlocated_studies > 0 && (
             <p className="dim">
-              Наборов без координат: {result.unlocated_studies}. На путь они не нанесены.
+              {t('Наборов без координат', 'Datasets without coordinates')}: {result.unlocated_studies}.{' '}
+              {t('На путь они не нанесены.', 'They are not plotted on the path.')}
             </p>
           )}
           {result.truncated && (
             <p className="dim">
-              Показаны первые {result.studies.length}. Сузьте коридор или разбейте путь.
+              {t(`Показаны первые ${result.studies.length}. Сузьте коридор или разбейте путь.`, `Showing the first ${result.studies.length}. Narrow the corridor or split the path.`)}
             </p>
           )}
           <ol className="research-results">
@@ -188,18 +197,18 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
                 <p>{study.summary}</p>
                 <p className="mono dim">
                   {[study.mission, study.instrument].filter(Boolean).join(' · ')} ·{' '}
-                  {(study.distance_from_start_m / 1000).toFixed(1)} км от A ·{' '}
-                  {Math.round(study.distance_from_route_m)} м от линии
+                  {(study.distance_from_start_m / 1000).toFixed(1)} {t('км от A', 'km from A')} ·{' '}
+                  {Math.round(study.distance_from_route_m)} {t('м от линии', 'm from the line')}
                 </p>
                 <p className="dim">
-                  Привязка координат:{' '}
+                  {t('Привязка координат', 'Position')}:{' '}
                   {study.verification_status === 'source_verified'
-                    ? 'сверено с источником'
-                    : 'требует проверки'}
-                  . Погрешность:{' '}
+                    ? t('сверено с источником', 'checked against the source')
+                    : t('требует проверки', 'needs checking')}
+                  . {t('Погрешность', 'Uncertainty')}:{' '}
                   {study.position_uncertainty_m == null
-                    ? 'не указана'
-                    : `${study.position_uncertainty_m} м`}
+                    ? t('не указана', 'not stated')
+                    : `${study.position_uncertainty_m} ${t('м', 'm')}`}
                   .{study.position_evidence ? ` ${study.position_evidence}` : ''}
                 </p>
                 <div className="research-actions">
@@ -210,7 +219,7 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
                       onFocus({ lon: study.longitude_deg!, lat: study.latitude_deg! })
                     }
                   >
-                    Показать на планете
+                    {t('Показать на планете', 'Show on the planet')}
                   </button>
                   {onAddStop && (
                     <button
@@ -218,12 +227,12 @@ export function ResearchAlongRoute({ endpoints, route, onFocus, onAddStop }: Pro
                       className="link-button"
                       onClick={() => onAddStop({ lon: study.longitude_deg!, lat: study.latitude_deg! })}
                     >
-                      В маршрут
+                      {t('В маршрут', 'Add to route')}
                     </button>
                   )}
                   {study.source_url && (
                     <a href={study.source_url} target="_blank" rel="noreferrer">
-                      Источник ↗
+                      {t('Источник ↗', 'Source ↗')}
                     </a>
                   )}
                 </div>
