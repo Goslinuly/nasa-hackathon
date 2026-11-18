@@ -21,6 +21,9 @@ interface LandingProps {
   onRegion(region: RegionCoverageCandidate): void;
 }
 
+/** Открытый код проекта: жюри и любой читатель могут проверить расчёты по исходникам. */
+export const REPO_URL = 'https://github.com/Goslinuly/nasa-hackathon';
+
 const SECTIONS = [
   ['coverage', 'Покрытие', 'Coverage'],
   ['regions', 'Районы', 'Regions'],
@@ -70,6 +73,9 @@ export function Landing({ active, point, modes, onExplore, onMode, onRegion }: L
         </div>
         <div className="topbar-end">
           <LangSwitch className="landing-lang" />
+          <a className="topbar-tag topbar-repo" href={REPO_URL} target="_blank" rel="noreferrer">
+            GitHub&nbsp;↗
+          </a>
           <span className="topbar-tag">Space&nbsp;Apps&nbsp;2026</span>
         </div>
       </nav>
@@ -203,6 +209,9 @@ export function Landing({ active, point, modes, onExplore, onMode, onRegion }: L
 
       <footer className="footer">
         <span className="mono dim">MARTIAN MAP · v1</span>
+        <a className="mono repo-link" href={REPO_URL} target="_blank" rel="noreferrer">
+          {t('Исходный код проекта на GitHub', 'Project source code on GitHub')} ↗
+        </a>
       </footer>
     </div>
   );
